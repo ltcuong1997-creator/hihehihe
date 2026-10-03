@@ -5120,12 +5120,12 @@ const DEFAULT_CFG = {
   ],
   cats: ['Thái độ phục vụ', 'Vệ sinh phòng', 'Âm thanh – thiết bị', 'Đồ ăn & thức uống', 'Thời gian chờ', 'Tính tiền – hóa đơn'],
   tasks: [
-    { id: 'C01', block: 'Đầu ca', title: 'Kiểm tra vệ sinh toàn bộ phòng hát', desc: 'Sàn, bàn, ghế, mic, remote', role: 'NV', critical: true,  photo: true,  due: '11:00' },
-    { id: 'C02', block: 'Đầu ca', title: 'Test âm thanh & màn hình từng phòng', desc: 'Mic, echo, đầu karaoke, TV', role: 'NV', critical: true,  photo: false, due: '11:30' },
+    { id: 'C01', block: 'Đầu ca', title: 'Kiểm tra vệ sinh quầy pha chế và khu khách', desc: 'Quầy, máy pha, bàn ghế, sàn, nhà vệ sinh', role: 'NV', critical: true,  photo: true,  due: '11:00' },
+    { id: 'C02', block: 'Đầu ca', title: 'Kiểm tra máy pha, máy xay, tủ mát', desc: 'Máy espresso, máy xay đá, tủ mát, máy POS', role: 'NV', critical: true,  photo: false, due: '11:30' },
     { id: 'C03', block: 'Đầu ca', title: 'Kiểm kê tồn kho đầu ca', desc: 'Bia, nước, snack, đá', role: 'GS', critical: false, photo: false, due: '11:30' },
     { id: 'C04', block: 'Đầu ca', title: 'Đối chiếu tiền quỹ đầu ca', desc: 'Quỹ lẻ + máy POS', role: 'GS', critical: true,  photo: false, due: '11:00' },
     { id: 'C05', block: 'Đầu ca', title: 'Họp đầu ca & phân công khu vực', desc: '5 phút briefing toàn ca', role: 'GS', critical: false, photo: false, due: '12:00' },
-    { id: 'C06', block: 'Trong ca', title: 'Tuần tra khu vực mỗi 60 phút', desc: 'Ghi nhận phòng cần hỗ trợ', role: 'NV', critical: false, photo: false, due: '—' },
+    { id: 'C06', block: 'Trong ca', title: 'Tuần tra khu vực mỗi 60 phút', desc: 'Dọn bàn, ghi nhận khách cần hỗ trợ', role: 'NV', critical: false, photo: false, due: '—' },
     { id: 'C07', block: 'Trong ca', title: 'Kiểm tra nhiệt độ tủ mát & kho lạnh', desc: 'Ghi log 2 lần/ca', role: 'NV', critical: false, photo: true, due: '15:00' },
     { id: 'C08', block: 'Trong ca', title: 'Vệ sinh khu vệ sinh chung', desc: 'Tối thiểu 3 lượt/ca', role: 'NV', critical: false, photo: true, due: '—' },
     { id: 'C09', block: 'Trong ca', title: 'Xử lý phản ánh khách trong ca', desc: 'Ghi nhận & báo giám sát ngay', role: 'GS', critical: true, photo: false, due: '—' },
@@ -5162,7 +5162,7 @@ const DEFAULT_CFG = {
   colmaps: {},
   forms: {},
   cash: { bin: '970436', accNo: '', accName: '', prefix: 'DTTM', tplDay: '{PREFIX} {CN} {NGAY} {THANG}.{NAM}', tplMonth: '{PREFIX} {CN} T{THANG}.{NAM}', tplYear: '{PREFIX} {CN} NAM {NAM}', noAccent: true },
-  issueCats: ['Điện', 'Nước', 'Điều hòa', 'Âm thanh – karaoke', 'Màn hình – TV', 'Nội thất – phòng', 'Bếp – quầy bar', 'PCCC – an toàn', 'Vệ sinh', 'Khác'],
+  issueCats: ['Điện', 'Nước', 'Điều hòa', 'Máy pha chế', 'Tủ mát – tủ đông', 'Nội thất – bàn ghế', 'Bếp – quầy bar', 'PCCC – an toàn', 'Vệ sinh', 'Khác'],
   holidays: [
     { id: 'H1', date: '2026-09-02', name: 'Quốc khánh 2/9', mult: 3 },
     { id: 'H2', date: '2026-04-30', name: 'Giải phóng miền Nam', mult: 3 },
@@ -5663,8 +5663,8 @@ const moveIn = (arr, i, d) => {
 const ROLE_TABS = [
   { v: 'base', l: 'Cơ bản', d: 'Danh tính vai trò và phạm vi làm việc',
     keys: ['scope', 'ticket', 'issue', 'manage', 'inOrg', 'tag', 'x'] },
-  { v: 'ops', l: 'Vận hành', d: 'Xếp ca, chấm công, đặt phòng, checklist',
-    keys: ['sched', 'attConfirm', 'attFree', 'attAll', 'chkCfg', 'bkView', 'bkAll', 'bkApprove', 'bkRefer'] },
+  { v: 'ops', l: 'Vận hành', d: 'Xếp ca, chấm công, checklist',
+    keys: ['sched', 'attConfirm', 'attFree', 'attAll', 'chkCfg'] },
   { v: 'kho', l: 'Kho & Mua hàng', d: 'Tồn kho, xuất hủy, mua hàng, đề xuất, xuất bán',
     keys: ['stock', 'stockCount', 'stockClose', 'stkLock', 'stkMove', 'stkMoveAppr', 'stockCfg',
       'po', 'poNew', 'poApprove', 'poPay', 'poRecv', 'preq', 'preqAll', 'preqAppr', 'preqBuy', 'sales', 'salesUp'] },
@@ -11398,8 +11398,8 @@ const A_ponew = () => (<GPhone>
 /* Nghiệm thu: ảnh + ngày nhập kho */
 const A_porc = () => (<GPhone>
   <GBar t="Nghiệm thu MH00042" />
-  <GRow y={82} t="Micro không dây" v="4 cái" />
-  <GRow y={100} t="Chân micro" v="4 cái" />
+  <GRow y={82} t="Ly nhựa 500ml" v="1.000 cái" />
+  <GRow y={100} t="Ống hút" v="2.000 cái" />
   <GCard x={18} y={112} w={164} h={34} fill="#E9F1F0" stroke="#CFE0DE" />
   <text x="28" y="128" fontSize="7.5" fill="#123A3B">Ngày nhập kho</text>
   <rect x="110" y="120" width="62" height="18" rx="5" fill="#fff" stroke="#9BD4B3" />
@@ -11929,7 +11929,6 @@ const GD_DEPTS = [
     id: 'ops', ic: '🏪', name: 'Vận hành cửa hàng', color: '#18484A',
     who: 'Nhân viên quầy · Giám sát · Quản lý khu vực',
     fns: [
-      { p: 'booking', l: 'Đặt phòng', d: 'Sơ đồ phòng theo giờ, nhận và trả phòng' },
       { p: 'checklist', l: 'Checklist ngày', d: 'Đầu việc mở ca, giữa ca, đóng ca' },
       { p: 'issues', l: 'Bảo trì & sự cố', d: 'Báo hỏng, theo dõi tới lúc nghiệm thu' },
       { p: 'opsmap', l: 'Bản đồ vận hành', d: 'Toàn cảnh các cơ sở đang chạy ra sao' },
@@ -11937,12 +11936,11 @@ const GD_DEPTS = [
       { p: 'poreceipt', l: 'Nghiệm thu mua hàng', d: 'Đơn đặt cho bộ phận mình — hàng về thì ký nhận kèm ảnh' },
       { p: 'poreq', l: 'Đề xuất mua hàng', d: 'Báo hàng sắp hết và trao đổi thẳng với người mua' },
     ],
-    flow: ['Mở ca · checklist', 'Đón khách · xếp phòng', 'Phục vụ trong ca', 'Trả phòng · thu tiền', 'Nộp tiền · đóng ca'],
+    flow: ['Mở ca · checklist', 'Nhận order · pha chế', 'Phục vụ trong ca', 'Thu tiền · KiotViet', 'Nộp tiền · đóng ca'],
     charts: [
       { p: 'opsmap', l: 'Điểm sức khoẻ vận hành', d: 'Cơ sở nào cần gọi nhắc trước' },
-      { p: 'opsmap', l: 'Tỉ lệ lấp đầy phòng', d: 'Cơ sở nào đang trống nhiều' },
+      { p: 'opsmap', l: 'Doanh thu hôm nay theo cơ sở', d: 'Cơ sở nào đang bán chậm' },
       { p: 'opsmap', l: 'Tiến độ checklist', d: 'Nơi nào làm việc đầu ca chưa xong' },
-      { p: 'booking', l: 'Phòng kín theo khung giờ', d: 'Giờ nào cao điểm để dồn nhân sự' },
       { p: 'mystery', l: 'Xếp hạng điểm bí mật', d: 'Cơ sở nào phục vụ kém nhất' },
     ],
   },
@@ -11987,22 +11985,6 @@ const GD_DEPTS = [
       { p: 'payroll', l: 'Đối chiếu định biên theo ca', d: 'Ca nào vượt, ca nào thiếu người' },
       { p: 'payroll', l: 'Lương khối văn phòng', d: 'Chi phí quản lý tách khỏi chi phí quầy' },
       { p: 'staff', l: 'Cơ cấu nhân sự', d: 'Phân bố theo cơ sở, phòng ban, loại hợp đồng' },
-    ],
-  },
-  {
-    id: 'bk', ic: '🎤', name: 'Booking – Kinh doanh', color: '#E8930C',
-    who: 'Bộ phận booking · Marketing',
-    fns: [
-      { p: 'booking', l: 'Đặt phòng toàn hệ thống', d: 'Xem và xếp phòng cho mọi cơ sở' },
-      { p: 'booking', l: 'Phiếu giới thiệu khách', d: 'Duyệt phiếu, xếp phòng, cấp voucher' },
-      { p: 'booking', l: 'Danh sách & tra cứu đơn', d: 'Lọc theo cơ sở, trạng thái, nguồn' },
-    ],
-    flow: ['Khách liên hệ', 'Ghi nguồn khách', 'Xếp phòng', 'Khách tới hát', 'Chăm sóc quay lại'],
-    charts: [
-      { p: 'booking', l: 'Khách biết tới quán qua đâu', d: 'Zalo hay TikTok mang khách về nhiều hơn' },
-      { p: 'booking', l: 'Kênh theo ngày', d: 'Chiến dịch quảng cáo có ăn không' },
-      { p: 'booking', l: 'Tỉ lệ lấp đầy theo giờ · theo thứ', d: 'Khung giờ và ngày yếu điểm' },
-      { p: 'booking', l: 'Xếp hạng CTV giới thiệu', d: 'Ai mang về nhiều doanh số nhất' },
     ],
   },
   {
@@ -12214,19 +12196,6 @@ function GuideView() {
       ],
     },
     {
-      id: 'booking', grp: 'daily', ic: '🎤', title: 'Đặt phòng cho khách',
-      lead: 'Sơ đồ phòng theo giờ, nhìn phát biết phòng nào trống.',
-      steps: [
-        S(1, 'Bấm ô trống để đặt', <>Hàng là phòng, cột là giờ chia 15 phút. Vạch đỏ dọc là giờ hiện tại. Bấm ô trống ở đúng phòng và giờ khách muốn.</>, <A_bk1 />),
-        S(2, 'Điền thông tin khách', <>Giờ nhận, giờ trả dự kiến, số khách, tên và số điện thoại. Ghi chú thêm nếu khách đặt bánh hay cần mic phụ.</>, <A_bk2 />),
-        S(3, 'Nhận phòng, kéo dài, trả phòng', <>Bấm vào khối màu để mở. Khách tới bấm <b>Nhận phòng</b>, hát thêm giờ bấm <b>+30′</b> hay <b>+60′</b>, khách về bấm <b>Trả phòng</b>.</>, <A_bk3 />),
-      ],
-      tips: [
-        ['Phòng bị gạch chéo', 'Phòng đang tạm nghỉ do hỏng hóc, không đặt được. Sửa xong giám sát mở lại ở Bản đồ vận hành.'],
-        ['Vạch đỏ dọc là gì', 'Là giờ hiện tại, chỉ hiện khi xem ngày hôm nay.'],
-      ],
-    },
-    {
       id: 'cash', grp: 'daily', ic: '🏦', title: 'Nộp tiền mặt cuối ca',
       lead: 'Tạo mã QR để nộp doanh thu tiền mặt về tài khoản công ty.',
       steps: [
@@ -12307,7 +12276,7 @@ function GuideView() {
       lead: 'Từ lúc lập phiếu tới lúc trả tiền nhà cung cấp. Ba trục tách rời: trạng thái đơn, tình trạng tiền, và nghiệm thu.',
       steps: [
         S(1, 'Chọn mua cho ai', <>Mở <b>Mua hàng → Lập phiếu mua hàng</b>. Việc đầu tiên là chọn <b>chi nhánh</b> hay <b>phòng ban</b> — nó quyết định chi phí ghi về đâu, <b>ai nhìn thấy phiếu</b>, và ai sẽ ký nhận khi hàng về. Marketing mua quà tặng thì chọn phòng ban, gán bừa vào một chi nhánh là méo báo cáo chi phí của chi nhánh đó.</>, <A_ponew />),
-        S(2, 'Chọn loại mua sắm', <><b>Mua hàng bán</b> (nhập về bán lại), <b>Mua CCDC</b> (dùng nhiều lần: ly, micro, ghế), <b>Mua vật tư tiêu hao</b> (dùng là hết). Ba loại đi vào ba chỗ khác nhau trong sổ sách nên phải chọn ngay từ đầu, cuối tháng ngồi đoán lại thì không ai đoán ra.</>, <A_ponew />),
+        S(2, 'Chọn loại mua sắm', <><b>Mua hàng bán</b> (nhập về bán lại), <b>Mua CCDC</b> (dùng nhiều lần: bình lắc, ca đong, ghế), <b>Mua vật tư tiêu hao</b> (dùng là hết). Ba loại đi vào ba chỗ khác nhau trong sổ sách nên phải chọn ngay từ đầu, cuối tháng ngồi đoán lại thì không ai đoán ra.</>, <A_ponew />),
         S(3, 'Chọn hàng theo TÊN', <>Ô tên hàng là danh sách chọn — <b>chọn tên là mã và đơn vị tính tự ra</b>. Người mua chỉ nhớ tên, không ai thuộc mã, mà mã sai thì phiếu không đối chiếu được với tồn kho. Hàng mua một lần chưa có trong danh mục thì chọn <b>+ Hàng ngoài danh mục</b> để gõ tay.</>, <A_ponew />),
         S(4, 'Dán link cho từng mã', <>Dưới mỗi dòng hàng có ô <b>🔗 Link</b> riêng. Dán link sản phẩm vào đúng dòng của nó — người mua cần biết mua đúng cái nào, nhất là hàng ngoài danh mục. Một ô link cho cả phiếu thì 5 mặt hàng chỉ có 1 link, vô dụng.</>, <A_ponew />),
         S(5, 'Chọn nhà cung cấp từ danh bạ', <>Ô nhà cung cấp mặc định là <b>chọn lại người đã mua trước đây</b> — chọn xong ngân hàng và số tài khoản tự ra. Nhà cung cấp thật sự mới thì bấm <b>+ NCC mới</b> gõ tên; tên đó <b>tự được lưu thành một mã NCC</b> để lần sau chọn lại. Tên luôn ghi <b>IN HOA</b>, vì cùng một nhà cung cấp mà mỗi phiếu viết một kiểu thì cộng công nợ ra hai dòng khác nhau. Sửa hay dọn danh bạ ở <b>Cấu hình → Danh bạ nhà cung cấp</b>. Điền xong app <b>tự dựng mã VietQR</b> — kế toán quét là trả được, khỏi gõ lại số tài khoản.</>, <A_ponew />),
@@ -13637,7 +13606,7 @@ const poOverdue = (p, today) => !!(p && p.payStatus === 'debt' && p.dueDate && p
    CCDC thì phân bổ dần, vật tư tiêu hao thì tính thẳng vào chi phí kỳ đó. */
 const PO_KINDS = [
   { id: 'sell', l: 'Mua hàng bán', tag: 't-brand', d: 'Hàng nhập về bán lại cho khách — vào tồn kho, sinh doanh thu' },
-  { id: 'tool', l: 'Mua CCDC', tag: 't-blue', d: 'Công cụ dụng cụ dùng nhiều lần: ly, micro, ghế, loa…' },
+  { id: 'tool', l: 'Mua CCDC', tag: 't-blue', d: 'Công cụ dụng cụ dùng nhiều lần: bình lắc, ca đong, máy xay, ghế…' },
   { id: 'sup', l: 'Mua vật tư tiêu hao', tag: 't-amber', d: 'Dùng là hết: giấy, nước rửa, pin, băng keo…' },
 ];
 const poKindOf = (id) => PO_KINDS.find(k => k.id === id) || PO_KINDS[0];
@@ -14561,7 +14530,7 @@ const ISSUE_SEV = {
   CAO:  { id: 'CAO',  label: 'Cao — ảnh hưởng khách',  color: '#E8930C', tag: 't-amber', sla: 12 },
   THUONG: { id: 'THUONG', label: 'Thường — bảo trì',   color: '#2D7FF9', tag: 't-blue', sla: 72 },
 };
-const DEFAULT_ISSUE_CATS = ['Điện', 'Nước', 'Điều hòa', 'Âm thanh – karaoke', 'Màn hình – TV', 'Nội thất – phòng', 'Bếp – quầy bar', 'PCCC – an toàn', 'Vệ sinh', 'Khác'];
+const DEFAULT_ISSUE_CATS = ['Điện', 'Nước', 'Điều hòa', 'Máy pha chế', 'Tủ mát – tủ đông', 'Nội thất – bàn ghế', 'Bếp – quầy bar', 'PCCC – an toàn', 'Vệ sinh', 'Khác'];
 const canIssue = (user, what) => {
   const v = roleOf(user.role).issue || 'report';
   if (v === 'any') return true;
@@ -22685,7 +22654,7 @@ function CeoReport() {
         </div>
       </Sec>
 
-      <Sec n="III" title="Vận hành" sub="Mở cửa, nhân sự trong ca, phòng và đặt phòng" color="var(--amber)">
+      <Sec n="III" title="Vận hành" sub="Mở cửa, nhân sự trong ca" color="var(--amber)">
         <div className="grid g4" style={{ gap: 10 }}>
           <KPI k="Cơ sở mở trễ hôm nay" v={lateBr} d={'/' + ops.length + ' cơ sở'} tone={lateBr ? 'var(--red)' : 'var(--green)'} />
           <KPI k="Cơ sở thiếu người" v={shortBr} d="so với lịch đã xếp" tone={shortBr ? 'var(--amber)' : 'var(--green)'} />
@@ -33374,7 +33343,7 @@ const healthTone = (n) => n >= 85 ? { c: 'var(--green)', bg: '#F1FBF5', l: 'Tố
       : { c: '#B4302B', bg: 'var(--red-wash)', l: 'Có vấn đề' };
 
 function OpsMapView() {
-  useNeed('chk', 'rom', 'rev', 'bk', 'iss');
+  useNeed('chk', 'rev', 'iss');
   const { opsRows, user, cfg, employees, att, sched, issues, checks, rooms, revenue, go } = useApp();
   const canAll = cfg.branches.length > user.branches.length && (roleOf(user.role).scope === 'all' || roleOf(user.role).manage);
   const [wide, setWide] = useState(canAll);
@@ -33547,12 +33516,6 @@ function OpsMapView() {
 
   return (
     <div className="grid" style={{ gap: 14 }}>
-      {/* ---- Hai tab: hiện trạng ngay lúc này / nhật ký chặn phòng theo kỳ ---- */}
-      <Seg value={tab} onChange={setTab} options={[
-        { v: 'live', l: 'Hiện trạng vận hành' },
-        { v: 'rlog', l: 'Nhật ký chặn phòng', n: T.roomOff },
-      ]} />
-      {tab === 'rlog' && <RoomBlockReport branches={scopeB} />}
       {tab === 'live' && (<>
       {/* ---- Dải điều hành: đồng hồ + sức khoẻ hệ thống ---- */}
       <div className="card" style={{ overflow: 'hidden' }}>
@@ -33577,7 +33540,6 @@ function OpsMapView() {
             {[
               ['Cơ sở đã mở', T.open + '/' + data.length, T.open === data.length ? 'var(--green)' : 'var(--red)'],
               ['Người đang trực', T.working + (T.need ? '/' + T.need : ''), T.need && T.working < T.need ? 'var(--amber)' : 'var(--green)'],
-              ['Phòng đang chạy', T.inRoom + '/' + T.runnable, null],
               ['Checklist TB', avgPct + '%', avgPct >= 80 ? 'var(--green)' : 'var(--amber)'],
               ['Doanh thu hôm nay', shortMoney(T.rev), null],
             ].map(([k, v, c]) => (
@@ -33609,24 +33571,23 @@ function OpsMapView() {
                 c: x.health >= 85 ? 'var(--green)' : x.health >= 65 ? 'var(--brand)' : x.health >= 45 ? 'var(--amber)' : 'var(--red)',
               }))} />
             <div className="hint" style={{ marginTop: 8 }}>
-              Trừ điểm khi: chưa mở cửa, mở trễ, thiếu người theo định biên, checklist chưa xong, phòng tạm nghỉ, sự cố và ticket tồn.
+              Trừ điểm khi: chưa mở cửa, mở trễ, thiếu người theo định biên, checklist chưa xong, sự cố và ticket tồn.
             </div>
           </div>
         </div>
         <div className="card">
-          <div className="card-h"><div><h3>Lấp đầy phòng theo cơ sở</h3>
-            <p>{T.inRoom}/{T.runnable} phòng đang chạy toàn hệ thống</p></div></div>
+          <div className="card-h"><div><h3>Doanh thu hôm nay theo cơ sở</h3>
+            <p>{shortMoney(T.rev)} toàn hệ thống · theo sổ quỹ KiotViet</p></div></div>
           <div className="card-b">
-            <BarChart height={165} fmt={(v) => v + '%'}
-              rows={data.slice().sort((a, b) => b.fill - a.fill).map(x => ({
-                l: x.b.code.replace('ZS-', ''), v: x.fill,
-                c: x.fill >= 70 ? 'var(--brand)' : x.fill >= 40 ? 'var(--amber)' : 'var(--red)',
+            <BarChart height={165} fmt={(v) => shortMoney(v)}
+              rows={data.slice().sort((a, b) => b.rev - a.rev).map(x => ({
+                l: x.b.code.replace('ZS-', ''), v: x.rev, c: 'var(--brand)',
               }))} />
             <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
               <Stat icon={<Ic.users size={13} />} k="Người đang trực" v={T.working + (T.need ? '/' + T.need : '')}
                 d={'định biên ca đang chạy' + (T.onSite > T.working ? ' · ' + T.onSite + ' người có mặt' : '')} />
-              <Stat icon={<Ic.alert size={13} />} k="Tồn đọng" v={T.iss + T.tk} d={T.iss + ' sự cố · ' + T.tk + ' ticket'}
-                color={(T.iss + T.tk) ? 'var(--amber)' : 'var(--green)'} />
+              <Stat icon={<Ic.alert size={13} />} k="Tồn đọng" v={T.iss} d={T.iss + ' sự cố bảo trì chưa xong'}
+                color={T.iss ? 'var(--amber)' : 'var(--green)'} />
             </div>
           </div>
         </div>
@@ -33643,19 +33604,6 @@ function OpsMapView() {
               }))} />
           </div>
         </div>
-        <div className="card">
-          <div className="card-h"><div><h3>Tình trạng phòng toàn hệ thống</h3><p>{T.runnable + T.roomOff} phòng tổng</p></div></div>
-          <div className="card-b">
-            <DonutChart center={T.inRoom + '/' + T.runnable} parts={[
-              { l: 'Đang có khách', v: T.inRoom, c: '#18484A' },
-              { l: 'Đang trống', v: Math.max(0, T.runnable - T.inRoom), c: '#CFE0DE' },
-              { l: 'Tạm nghỉ', v: T.roomOff, c: '#D8D2CD' },
-            ].filter(p => p.v > 0)} />
-            <div className="hint" style={{ marginTop: 10 }}>
-              {T.roomOff ? T.roomOff + ' phòng đang không nhận khách được — mỗi phòng nghỉ là doanh thu mất đi.' : 'Không có phòng nào tạm nghỉ.'}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* ---- Thanh lọc ---- */}
@@ -33667,7 +33615,7 @@ function OpsMapView() {
           ]} />
         )}
         <Seg value={sortBy} onChange={setSortBy} options={[
-          { v: 'health', l: 'Cần để ý trước' }, { v: 'fill', l: 'Lấp đầy' }, { v: 'rev', l: 'Doanh thu' }, { v: 'name', l: 'Tên' },
+          { v: 'health', l: 'Cần để ý trước' }, { v: 'rev', l: 'Doanh thu' }, { v: 'name', l: 'Tên' },
         ]} />
         <label className="chk"><input type="checkbox" checked={onlyIssue} onChange={e => setOnlyIssue(e.target.checked)} /> Chỉ cơ sở có vấn đề</label>
         <span className="tag t-gray" style={{ marginLeft: 'auto' }}>{shown.length}/{data.length} cơ sở</span>
@@ -33695,8 +33643,8 @@ function OpsMapView() {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: x.fill >= 70 ? 'var(--brand-dark)' : 'var(--txt)' }}>{x.fill}%</div>
-                  <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>lấp đầy</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--brand-dark)' }}>{x.rev ? shortMoney(x.rev) : '—'}</div>
+                  <div style={{ fontSize: 10, color: 'var(--txt-3)' }}>doanh thu</div>
                 </div>
               </div>
 
@@ -33741,27 +33689,6 @@ function OpsMapView() {
                 )}
               </div>
 
-              {/* Sơ đồ phòng — dùng đúng layout động (tên/kích cỡ) đã setup ở Cấu hình chi nhánh, đồng bộ với
-                  "Đặt phòng toàn hệ thống", thay vì các ô tròn/oval đều nhau như trước. Màu vẫn giữ đúng logic cũ */}
-              <div style={{ padding: '0 14px 10px', display: 'grid', gridTemplateColumns: 'repeat(10,minmax(0,1fr))', gridAutoRows: 20, gap: 3, gridAutoFlow: 'dense' }}>
-                {x.rc.map(rm => {
-                  const off = roomSt(rooms, x.b.id, rm.name).status === 'off';
-                  const bk = x.day.find(y => y.room === rm.name && (y.status === 'in' || (y.status === 'booked' && y.start <= nowPos && y.end > nowPos)));
-                  const nx = x.day.find(y => y.room === rm.name && !bk && y.end > nowPos);
-                  const w = Math.max(1, Math.min(10, (rm.span && rm.span.w) || 1));
-                  const h = Math.max(1, (rm.span && rm.span.h) || 1);
-                  return <span key={rm.id} title={rm.name + (off ? ' · tạm nghỉ' : bk ? ' · đang hát' : nx ? ' · có đặt trước' : ' · trống')}
-                    style={{
-                      gridColumn: 'span ' + w, gridRow: 'span ' + h, borderRadius: 6, fontSize: 8, fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '0 2px', whiteSpace: 'nowrap',
-                      background: off ? '#F2F0EF' : bk ? '#18484A' : nx ? '#FDF3E0' : '#E8F1F0',
-                      color: bk ? '#fff' : off ? '#ADA59F' : '#3E8F63',
-                      border: nx && !bk ? '1px solid #E8930C' : 'none',
-                    }}>{rm.name.replace(/[^0-9A-Za-z]/g, '').slice(-3)}</span>;
-                })}
-                {!x.rc.length && <span className="hint">chưa khai phòng</span>}
-              </div>
-
               {/* checklist + cảnh báo */}
               <div style={{ padding: '0 14px 13px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: x.alerts.length ? 8 : 0 }}>
@@ -33787,11 +33714,7 @@ function OpsMapView() {
       </div>
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: 'var(--txt-3)' }}>
-        <span><i style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 4, background: '#18484A', marginRight: 5, verticalAlign: 'middle' }} />phòng đang hát</span>
-        <span><i style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 4, background: '#FDF3E0', border: '1px solid #E8930C', marginRight: 5, verticalAlign: 'middle' }} />có đặt trước</span>
-        <span><i style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 4, background: '#E8F1F0', marginRight: 5, verticalAlign: 'middle' }} />trống</span>
-        <span><i style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 4, background: '#F2F0EF', marginRight: 5, verticalAlign: 'middle' }} />tạm nghỉ</span>
-        <span style={{ marginLeft: 12 }}>Viền avatar: <b style={{ color: 'var(--brand)' }}>xanh</b> đúng giờ · <b style={{ color: 'var(--amber)' }}>vàng</b> vào trễ · <b style={{ color: 'var(--violet)' }}>tím</b> hỗ trợ từ CN khác</span>
+        <span>Viền avatar: <b style={{ color: 'var(--brand)' }}>xanh</b> đúng giờ · <b style={{ color: 'var(--amber)' }}>vàng</b> vào trễ · <b style={{ color: 'var(--violet)' }}>tím</b> hỗ trợ từ CN khác</span>
       </div>
 
       <OfficePresent branchId={null} />
@@ -33847,7 +33770,6 @@ function OpsZoom({ x, onClose }) {
       <Modal wide title={x.b.name} sub={x.b.code + ' · điểm vận hành ' + x.health + '/100 · ' + t.l} onClose={onClose}
         footer={<>
           <button className="btn btn-o" style={{ marginRight: 'auto' }} onClick={() => { onClose(); go('checklist'); }}>Mở checklist</button>
-          <button className="btn btn-o" onClick={() => { onClose(); go('booking'); }}>Mở đặt phòng</button>
           <button className="btn btn-p" onClick={onClose}>Đóng</button>
         </>}>
         <div className="grid g4" style={{ gap: 10, marginBottom: 14 }}>
@@ -33866,7 +33788,7 @@ function OpsZoom({ x, onClose }) {
               ? 'ca ' + x.nowShifts.map(sh => sh.code + ' ' + sh.start + '–' + sh.end).join(', ')
               : 'ngoài giờ ca · cả ngày cần ' + x.needAll}
             color={x.nowShifts.length && x.workingNow.length < x.need ? 'var(--amber)' : 'var(--green)'} />
-          <Stat icon={<Ic.building size={13} />} k="Phòng chạy" v={x.inRoom + '/' + x.runnable} d={x.roomOff + ' phòng tạm nghỉ'} />
+          <Stat icon={<Ic.trend size={13} />} k="Doanh thu hôm nay" v={x.rev ? shortMoney(x.rev) : '—'} d="theo sổ quỹ KiotViet" />
           <Stat icon={<Ic.checklist size={13} />} k="Checklist" v={x.pct + '%'} d={x.crit.length + ' việc trọng yếu trễ'}
             color={x.crit.length ? 'var(--red)' : null} />
         </div>
@@ -33907,34 +33829,6 @@ function OpsZoom({ x, onClose }) {
           </div>
         </>)}
 
-        <div className="blocklbl"><b>Phòng / bàn ({x.runnable} đang dùng được)</b><span className="ln" /></div>
-        {/* Sơ đồ đúng theo Cấu hình chi nhánh (tên/kích cỡ), đồng bộ với "Đặt phòng toàn hệ thống" — bấm vào
-            vẫn mở được RoomModal để đổi trạng thái như trước */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8,minmax(0,1fr))', gridAutoRows: 52, gap: 6, gridAutoFlow: 'dense', marginBottom: 14 }}>
-          {x.rc.map(rm => {
-            const st = roomSt(rooms, x.b.id, rm.name);
-            const off = st.status === 'off';
-            const bk = x.day.find(y => y.room === rm.name && (y.status === 'in' || y.status === 'booked'));
-            const w = Math.max(1, Math.min(8, (rm.span && rm.span.w) || 1));
-            const h = Math.max(1, (rm.span && rm.span.h) || 1);
-            return (
-              <button key={rm.id} onClick={() => setRoom(rm.name)} title={off ? (st.reason || 'tạm nghỉ') : bk ? bk.guest : 'trống'}
-                style={{
-                  gridColumn: 'span ' + w, gridRow: 'span ' + h, borderRadius: 12, fontSize: 11, fontWeight: 700,
-                  background: off ? '#F2F0EF' : bk ? '#E8F1F0' : '#fff',
-                  border: '1.5px solid ' + (off ? '#D8D2CD' : bk ? '#18484A' : 'var(--line)'),
-                  color: off ? '#938B84' : 'var(--txt)', display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', gap: 2, overflow: 'hidden', padding: '2px 4px',
-                }}>
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{rm.name}</span>
-                <span style={{ fontSize: 9, fontWeight: 500, color: off ? '#938B84' : bk ? '#0B7A3C' : 'var(--txt-3)' }}>
-                  {off ? 'nghỉ' : bk ? 'có khách' : 'trống'}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
         {x.crit.length > 0 && (<>
           <div className="blocklbl"><b>Việc trọng yếu chưa xong</b><span className="ln" /></div>
           <div className="grid" style={{ gap: 6, marginBottom: 14 }}>
@@ -33957,7 +33851,6 @@ function OpsZoom({ x, onClose }) {
           </div>
         </>)}
       </Modal>
-      {room && <RoomModal branch={x.b} name={room} onClose={() => setRoom(null)} />}
     </>
   );
 }
@@ -34089,7 +33982,7 @@ function StaffModal({ emp, onClose }) {
   const [acBusy, setAcBusy] = useState(false);
   const [f, setF] = useState(() => {
     if (emp && emp.id) return normEmp(emp);
-    const pre = (cfg.rules && cfg.rules.empPrefix) || 'ZS';
+    const pre = (cfg.rules && cfg.rules.empPrefix) || 'HH';
     const max = employees.reduce((m, e) => {
       const mm = String(e.code || '').match(new RegExp('^' + pre + '[-]?(\\d+)$', 'i'));
       return mm ? Math.max(m, +mm[1]) : m;
@@ -34138,7 +34031,7 @@ function StaffModal({ emp, onClose }) {
   };
   /* Gợi ý mã kế tiếp theo tiền tố đang dùng nhiều nhất */
   const suggestCode = () => {
-    const pre = (cfg.rules && cfg.rules.empPrefix) || 'ZS';
+    const pre = (cfg.rules && cfg.rules.empPrefix) || 'HH';
     const max = employees.reduce((m, e) => {
       const mm = String(e.code || '').match(new RegExp('^' + pre + '[-]?(\\d+)$', 'i'));
       return mm ? Math.max(m, +mm[1]) : m;
@@ -34631,9 +34524,9 @@ function ImportStaffModal({ onClose }) {
       const keep = mode === 'over' ? (p.dup || {}) : {};
       const base = normEmp({ ...keep, ...p.row, status: st });
       if (st !== 'off') { base.leftAt = ''; base.leaveReason = ''; }
-      if (!base.code) { n++; base.code = ((cfg.rules && cfg.rules.empPrefix) || 'ZS') + '-' + String(n).padStart(4, '0'); }
+      if (!base.code) { n++; base.code = ((cfg.rules && cfg.rules.empPrefix) || 'HH') + '-' + String(n).padStart(4, '0'); }
       base.id = (mode === 'over' && p.dup) ? p.dup.id : uid('E');
-      if (mode === 'add' && p.dup) { n++; base.code = ((cfg.rules && cfg.rules.empPrefix) || 'ZS') + '-' + String(n).padStart(4, '0'); }
+      if (mode === 'add' && p.dup) { n++; base.code = ((cfg.rules && cfg.rules.empPrefix) || 'HH') + '-' + String(n).padStart(4, '0'); }
       /* pw không còn được lưu vào hồ sơ (saveEmp tự lọc bỏ) — cấp tài khoản làm riêng, sau khi nhập */
       saveEmp(base);
       (mode === 'over' && p.dup) ? updated++ : added++;
@@ -35854,7 +35747,7 @@ function BranchesTab() {
   const [pick, setPick] = useState(null);
   const [expand, setExpand] = useState(null);
   const upd = (i, k, v) => saveCfg({ branches: cfg.branches.map((r, idx) => idx === i ? { ...r, [k]: v } : r) });
-  const add = () => saveCfg({ branches: [...cfg.branches, { id: uid('B'), code: 'ZS-XX', name: 'Chi nhánh mới', addr: '', rooms: 10, lat: null, lng: null, radius: 120 }] });
+  const add = () => saveCfg({ branches: [...cfg.branches, { id: uid('B'), code: 'ZS-XX', name: 'Chi nhánh mới', addr: '', lat: null, lng: null, radius: 120 }] });
   const del = (i) => saveCfg({ branches: cfg.branches.filter((_, idx) => idx !== i) });
 
   /* Loại phòng — dùng chung mọi chi nhánh, để tô màu sơ đồ */
@@ -35899,7 +35792,6 @@ function BranchesTab() {
                 <th style={{ minWidth: 190 }}>Tên chi nhánh</th>
                 <th style={{ minWidth: 120 }}>Phân loại</th>
                 <th style={{ minWidth: 116 }}>Trạng thái</th>
-                <th style={{ width: 74, textAlign: 'right' }}>Phòng</th>
                 <th style={{ minWidth: 170 }}>Định vị</th>
                 <th style={{ width: 90 }}></th>
               </tr></thead>
@@ -35923,7 +35815,6 @@ function BranchesTab() {
                             <option value="open">Hoạt động</option><option value="closed">Đóng cửa</option>
                           </select>
                         </td>
-                        <td><input className="inp mono" style={{ padding: '6px 9px', textAlign: 'right' }} type="number" value={b.rooms} onChange={e => upd(i, 'rooms', +e.target.value)} /></td>
                         <td>
                           {b.lat != null && b.lng != null
                             ? <span className="tag t-green mono" style={{ fontSize: 10.5 }}>{(+b.lat).toFixed(4)}, {(+b.lng).toFixed(4)} · {b.radius || 120}m</span>
@@ -35936,12 +35827,9 @@ function BranchesTab() {
                         </td>
                       </tr>
                       {open && (
-                        <tr><td colSpan={8} style={{ background: '#FDFCFB' }}>
+                        <tr><td colSpan={7} style={{ background: '#FDFCFB' }}>
                           <div className="grid g3" style={{ gap: 0, columnGap: 12, padding: '4px 0' }}>
                             <Field label="Địa chỉ"><input className="inp" value={b.addr || ''} onChange={e => upd(i, 'addr', e.target.value)} placeholder="18 Lý Tự Trọng, Q.1" /></Field>
-                            <Field label="Tên phòng (nhanh)" hint="Cách nhau dấu phẩy — chỉ dùng khi chưa setup chi tiết bên dưới">
-                              <input className="inp" value={b.roomList || ''} onChange={e => upd(i, 'roomList', e.target.value)} placeholder="101, 102, VIP 1" />
-                            </Field>
                             <Field label="Bán kính chấm công (m)">
                               <input className="inp mono" type="number" value={b.radius || 120} onChange={e => upd(i, 'radius', +e.target.value)} />
                             </Field>
@@ -35976,46 +35864,12 @@ function BranchesTab() {
                             </Field>
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 12 }}>
-                            {b.kind === 'hq' && <span className="tag t-violet">Trụ sở — không target, không bản đồ vận hành, không đặt phòng</span>}
+                            {b.kind === 'hq' && <span className="tag t-violet">Trụ sở — không target, không bản đồ vận hành</span>}
                             {b.status === 'closed' && <span className="tag t-red">Đóng cửa — ẩn khỏi toàn hệ thống</span>}
                             <button className="btn btn-o btn-sm" onClick={() => setPick(i)}><Ic.map size={13} /> Chọn trên bản đồ</button>
                             {b.lat != null && <a className="btn btn-o btn-sm" href={'https://www.google.com/maps/search/?api=1&query=' + b.lat + ',' + b.lng} target="_blank" rel="noreferrer">Xem Google Maps</a>}
                           </div>
 
-                          <div className="card" style={{ boxShadow: 'none' }}>
-                            <div className="card-h" style={{ flexWrap: 'wrap' }}>
-                              <div><h3>Cấu hình phòng chi tiết</h3><p>Tên phòng, loại phòng và kích cỡ hiển thị trên sơ đồ — ưu tiên dùng thay cho "Tên phòng (nhanh)" ở trên</p></div>
-                              <button className="btn btn-p btn-sm" style={{ marginLeft: 'auto' }} onClick={() => addRoom(i)}><Ic.plus size={14} /> Thêm phòng</button>
-                            </div>
-                            <div className="card-b">
-                              {roomCfgOf(b).map((r, ri) => (
-                                <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-                                  <input className="inp mono" style={{ width: 100 }} value={r.name} placeholder="S1"
-                                    onChange={e => updRoom(i, ri, 'name', e.target.value)} />
-                                  <select className="inp" style={{ width: 170 }} value={r.typeId || ''} onChange={e => updRoom(i, ri, 'typeId', e.target.value)}>
-                                    <option value="">— chọn loại phòng —</option>
-                                    {roomTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                  </select>
-                                  <label style={{ fontSize: 12, color: 'var(--txt-3)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                    Rộng
-                                    <input className="inp mono" type="number" min={1} max={8} style={{ width: 56, padding: '6px 8px' }}
-                                      value={(r.span || {}).w || 1} onChange={e => updRoomSpan(i, ri, 'w', e.target.value)} />
-                                  </label>
-                                  <label style={{ fontSize: 12, color: 'var(--txt-3)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                    Cao
-                                    <input className="inp mono" type="number" min={1} max={8} style={{ width: 56, padding: '6px 8px' }}
-                                      value={(r.span || {}).h || 1} onChange={e => updRoomSpan(i, ri, 'h', e.target.value)} />
-                                  </label>
-                                  <button className="btn btn-o btn-sm" style={{ marginLeft: 'auto' }} onClick={() => delRoom(i, ri)}><Ic.trash size={13} /></button>
-                                </div>
-                              ))}
-                              {!roomCfgOf(b).length && <div className="hint">Chưa có phòng nào — bấm "Thêm phòng" để bắt đầu setup.</div>}
-                            </div>
-                            <div className="card-b" style={{ paddingTop: 0 }}>
-                              <div className="eyebrow" style={{ marginBottom: 9 }}>Xem trước sơ đồ · kéo thả khối để sắp xếp lại vị trí</div>
-                              <RoomGridPreview cfg={cfg} roomList={roomCfgOf(b)} onReorder={(list) => reorderRooms(i, list)} />
-                            </div>
-                          </div>
                         </td></tr>
                       )}
                     </React.Fragment>
@@ -36024,28 +35878,9 @@ function BranchesTab() {
               </tbody>
             </table>
           </div>
-          <div className="hint" style={{ marginTop: 8 }}>Bấm dấu + để mở địa chỉ, cấu hình phòng chi tiết và bán kính chấm công.</div>
+          <div className="hint" style={{ marginTop: 8 }}>Bấm dấu + để mở địa chỉ, mã KiotViet và bán kính chấm công.</div>
         </div>
       </div>
-      <EditList title="Cấu hình loại phòng" desc="Loại phòng dùng chung cho mọi chi nhánh — gán cho từng phòng ở phần cấu hình chi tiết để tô màu sơ đồ"
-        addLabel="Thêm loại phòng"
-        cols={[
-          { k: 'name', l: 'Tên loại phòng' },
-          { k: 'color', l: 'Màu', w: 70, render: (r, ti) => (
-            <input type="color" value={r.color || '#2D7FF9'} style={{ width: 44, height: 30, border: 'none', background: 'none' }}
-              onChange={e => updType(ti, 'color', e.target.value)} />) },
-        ]}
-        rows={roomTypes} onChange={updType} onDelete={delType} onAdd={addType} />
-      <div className="card">
-        <div className="card-h"><div><h3>Checklist kiểm phòng</h3><p>Hiện khi giám sát bấm vào một phòng trên bản đồ phòng</p></div></div>
-        <div className="card-b">
-          <textarea className="inp" style={{ minHeight: 110 }}
-            value={(cfg.roomChecks || ['Máy lạnh chạy tốt', 'Âm thanh – mic ổn', 'Màn hình hiển thị tốt', 'Vệ sinh sạch', 'Đèn – ổ điện an toàn']).join('\n')}
-            onChange={e => saveCfg({ roomChecks: e.target.value.split('\n').map(x => x.trim()).filter(Boolean) })} />
-          <div className="hint">Mỗi dòng một mục.</div>
-        </div>
-      </div>
-
       {pick != null && (
         <MapPicker branch={cfg.branches[pick]} onClose={() => setPick(null)}
           onPick={(v) => { saveCfg({ branches: cfg.branches.map((r, idx) => idx === pick ? { ...r, ...v } : r) }); toast('Đã lưu toạ độ chi nhánh'); }} />
@@ -36657,7 +36492,7 @@ function BrandTab() {
           <div className="card-h"><div><h3>Thông điệp</h3><p>Hiện ngay trên màn hình đăng nhập</p></div></div>
           <div className="card-b">
             <Field label="Nhãn chương trình" hint="Để trống nếu không có chương trình">
-              <input className="inp" placeholder="Ưu đãi tháng 8 — Giảm 30% phòng VIP" value={bd.badge} onChange={e => set('badge', e.target.value)} />
+              <input className="inp" placeholder="Ưu đãi tháng 10 — Mua 2 tặng 1 trà sữa" value={bd.badge} onChange={e => set('badge', e.target.value)} />
             </Field>
             <div className="grid g3" style={{ gap: 0, columnGap: 10 }}>
               <Field label="Dòng tiêu đề"><input className="inp" value={bd.title} onChange={e => set('title', e.target.value)} /></Field>
@@ -36740,18 +36575,6 @@ function RolesTab() {
           { k: 'sched', l: 'Xếp lịch làm việc', render: (r, i) => (
             <input type="checkbox" checked={r.sched != null ? !!r.sched : (r.level || 0) >= 40}
               onChange={e => upd(i, 'sched', e.target.checked)} />) },
-          { k: 'bkView', l: 'Xem booking toàn hệ thống', render: (r, i) => (
-            <input type="checkbox" checked={r.bkView != null ? !!r.bkView : (r.level || 0) >= 60}
-              onChange={e => upd(i, 'bkView', e.target.checked)} />) },
-          { k: 'bkAll', l: 'Booking toàn hệ thống (thao tác)', render: (r, i) => (
-            <input type="checkbox" checked={r.bkAll != null ? !!r.bkAll : (r.level || 0) >= 80}
-              onChange={e => upd(i, 'bkAll', e.target.checked)} />) },
-          { k: 'bkApprove', l: 'Duyệt giới thiệu khách', render: (r, i) => (
-            <input type="checkbox" checked={r.bkApprove != null ? !!r.bkApprove : (r.level || 0) >= 60}
-              onChange={e => upd(i, 'bkApprove', e.target.checked)} />) },
-          { k: 'bkRefer', l: 'Được giới thiệu khách', render: (r, i) => (
-            <input type="checkbox" checked={r.bkRefer != null ? !!r.bkRefer : (r.level || 0) < 60}
-              onChange={e => upd(i, 'bkRefer', e.target.checked)} />) },
           { k: 'chkCfg', l: 'Sửa checklist chi nhánh', render: (r, i) => (
             <input type="checkbox" checked={r.chkCfg != null ? !!r.chkCfg : (r.level || 0) >= 40}
               onChange={e => upd(i, 'chkCfg', e.target.checked)} />) },
@@ -37059,7 +36882,7 @@ function BackupTab() {
         <div className="card-b">
           <div style={{ background: 'var(--brand-wash)', border: '1px solid #CFE0DE', borderRadius: 12, padding: '11px 13px', fontSize: 13, color: 'var(--brand-dark)', marginBottom: 12 }}>
             Cấu hình gồm: chi nhánh, ca làm, định biên, khung lương, ngày lễ, phòng ban, checklist, vai trò, danh mục chi phí, mẫu đề xuất, tài liệu đào tạo, bài kiểm tra.
-            Nhân sự, chấm công, đặt phòng, doanh thu <b>không</b> nằm ở đây nên không bị ảnh hưởng.
+            Nhân sự, chấm công, doanh thu <b>không</b> nằm ở đây nên không bị ảnh hưởng.
           </div>
           {!list ? <div className="hint">Đang đọc danh sách…</div> : !list.length ? (
             <Empty title="Chưa có bản sao lưu nào" desc="Bấm Sao lưu ngay để tạo bản đầu tiên." />
@@ -37141,16 +36964,14 @@ const DIAG_COLS = [
   { k: 'adj', l: 'Điều chỉnh lương', when: 'mở Chấm công / Lương', date: false, note: 'Không chặn ngày · Chấm công ai cũng mở' },
   { k: 'ftl', l: 'Bảng công tháng', when: 'mở Chấm công / Lương', date: false, note: 'Không chặn ngày · mỗi người mỗi tháng 1 doc' },
   { k: 'areq', l: 'Đơn xin sửa công', when: 'mở Chấm công', date: 'at', note: 'Không chặn ngày' },
-  { k: 'rev', l: 'Doanh thu (sổ quỹ + hoá đơn)', when: 'mở Đặt phòng / Doanh thu / Đối soát', date: 'date', note: 'Chặn 90 ngày — nhưng MỖI DOC CHỨA CẢ NGÀN DÒNG HOÁ ĐƠN' },
+  { k: 'rev', l: 'Doanh thu (sổ quỹ + hoá đơn)', when: 'mở Doanh thu / Đối soát / Bản đồ', date: 'date', note: 'Chặn 90 ngày — nhưng MỖI DOC CHỨA CẢ NGÀN DÒNG HOÁ ĐƠN' },
   { k: 'txn', l: 'Giao dịch ngân hàng', when: 'mở Tra cứu / Phân bổ', date: 'date', note: 'Chặn 420 ngày — quá rộng' },
   { k: 'vis', l: 'Lượt khách', when: 'mở Khách hàng / Tra cứu', date: 'date', note: 'Đã chặn 45 ngày' },
-  { k: 'bk', l: 'Đặt phòng', when: 'mở Đặt phòng', date: 'date', note: 'Chặn 3 ngày quá khứ + toàn bộ tương lai' },
   { k: 'chk', l: 'Checklist ngày', when: 'mở Checklist', date: 'date', note: 'Đã chặn 60 ngày' },
   { k: 'rec', l: 'Đối soát', when: 'mở Đối soát / Nộp tiền / Tra cứu', date: false, note: 'Không chặn ngày' },
   { k: 'vou', l: 'Voucher', when: 'mở Ví voucher / Tra cứu', date: false, note: 'Không chặn ngày' },
   { k: 'vrq', l: 'Lượt voucher nhân viên 20%', when: 'suốt phiên (lượt chờ mình xác minh) + mở Ví voucher', date: 'ym', note: 'Lọc theo tháng và theo người — không nghe cả collection' },
   { k: 'iss', l: 'Sự cố bảo trì', when: 'mở Sự cố (và nạp sẵn cho người xử lý)', date: 'created', note: 'Chặn 120 ngày + sự cố chưa đóng (2 listener)' },
-  { k: 'rom', l: 'Trạng thái phòng', when: 'mở Đặt phòng / Bản đồ', date: false, note: '1 doc mỗi chi nhánh' },
   { k: 'agg', l: 'Tổng hợp khách', when: 'mở Khách hàng / CEO', date: false, note: '' },
   { k: 'tgt', l: 'Target', when: 'mở Doanh thu', date: false, note: '' },
   { k: 'ms', l: 'Khách hàng bí mật', when: 'mở Khách hàng bí mật', date: 'date', note: '' },
@@ -37844,7 +37665,7 @@ function SettingsView() {
           <div className="card-h"><div><h3>Mã nhân viên</h3><p>Tiền tố dùng khi app gợi ý mã cho hồ sơ mới</p></div></div>
           <div className="card-b" style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <Field label="Tiền tố mã">
-              <input className="inp mono" style={{ width: 120 }} value={(cfg.rules && cfg.rules.empPrefix) || 'ZS'}
+              <input className="inp mono" style={{ width: 120 }} value={(cfg.rules && cfg.rules.empPrefix) || 'HH'}
                 onChange={e => saveCfg({ rules: { ...(cfg.rules || {}), empPrefix: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') } })} />
             </Field>
             <div className="hint" style={{ flex: 1, minWidth: 220 }}>
@@ -52260,7 +52081,7 @@ function App() {
   const claimAdmin = async () => {
     setClaiming(true);
     const rec = normEmp({
-      id: uid('E'), code: 'ZS-0001', name: 'Quản trị viên', email: fbUser.email,
+      id: uid('E'), code: 'HH-0001', name: 'Quản trị viên', email: fbUser.email,
       authUid: fbUser.uid, role: 'ADMIN', posId: 'P10', deptId: 'D6', type: 'Fulltime',
       branches: (cfg.branches || DEFAULT_CFG.branches).map(b => b.id), joined: todayKey(), contract: 'Chính thức', status: 'active',
     });
