@@ -2,3 +2,4 @@ index.backup.html
 .firebase/
 node_modules/
 *.log
+data/

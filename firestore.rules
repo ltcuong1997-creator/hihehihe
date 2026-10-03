@@ -1,0 +1,10 @@
+rules_version = '2';
+// Rules TẠM để test (user cho phép 2026-10-03): ai đã đăng nhập thì đọc/ghi được, người lạ bị chặn.
+// Trước khi cho nhân viên dùng thật cần siết lại theo vai trò (ADMIN / quản lý / nhân viên).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
