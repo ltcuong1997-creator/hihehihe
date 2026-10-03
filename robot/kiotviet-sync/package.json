@@ -1,0 +1,13 @@
+{
+  "name": "hihe-kiotviet-sync",
+  "private": true,
+  "description": "Robot kéo số bán KiotViet F&B theo món, theo ngày vào Firestore ops_sales (Hí Hế)",
+  "type": "module",
+  "scripts": {
+    "sync": "node sync.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "playwright": "^1.48.0"
+  }
+}

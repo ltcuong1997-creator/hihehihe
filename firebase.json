@@ -17,7 +17,11 @@
       ".firebase/**",
       ".gitignore",
       ".firebaserc",
-      ".claude/**"
+      ".claude/**",
+      "robot/**",
+      ".github/**",
+      "package.json",
+      "package-lock.json"
     ],
     "headers": [
       {

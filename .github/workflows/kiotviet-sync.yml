@@ -1,0 +1,71 @@
+# Robot kéo số bán KiotViet theo món (ops_sales) + sổ quỹ từng hóa đơn (ops_revenue) mỗi giờ vào app Hí Hế.
+# Chỉ ĐỌC KiotViet (danh sách món + hóa đơn), ghi Firestore theo kiểu "thay theo ngày" — chạy lại bao nhiêu lần cũng không cộng trùng.
+# Secrets cần có: KV_USER, KV_PASS, FIREBASE_SA  (tuỳ chọn: KV_SHOP, KV_BRANCH_MAP)
+# Repo CÔNG KHAI: robot không in số tiền ra log và KHÔNG tải ảnh màn hình lỗi lên (ai cũng tải được).
+name: Robot KiotViet – số bán + sổ quỹ mỗi giờ
+
+on:
+  schedule:
+    # GitHub tính giờ UTC: 0–16h UTC = 7h–23h giờ Việt Nam, chạy phút thứ 7 mỗi giờ
+    - cron: '7 0-16 * * *'
+    # 0h35 giờ VN: chạy thêm một lần để chốt hóa đơn cuối ngày hôm trước
+    - cron: '35 17 * * *'
+  workflow_dispatch:
+    inputs:
+      dates:
+        description: 'Ngày cần kéo: YYYY-MM-DD hoặc YYYY-MM-DD..YYYY-MM-DD (để trống = hôm nay)'
+        required: false
+        default: ''
+      rev_overwrite:
+        description: 'Ghi đè cả những ngày doanh thu đã nạp file tay'
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Chạy thử, không ghi vào app'
+        type: boolean
+        default: false
+
+concurrency:
+  group: kiotviet-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: robot/kiotviet-sync
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: robot/kiotviet-sync/package-lock.json
+
+      - run: npm ci
+
+      - name: Cache trình duyệt Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('robot/kiotviet-sync/package-lock.json') }}
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Kéo số bán + sổ quỹ KiotViet → app
+        env:
+          KV_SHOP: ${{ secrets.KV_SHOP || 'hihecf' }}
+          KV_USER: ${{ secrets.KV_USER }}
+          KV_PASS: ${{ secrets.KV_PASS }}
+          KV_BRANCH_MAP: ${{ secrets.KV_BRANCH_MAP || '{"10249361":"B1"}' }}
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+          DATES: ${{ github.event.inputs.dates }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          REV_OVERWRITE: ${{ github.event.inputs.rev_overwrite }}
+        run: node sync.mjs

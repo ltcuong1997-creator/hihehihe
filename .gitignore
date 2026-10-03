@@ -3,3 +3,5 @@ index.backup.html
 node_modules/
 *.log
 data/
+robot/kiotviet-sync/node_modules/
+robot/kiotviet-sync/loi-kiotviet.png
