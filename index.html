@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+/* iPhone tự phóng to cả trang khi chạm vào ô nhập chữ dưới 16px. maximum-scale=1 tắt riêng việc đó —
+   Safari iOS vẫn cho chụm 2 ngón phóng to như thường. Chỉ gắn cho iPhone/iPad: Android mà gắn là mất phóng to. */
+if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+  var vpm = document.querySelector('meta[name=viewport]');
+  if (vpm) vpm.content += ', maximum-scale=1';
+}
+</script>
 <!-- Màu vùng status-bar = ĐÚNG màu nền app (var(--canvas)), khoá cứng, không cho cấu hình.
      Nhờ vậy vùng giờ/sóng/pin và nội dung app liền một khối, không còn dải màu lạ cắt ngang đỉnh. -->
 <meta name="theme-color" content="#FAF6F1">
@@ -1961,7 +1969,7 @@ table.tb.bk-heat td{padding:5px 4px;font-size:11.5px;white-space:nowrap}
 .modal-h h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.015em}
 .modal-h p{margin:2px 0 0;font-size:12.5px;color:var(--txt-3)}
 .modal-b{padding:20px}
-.modal-f{padding:15px 20px;border-top:1px solid var(--line-soft);display:flex;gap:9px;justify-content:flex-end;position:sticky;bottom:0;background:#fff}
+.modal-f{padding:15px 20px;border-top:1px solid var(--line-soft);display:flex;gap:9px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;z-index:2}
 /* flex:0 0 32px là BẮT BUỘC, không phải trang trí: tiêu đề dài (tên hạng mục complain + dòng
    phụ "CPL-0001 · Chi nhánh … · Hotline") đẩy nút X co lại còn vài pixel trên màn hình điện
    thoại — nhìn thì vẫn thấy dấu × nhưng bấm không trúng, popup không đóng được. */
@@ -1982,8 +1990,14 @@ table.tb.bk-heat td{padding:5px 4px;font-size:11.5px;white-space:nowrap}
 @media(max-width:640px){
   .ovl{padding:0;align-items:flex-end}
   .modal{max-width:none;max-height:94vh;border-radius:var(--r-xl) var(--r-xl) 0 0}
-  .modal-f{flex-direction:column-reverse}
-  .modal-f .btn{width:100%}
+  /* Nút đáy: nút cuối (nút chính) chiếm trọn hàng trên, các nút phụ chia nhau hàng dưới —
+     xếp chồng 3 tầng như trước thì mất gần 1/4 màn hình, phần nhập liệu còn lại chẳng bao nhiêu */
+  .modal-f{flex-direction:row;flex-wrap:wrap-reverse;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .modal-f>*{flex:1 1 100%}
+  .modal-f>.btn{flex:1 1 30%;width:auto;justify-content:center}
+  .modal-f>.btn:last-child{flex-basis:100%}
+  /* Bảng rộng cuộn ngang: dòng báo trống canh giữa cả bảng thì nửa câu nằm ngoài màn hình */
+  .scroll-x td[colspan]:only-child{text-align:left !important}
   /* Ngón tay to hơn con trỏ chuột: vùng bấm 40px và header gọn lại để nút X không bị chữ lấn */
   .modal-h{padding:14px 14px}
   .x{flex-basis:40px;width:40px;height:40px}
@@ -2060,7 +2074,7 @@ table.tb.bk-heat td{padding:5px 4px;font-size:11.5px;white-space:nowrap}
   transition:border-color .15s,box-shadow .15s;display:block;width:100%;font:inherit;color:inherit}
 .pq-br:hover{border-color:var(--brand);box-shadow:0 4px 14px rgba(0,0,0,.06)}
 .pq-br.hot{border-color:var(--amber);background:var(--amber-wash)}
-.pq-br .bn{font-weight:800;font-size:14px;margin-bottom:8px}
+.pq-br .pq-bn{font-weight:800;font-size:14px;margin-bottom:8px}
 .pq-br .n{font-size:30px;font-weight:800;line-height:1;color:var(--brand-dark)}
 .pq-br.hot .n{color:#8A5B08}
 .pq-br .sub{font-size:11.5px;color:var(--txt-3);margin-top:5px}
@@ -2218,6 +2232,42 @@ table.tb.bk-heat td{padding:5px 4px;font-size:11.5px;white-space:nowrap}
 .mt-foot{margin-top:auto;padding-top:9px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--txt-2)}
 .mt-meter{height:7px;border-radius:7px;background:var(--line-soft);overflow:hidden}
 .mt-meter i{display:block;height:100%;border-radius:7px;transition:width .3s,background .3s}
+.mt-imgcol{display:grid;gap:10px;min-width:0}
+/* Danh sách nguyên liệu dạng dòng (điện thoại) */
+.mt-rows{display:none}
+.mt-hh{display:inline-block;margin-right:5px;padding:0 5px;border-radius:5px;background:#E6F0FB;color:var(--blue);font-size:9.5px;font-weight:800;letter-spacing:.04em;vertical-align:1px}
+.mt-type{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.mt-type button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:7px 10px;border-radius:10px;border:1.5px solid var(--line);background:#fff;cursor:pointer;font-family:inherit}
+.mt-type button b{font-size:12.5px}
+.mt-type button small{font-size:10.5px;color:var(--txt-3)}
+.mt-type button.on{border-color:var(--brand);background:var(--brand-wash)}
+.mt-type button.on b{color:var(--brand-dark)}
+.mt-noimg-s{display:none}
+.mt-rw{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:7px 10px;background:#fff;border:0;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.mt-rw:last-child{border-bottom:0}
+.mt-rw img,.mt-rw-ph{flex:0 0 36px;width:36px;height:36px;border-radius:9px;object-fit:contain;background:var(--line-soft);display:flex;align-items:center;justify-content:center;font-size:17px}
+.mt-rw-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mt-rw-t b{font-size:13px;font-weight:700;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt-rw-t small{font-size:11px;color:var(--txt-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt-rw-p{flex:0 0 auto;font-size:12.5px;font-weight:700;text-align:right}
+.mt-rw-p small{font-size:10.5px;font-weight:600;color:var(--txt-3)}
+.mt-form{display:grid;gap:10px;min-width:0}
+/* Hộp sửa nguyên liệu: chia nhóm, ô xếp 2–3 cột cho gọn */
+.mt-sec{border:1px solid var(--line-soft);border-radius:12px;padding:10px 12px 2px;background:#fff}
+.mt-sec-h{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-3);margin:0 0 8px}
+details.mt-sec>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}
+details.mt-sec>summary::-webkit-details-marker{display:none}
+details.mt-sec>summary::after{content:'▾';margin-left:auto;font-size:12px;transition:transform .2s}
+details.mt-sec:not([open]){padding-bottom:0}
+details.mt-sec:not([open])>summary::after{transform:rotate(-90deg)}
+.mt-r{display:grid;gap:0 8px}
+.mt-r2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.mt-r3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mt-sec .field{margin-bottom:8px;min-width:0}
+.mt-sec .field label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt-sum{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:12px;background:var(--brand-wash);color:var(--brand-dark);border-radius:9px;padding:6px 9px;margin:0 0 10px}
+.mt-sum span{color:var(--txt-2)}
+.mt-sum-off{display:block;background:var(--canvas);color:var(--txt-3);line-height:1.45}
 .mt-kv{display:grid;grid-template-columns:126px 1fr;gap:8px 12px;font-size:13px;align-items:start;margin:0}
 .mt-kv dt{color:var(--txt-3);font-weight:600}
 .mt-kv dd{margin:0;color:var(--txt);font-weight:600;line-height:1.5}
@@ -3125,13 +3175,15 @@ table.tb tbody tr:hover{background:#FBFAF9}
 .ck-state{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--txt-2)}
 .ck-state i{width:8px;height:8px;border-radius:50%;background:#ACA39D}
 .ck-clockrow{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:2px}
-.ck-clock{font-size:58px;font-weight:800;letter-spacing:-.045em;line-height:1;color:var(--txt);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ck-clock{flex:0 0 auto;font-size:clamp(44px,14vw,58px);font-weight:800;letter-spacing:-.045em;line-height:1;color:var(--txt);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ck-clock sup{font-size:20px;font-weight:700;color:var(--brand);letter-spacing:0;vertical-align:top;position:relative;top:3px;margin-left:3px}
-.ck-when{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px;padding-bottom:5px;min-width:0}
+/* Tên chi nhánh dài ("Hí Hế Hậu Giang 2") phải được xuống dòng trong cột này — để nowrap là nó tràn sang trái đè lên đồng hồ */
+.ck-when{flex:1 1 0;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px;padding-bottom:5px;min-width:0}
 .ck-when span{font-size:13.5px;color:var(--txt-2)}
-.ck-when b{font-size:15px;font-weight:800;display:inline-flex;align-items:center;gap:5px;color:var(--txt);white-space:nowrap}
+.ck-when b{font-size:15px;font-weight:800;display:inline-flex;align-items:flex-start;justify-content:flex-end;gap:5px;color:var(--txt);line-height:1.25;overflow-wrap:anywhere;max-width:100%}
+.ck-when b .ic,.ck-when em .ic{flex:0 0 auto;margin-top:2px}
 .ck-when b .ic{color:var(--brand-dark)}
-.ck-when em{font-style:normal;font-size:12.5px;font-weight:700;color:var(--brand-dark);display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.ck-when em{font-style:normal;font-size:12.5px;font-weight:700;color:var(--brand-dark);display:inline-flex;align-items:flex-start;justify-content:flex-end;gap:4px;line-height:1.3;overflow-wrap:anywhere;max-width:100%}
 .ck-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .ck-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;background:#F5F3F2;color:var(--txt-2);font-size:13px;font-weight:700}
 .ck-chip.ok{background:var(--brand-wash);color:var(--brand-dark)}
@@ -3144,7 +3196,9 @@ table.tb tbody tr:hover{background:#FBFAF9}
 .ck-shifts::-webkit-scrollbar{display:none}
 .ck-shift{flex:1 0 82px;display:flex;flex-direction:column;align-items:center;gap:1px;padding:11px 6px;border-radius:14px;
   border:1.5px solid var(--line);background:#fff;color:var(--txt);transition:border-color .15s,background .15s}
-.ck-shift b{font-size:19px;font-weight:800;letter-spacing:-.01em}
+.ck-shift b{font-size:19px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+/* Mã ca đặt theo giờ ("7:30-17:30") dài gấp đôi mã chữ — thu chữ lại cho khỏi gãy 2 dòng */
+.ck-shift b.long{font-size:15px}
 .ck-shift small{font-size:11.5px;color:var(--txt-2);font-weight:600;white-space:nowrap}
 .ck-shift em{font-style:normal;font-size:10px;font-weight:800;color:var(--amber);text-transform:uppercase}
 .ck-shift.on{border-color:var(--brand-dark);background:var(--brand-wash);box-shadow:inset 0 0 0 1px var(--brand-dark)}
@@ -3243,8 +3297,8 @@ table.tb tbody tr:hover{background:#FBFAF9}
 .sk-tabs button.sum.on{box-shadow:0 0 0 3px #E9B9C3}
 .sk-list{display:flex;flex-direction:column;gap:6px}
 .sk-hint{font-size:12.5px;color:var(--txt-2);background:var(--canvas);border:1px solid var(--line-soft);border-radius:10px;padding:8px 11px}
-.sk-row{display:grid;grid-template-columns:60px minmax(0,1fr) 84px 120px 92px;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:#fff}
-.sk-row.btp{grid-template-columns:60px minmax(0,1fr) 120px 70px;background:#FFFCF4}
+.sk-row{display:grid;grid-template-columns:60px minmax(0,1fr) 84px 196px 92px;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.sk-row.btp{grid-template-columns:60px minmax(0,1fr) 150px 70px;background:#FFFCF4}
 .sk-row:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-wash)}
 .sk-img{width:60px;height:60px;border-radius:12px;object-fit:contain;background:var(--line-soft);padding:4px;box-sizing:border-box;border:1px solid var(--line-soft)}
 .sk-ph{display:flex;align-items:center;justify-content:center;font-size:24px}
@@ -3267,19 +3321,236 @@ em.zero,.sk-d.zero{color:var(--green)}
 .sk-tdn .sk-img{width:40px;height:40px;border-radius:9px}
 .sk-sum td,.sk-sum th{vertical-align:middle}
 .sk-foot-n{margin-right:auto;font-size:12.5px;color:var(--txt-3)}
+.sk-meta{display:contents}
+/* Kiểu Google Sheet: ai đang đếm cùng, ô người khác đang gõ, ô vừa được người khác sửa */
+.sk-peers{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--txt-2);padding:2px 0 6px;overflow:hidden;white-space:nowrap}
+.sk-peers>span{overflow:hidden;text-overflow:ellipsis}
+.sk-peers b{font-weight:800;color:var(--ink);margin-right:8px}
+.sk-peers b small{font-weight:600;color:var(--txt-3)}
+.sk-live-dot{flex:0 0 8px;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(46,160,90,.5);animation:skLive 1.6s infinite}
+@keyframes skLive{0%{box-shadow:0 0 0 0 rgba(46,160,90,.5)}70%{box-shadow:0 0 0 7px rgba(46,160,90,0)}100%{box-shadow:0 0 0 0 rgba(46,160,90,0)}}
+.sk-inw.locked .sk-in{background:#EEF0FE;border-color:#B9C0F7;color:#5B6CF0;font-style:normal}
+.sk-inw.locked .sk-in::placeholder{color:#5B6CF0;font-weight:800;font-size:11px}
+.sk-inw.locked .sk-plus,.sk-inw.locked .sk-unit{opacity:.45}
+.sk-who{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 4px;margin-right:5px;border-radius:5px;background:#5B6CF0;color:#fff;font-size:9px;font-weight:800;vertical-align:1px}
+.sk-row.rmt{animation:skRmt 1.5s ease}
+@keyframes skRmt{0%,40%{background:#E3F6EA}100%{background:#fff}}
+/* Số mờ ngày trước — chạm để giữ nguyên */
+.sk-ghost{display:inline-flex;align-items:center;gap:3px;border:0;background:#F5F0EB;color:var(--txt-2);font-size:10.5px;font-weight:700;border-radius:6px;padding:1px 6px;cursor:pointer;white-space:nowrap;font-family:inherit}
+.sk-ghost i{font-style:normal;color:var(--brand);font-weight:800}
+.sk-ghost:active{background:var(--brand-wash)}
+.sk-copy{background:var(--brand-wash) !important;border-color:#CFE0DE !important;color:var(--brand-dark) !important}
+.sk-tot small.sk-tu{text-transform:none;letter-spacing:0;font-weight:700}
+/* ---- Màn đếm: đầu dính, trạng thái từng mã, nhãn nhỏ ---- */
+.sk-head{position:sticky;top:0;z-index:2;background:#fff;margin:0 -20px;padding:6px 20px 2px;box-shadow:0 6px 10px -10px rgba(46,32,25,.35)}
+.sk-tabs button{position:relative}
+.sk-tdone{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--green);color:#fff;font-size:11px;font-style:normal;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff}
+.sk-todo{flex:0 0 auto;height:44px;padding:0 12px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-size:13px;font-weight:700;color:var(--txt-2);white-space:nowrap;cursor:pointer}
+.sk-todo b{display:inline-block;min-width:20px;padding:1px 6px;margin-left:3px;border-radius:99px;background:var(--amber-wash);color:#8A5B08;font-size:12px}
+.sk-todo.on{border-color:var(--amber);background:var(--amber-wash);color:#8A5B08}
+.sk-todo.on b{background:var(--amber);color:#fff}
+.sk-mic-s{display:none}
+.sk-note{display:flex;align-items:center;gap:10px;font-size:12.5px;line-height:1.4;color:var(--txt-2);background:var(--canvas);border:1px solid var(--line-soft);border-radius:11px;padding:7px 11px;margin-bottom:8px}
+.sk-note>span{flex:1;min-width:0}
+.sk-link{flex:0 0 auto;border:0;background:none;padding:2px 0;color:var(--brand);font-weight:800;font-size:12.5px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.sk-hint-edit{display:flex;align-items:center;gap:10px}
+.sk-hint-edit>span{flex:1;min-width:0}
+.sk-row.pre .sk-in{color:var(--txt-3);font-style:italic;background:#FBF9F7}
+.sk-row.done{border-color:#CFE6D6}
+.sk-row.done .sk-in{border-color:#9FD3B0}
+.sk-pick{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer}
+.sk-pick input{width:20px;height:20px;accent-color:var(--brand)}
+.sk-pick .sk-img{width:36px;height:36px;border-radius:8px;padding:2px}
+.sk-pick span{display:flex;flex-direction:column;min-width:0}
+.sk-pick small{font-size:11px;color:var(--txt-3)}
+.sk-pick:not(.on){opacity:.6}
+.sk-newu{grid-column:1/-1;order:4;display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--brand-wash);border-radius:10px;padding:6px 8px;font-size:13px;font-weight:700}
+.sk-newu .inp{height:38px;width:96px;flex:1 1 80px;min-width:0}
+.sk-newu .inp.mono{flex:0 1 70px;text-align:right}
+.sk-x{border:0;background:none;font-size:15px;color:var(--txt-3);padding:4px 6px;cursor:pointer}
+.sk-empty{padding:18px 12px;text-align:center;color:var(--txt-3);font-size:13.5px;border:1.5px dashed var(--line);border-radius:14px}
+.sk-foot-n{display:flex;flex-direction:column;gap:5px;min-width:180px}
+.sk-sync{font-size:11.5px;font-weight:700;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-sync.saving{color:var(--amber)}
+.sk-sync.slow,.sk-sync.err{color:var(--red);white-space:normal}
+.sk-sync.idle{color:var(--txt-3)}
+.sk-sync small{font-weight:600;color:var(--txt-2)}
+.sk-prog{display:block;height:5px;border-radius:99px;background:var(--line-soft);overflow:hidden}
+.sk-prog>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--brand),#2A6B6C);transition:width .3s ease}
+.sk-setup .sk-zcol{text-align:center;white-space:nowrap}
+.sk-setup th.sk-zcol div{font-weight:800}
+.sk-setup th.sk-zcol button{border:0;background:none;color:var(--brand);font-size:11px;font-weight:700;padding:0;cursor:pointer}
+.sk-sys b,.sk-tot b,.sk-sys small,.sk-tot small{white-space:nowrap}
+.sk-tool .inp[type=search]{-webkit-appearance:none;appearance:none}
+.sk-row>.sk-meta>.sk-tot{order:2}
+.sk-row>.sk-cv{order:3}
+.sk-inw{position:relative;display:flex;gap:4px;align-items:center;min-width:0}
+.sk-inw .sk-in{flex:1;min-width:0}
+.sk-unit{flex:0 0 74px;width:74px;height:46px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:13.5px;font-weight:700;padding:0 4px;color:var(--ink)}
+.sk-u1{flex:0 0 auto;min-width:30px;font-size:12.5px;font-weight:700;color:var(--txt-3);text-align:center}
+.sk-cv{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:12.5px;color:var(--txt-2);background:var(--canvas);border-radius:9px;padding:5px 9px}
+.sk-pt{display:inline-flex;align-items:center;gap:3px}
+.sk-pt button{border:0;background:none;color:var(--red);font-size:12px;padding:0 3px;cursor:pointer}
+.sk-eq{margin-left:auto;color:var(--ink)}
+.sk-rawt{font-size:10.5px;white-space:nowrap}
+.sk-sl{display:none}
+.sk-ft{display:flex;align-items:center;gap:9px;width:100%;justify-content:flex-end}
+.sk-vfloat{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top) + 8px);z-index:95;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:var(--ink);color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.25);max-width:560px;margin:0 auto}
+.sk-vfloat>button:first-child{flex:0 0 40px;height:40px;border-radius:50%;border:0;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;animation:skPulse 1.4s ease-in-out infinite}
+.sk-vfloat>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sk-vfloat b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-vfloat small{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-vfloat small.ok{color:#9BE3B4}
+.sk-vfloat small.bad{color:#FFB3B3}
+.sk-vundo{flex:0 0 auto;border:1px solid rgba(255,255,255,.5);background:none;color:#fff;border-radius:9px;padding:5px 9px;font-size:12px;font-weight:700}
+.sk-cal .sk-day{min-width:54px;padding:8px 3px}
+.sk-cal{min-width:520px}
+.sk-plus{flex:0 0 34px;height:46px;border-radius:10px;border:1.5px solid var(--line);background:#fff;color:var(--brand);font-size:20px;font-weight:800;cursor:pointer;padding:0}
+.sk-plus.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.sk-addpop{position:absolute;top:calc(100% + 6px);right:0;z-index:5;display:flex;gap:6px;align-items:center;padding:8px;border-radius:12px;background:#fff;border:1.5px solid var(--brand);box-shadow:0 8px 24px rgba(0,0,0,.14);width:250px}
+.sk-addpop span{font-weight:800;white-space:nowrap}
+.sk-addpop .inp{flex:1;min-width:0;height:40px;font-size:17px;font-weight:800;text-align:right}
+.sk-row.flash{border-color:var(--green);box-shadow:0 0 0 3px #CFEBD8;background:#F3FBF5}
+.sk-tool{display:flex;gap:8px;align-items:center;margin:8px 0}
+.sk-tool .inp{flex:1;min-width:0}
+.sk-tool-t{flex:1;font-size:12.5px;color:var(--txt-3)}
+.sk-mic{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:7px;height:44px;padding:0 14px;border-radius:12px;border:0;background:var(--brand);color:#fff;font-size:14.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+.sk-mic.on{background:var(--red);animation:skPulse 1.4s ease-in-out infinite}
+@keyframes skPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,60,60,.45)}50%{box-shadow:0 0 0 8px rgba(220,60,60,0)}}
+.sk-why{margin:0 0 8px}
+.sk-why summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--txt-3);padding:2px 0;list-style:none}
+.sk-why summary::before{content:'ⓘ ';color:var(--brand)}
+.sk-why summary::-webkit-details-marker{display:none}
+.sk-why .hint{margin-top:6px}
+.sk-vlog{display:flex;flex-direction:column;gap:4px;max-height:96px;overflow-y:auto;margin-bottom:8px}
+.sk-vlog>div{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;padding:5px 9px;border-radius:9px}
+.sk-vlog .ok{background:#F0FAF3;color:#1E7A3E}
+.sk-vlog .bad{background:#FDF0F0;color:var(--red)}
+.sk-vlog span{flex:1;min-width:0}
+.sk-vlog button{flex:0 0 auto;border:1px solid currentColor;background:#fff;color:inherit;border-radius:8px;padding:3px 9px;font-size:12px;font-weight:700;cursor:pointer}
 .sk-zset{border:1px solid var(--line);border-radius:14px;padding:12px}
 .sk-zlist{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .sk-z{display:flex;align-items:center;gap:6px}
 .sk-z span{width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
 .sk-z .inp{width:150px}
 @media(max-width:640px){
-  .sk-row{grid-template-columns:52px minmax(0,1fr) 104px;grid-template-areas:'img nm in' 'img sys tot';row-gap:4px}
-  .sk-row .sk-img{grid-area:img;width:52px;height:52px}
-  .sk-row .sk-nm{grid-area:nm}
-  .sk-row .sk-in{grid-area:in}
-  .sk-row .sk-sys{grid-area:sys;flex-direction:row;gap:6px;align-items:baseline;justify-content:flex-start}
-  .sk-row .sk-tot{grid-area:tot;flex-direction:row;gap:6px;align-items:baseline}
-  .sk-row.btp{grid-template-columns:52px minmax(0,1fr) 104px;grid-template-areas:'img nm in' 'img nm tot'}
+  /* Điện thoại: ô nhập xuống hàng riêng, rộng hết dòng — ngón tay to, có chỗ cho chọn đơn vị và nút ＋ */
+  /* Gọn để một màn hình thấy được nhiều mã: tên + số tồn/tổng trên 1 hàng, ô nhập hàng dưới */
+  .sk-list{gap:5px}
+  .sk-row{grid-template-columns:34px minmax(0,1fr) auto;grid-template-areas:'img nm in' 'img meta in';gap:2px 8px;padding:6px 7px;border-radius:12px;align-items:center}
+  .sk-row .sk-img{grid-area:img;width:34px;height:34px;border-radius:8px;padding:2px;align-self:start}
+  .sk-row .sk-ph{font-size:17px}
+  .sk-row .sk-nm{grid-area:nm;align-self:end}
+  .sk-row .sk-nm b{font-size:13.5px;line-height:1.25}
+  .sk-row .sk-nm small{font-size:10.5px}
+  .sk-row .sk-inw{grid-area:in;gap:4px}
+  .sk-row .sk-meta{grid-area:meta;display:flex;flex-wrap:wrap;gap:0 10px;align-self:start;min-width:0}
+  .sk-list.nosys .sk-sys{display:none}
+  .sk-row .sk-sys,.sk-row .sk-tot{flex-direction:row;gap:4px;align-items:baseline}
+  .sk-row .sk-sys small,.sk-row .sk-tot small{font-size:9.5px}
+  .sk-row .sk-sys b{font-size:12.5px}
+  .sk-row .sk-tot b{font-size:13px}
+  .sk-hint{font-size:11.5px;padding:5px 9px}
+  .sk-cv{padding:3px 8px;font-size:12px}
+  .sk-row .sk-in{height:44px;font-size:18px;width:64px;flex:0 0 64px;padding:6px 7px}
+  .sk-unit{height:44px;flex-basis:66px;width:66px;font-size:13.5px}
+  .sk-u1{min-width:26px;font-size:11.5px}
+  .sk-plus{flex-basis:40px;height:44px;font-size:21px}
+  .sk-addpop{left:auto;right:0;width:min(300px,calc(100vw - 44px))}
+  .sk-row.btp{grid-template-columns:34px minmax(0,1fr) auto;grid-template-areas:'img nm in' 'img tot in'}
+  .sk-row.btp .sk-tot{grid-area:tot;align-self:start}
+  .sk-mic{padding:0 11px;font-size:13.5px;gap:5px}
+  .sk-tabs button{min-width:70px;padding:6px 10px}
+  .sk-tabs button b{font-size:13px}
+  /* Thanh nút đáy: số đã đếm + 2 nút cạnh nhau, bỏ nút Đóng (đã có dấu × trên đầu) cho đỡ chiếm chỗ */
+  .sk-ft{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .sk-ft .sk-foot-n{grid-column:1/-1;margin:0;text-align:center}
+  .sk-ft .sk-ft-x{display:none}
+  .sk-ft .btn{width:100%;justify-content:center;padding-left:6px;padding-right:6px}
+  .sk-ft .btn:only-of-type{grid-column:1/-1}
+  /* Lịch tháng: vừa khít 7 cột, bỏ cột "tuần" */
+  .sk-cal{min-width:0;width:100%;table-layout:fixed}
+  .sk-cal .wk{display:none}
+  .sk-cal th{padding:6px 0 !important;font-size:11px !important}
+  .sk-cal td{padding:2px !important}
+  .sk-cal .sk-day{min-width:0;padding:7px 0}
+  .sk-head{margin:0 -14px;padding:4px 14px 0}
+  /* Trang Hàng hóa trên điện thoại: mọi nút thao tác cùng một cỡ gọn (trước có tab 40px, tab 34px,
+     có nút bị kéo dài hết hàng). Không đụng nút trong hộp thoại — ở đó nút to cho dễ bấm là đúng. */
+  .stk-page .btn:not(.modal .btn){height:36px;min-height:0;padding:0 12px;font-size:12.5px;font-weight:700;border-radius:10px;flex:0 0 auto;width:auto;gap:6px}
+  .stk-page .btn:not(.modal .btn) svg{width:14px;height:14px}
+  .stk-page select.inp:not(.modal .inp),.stk-page input.inp:not(.modal .inp){height:38px;min-height:0;font-size:13px;padding:0 10px;border-radius:10px}
+  .stk-page .card-h>div:last-child{gap:6px !important}
+  /* Thiết lập kho trên điện thoại: bỏ cột Mã, ĐVT cho cột tick từng khu vừa màn hình */
+  .sk-setup th:nth-child(2),.sk-setup td:nth-child(2),.sk-setup th:nth-child(4),.sk-setup td:nth-child(4){display:none}
+  .sk-setup td,.sk-setup th{padding:8px 6px !important}
+  .sk-tool{gap:6px;margin:6px 0}
+  .sk-tool .inp{height:42px;font-size:14px;padding:0 10px}
+  .sk-todo{height:42px;padding:0 9px;font-size:12px}
+  .sk-mic{height:42px}
+  .sk-mic-l{display:none}
+  .sk-mic-s{display:inline}
+  .sk-note{font-size:12px;padding:6px 9px}
+  .sk-ft .sk-foot-n{align-items:stretch;min-width:0}
+  .sk-ft .sk-sync{grid-column:1/-1;text-align:center;font-size:11px}
+  .sk-ft .btn-p{grid-column:1/-1}
+  .sk-ft .sk-foot-n>span{text-align:center;font-size:12px}
+  .modal-b:has(.sk-head){padding:10px 14px 14px}
+  /* ---- Màn đếm gọn hơn nữa (07/10): chữ nhỏ, dòng thấp, ô số rộng đủ cho "36000" ----
+     Ô nhập giữ cỡ chữ 16px: iPhone thấy chữ ô nhập dưới 16px là tự phóng to cả trang khi chạm vào */
+  .modal:has(.sk-head) .modal-h{padding:10px 14px}
+  .modal:has(.sk-head) .modal-h h3{font-size:15.5px}
+  .modal:has(.sk-head) .modal-h p{font-size:11.5px}
+  .sk-note{font-size:11.5px;line-height:1.35;padding:5px 9px;margin-bottom:6px}
+  .sk-why{margin-bottom:4px}
+  .sk-why summary{font-size:11.5px}
+  .sk-tabs{gap:5px;padding-bottom:2px}
+  .sk-tabs button{min-width:0;padding:4px 10px;border-radius:10px}
+  .sk-tabs button b{font-size:12px}
+  .sk-tabs button small{font-size:10px}
+  .sk-tool{margin:5px 0}
+  .sk-tool .inp{height:36px;font-size:16px}
+  .sk-todo{height:36px;padding:0 8px;font-size:11.5px}
+  .sk-todo b{font-size:11px;padding:0 5px}
+  .sk-mic{height:36px;font-size:12.5px;padding:0 10px}
+  .sk-hint{font-size:11px;padding:4px 8px}
+  .sk-list{gap:4px}
+  .sk-row{padding:5px 6px;gap:1px 7px;border-radius:10px;grid-template-columns:30px minmax(0,1fr) auto}
+  .sk-row .sk-img{width:30px;height:30px;border-radius:7px}
+  .sk-row .sk-nm b{font-size:12.5px;line-height:1.2}
+  /* Mã hàng ẩn trên điện thoại — nhân viên nhìn tên + ảnh, ĐVT đã nằm ở ô chọn đơn vị */
+  .sk-row .sk-nm small.mono{display:none}
+  .sk-row .sk-nm .sk-oth{font-size:10.5px}
+  .sk-row .sk-sys small,.sk-row .sk-tot small{font-size:9px}
+  .sk-row .sk-sys b,.sk-row .sk-tot b{font-size:12px}
+  .sk-row .sk-inw{gap:3px}
+  .sk-row .sk-in{height:38px;width:auto;flex:1 0 80px;min-width:80px;max-width:110px;font-size:16px;padding:4px 7px}
+  .sk-row .sk-unit{height:38px;flex:0 0 58px;width:58px;font-size:12.5px;padding:0 2px}
+  .sk-row .sk-plus{flex:0 0 34px;height:38px;font-size:18px;border-radius:9px}
+  .sk-cv{font-size:11px;padding:2px 7px}
+  .sk-ft .sk-foot-n>span{font-size:11px}
+  .sk-ft .btn{min-height:0;height:42px;font-size:13.5px}
+  /* ---- Tinh chỉnh lần 2 (07/10): ô đơn vị thành viên nhạt không viền, dấu ＋ tròn nhỏ, dòng mảnh hơn ---- */
+  .sk-list{gap:3px}
+  .sk-row{padding:4px 6px 4px 5px;gap:0 7px;border-radius:9px;border-color:#EFE8E2;grid-template-columns:28px minmax(0,1fr) auto}
+  .sk-row .sk-img{width:28px;height:28px;border-radius:7px;border:0;padding:1px}
+  .sk-row .sk-nm b{font-size:12px;font-weight:700;line-height:1.2}
+  .sk-row .sk-sys small,.sk-row .sk-tot small{font-size:8.5px;letter-spacing:.04em}
+  .sk-row .sk-sys b,.sk-row .sk-tot b{font-size:11px;font-weight:700;color:var(--txt-2)}
+  .sk-row .sk-inw{gap:4px;align-items:center}
+  .sk-row .sk-in{height:32px;flex:1 0 74px;min-width:74px;max-width:100px;font-size:14px;font-weight:700;padding:2px 8px;border-width:1px;border-radius:8px;letter-spacing:-.01em}
+  .sk-row .sk-unit{height:30px;flex:0 0 50px;width:50px;font-size:11.5px;font-weight:700;color:var(--txt-2);border:0;border-radius:8px;
+    background:#F5F0EB url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23A39890'/%3E%3C/svg%3E") no-repeat right 6px center;
+    -webkit-appearance:none;appearance:none;padding:0 16px 0 8px;text-overflow:ellipsis}
+  .sk-row .sk-u1{font-size:11px;min-width:22px}
+  .sk-row .sk-plus{flex:0 0 28px;width:28px;height:28px;border-radius:50%;border:1px solid #D3E2E0;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .sk-row.done{border-color:#D6EBDD;background:#FBFEFC}
+  /* Tab khu một tầng: "Kho Voi 3/45" thay vì tên một dòng, số một dòng */
+  .sk-tabs button{flex-direction:row;align-items:baseline;gap:5px;padding:6px 10px}
+  .sk-tabs button b{font-size:12px}
+  .sk-tool .inp{height:34px}
+  .sk-todo,.sk-mic{height:34px}
+  .sk-ft .btn{height:40px;font-size:13px;border-radius:11px}
   .sk-tabs button.sum{margin-left:0}
 }
 
@@ -4017,7 +4288,10 @@ html[data-sc] .topbar .sub{max-height:0;opacity:0;overflow:hidden}
 html[data-sc] .topbar{box-shadow:0 1px 0 var(--line-soft),0 6px 18px rgba(46,32,25,.05)}
 @media(min-width:961px){html[data-sc] .topbar h1{font-size:17px}}
 @media(max-width:960px){
-  .topbar:not(.topbar-home){position:sticky;top:0;z-index:30}
+  /* Thanh dính phải có nền NGAY TỪ ĐẦU: trước đây nền chỉ hiện khi cuộn quá 36px (lại mờ dần 0.3s),
+     nên ở khúc đầu tiêu đề trong suốt trôi đè lên chữ của thẻ bên dưới */
+  .topbar:not(.topbar-home){position:sticky;top:0;z-index:30;background:rgba(250,246,241,.92);
+    backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%)}
   html[data-sc] .topbar:not(.topbar-home){background:rgba(250,246,241,.86);
     backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);padding-bottom:8px}
   .topbar h1 .top-grp,.topbar h1 .top-date{max-height:24px;overflow:hidden;transition:max-height .3s cubic-bezier(.16,1,.3,1),opacity .2s,padding .3s}
@@ -4501,6 +4775,218 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .sig-f{display:flex;gap:8px;justify-content:flex-end}
 .sig-f .btn{flex:0 0 auto}
 @media (max-width:640px){.sig-f .btn{flex:1;justify-content:center}}
+
+/* =====================================================================
+   07/10/2026 — GỌN ĐẸP TRÊN ĐIỆN THOẠI, TOÀN APP
+   Đặt CUỐI khối style để đè các lớp cũ cùng độ ưu tiên. Cùng tinh thần màn đếm tồn: chữ nhỏ một nấc,
+   khoảng đệm mỏng, nút/ô nhập thấp lại — một màn hình chứa được nhiều nội dung hơn mà vẫn dễ bấm.
+   ===================================================================== */
+@media(max-width:640px){
+  body{font-size:13.5px}
+  .grid{gap:10px}
+  .card,.stat{border-radius:14px}
+  .card-h{padding:11px 13px;gap:8px}
+  .card-h h3{font-size:14px}
+  .card-h p{font-size:11.5px;line-height:1.4}
+  .card-b{padding:12px 13px}
+  .stat{padding:10px 12px}
+  /* Icon nằm cùng hàng với nhãn (trước đứng riêng một dòng phía trên) — thẻ thấp hẳn đi */
+  .stat .k{font-size:11px;gap:6px;flex-direction:row !important;align-items:center !important}
+  .stat .k>svg:first-child{padding:3px;width:12px;height:12px;border-radius:6px}
+  .stat .v{font-size:20px;margin-top:3px}
+  .stat .d{font-size:10.5px;margin-top:1px}
+  .btn{padding:7px 12px;font-size:12.5px;gap:5px;border-radius:9px}
+  .btn>svg{width:14px;height:14px}
+  .btn-sm{padding:5px 9px;font-size:11.5px;border-radius:8px}
+  .inp{padding:8px 10px;font-size:14px;border-radius:9px}
+  select.inp{padding-right:28px;background-position:right 9px center}
+  textarea.inp{font-size:14px}
+  .field{margin-bottom:10px}
+  .field label{font-size:11.5px;margin-bottom:3px}
+  .seg{padding:3px;border-radius:10px}
+  .seg button{padding:5px 10px;font-size:12px}
+  .tag{font-size:10.5px;padding:2px 7px}
+  .tb th,.tb td{padding:7px 8px;font-size:12px}
+  .tb th{font-size:10.5px}
+  .hint{font-size:11px;line-height:1.45}
+  .eyebrow{font-size:10px}
+  .modal-h{padding:11px 14px}
+  .modal-h h3{font-size:15.5px}
+  .modal-h p{font-size:11.5px}
+  .modal-b{padding:14px}
+  .modal-f .btn{padding:9px 12px;font-size:13px}
+  /* ---- Màn đếm v3 (08/10): danh sách liền mạch kiểu bảng, mỗi mã ~40px — một màn thấy 13–15 mã ----
+     Bỏ thẻ có viền + khoảng hở giữa các mã; ngăn bằng vạch mảnh. Đã đếm = vạch xanh mép trái, đang gõ = vạch đỏ đô. */
+  .sk-list{gap:0 !important;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .sk-list>.sk-hint{border-radius:0;border:0;border-bottom:1px solid var(--line-soft);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sk-list>.sk-hint>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sk-list>.sk-empty{border:0;border-radius:0}
+  .sk-row{border:0 !important;border-bottom:1px solid var(--line-soft) !important;border-radius:0 !important;padding:4px 8px 4px 7px !important;
+    grid-template-columns:26px minmax(0,1fr) auto !important;gap:0 7px !important;box-shadow:none !important;background:#fff}
+  .sk-row:last-child{border-bottom:0 !important}
+  .sk-row .sk-img{width:26px !important;height:26px !important;border-radius:6px !important;padding:1px !important}
+  .sk-row .sk-ph{font-size:14px !important}
+  .sk-row .sk-nm b{font-size:12px !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .sk-row .sk-nm .sk-oth{font-size:10px !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sk-row .sk-meta{gap:0 7px !important;align-items:center;flex-wrap:nowrap !important;overflow:hidden}
+  .sk-row .sk-sys small,.sk-row .sk-tot small{font-size:8.5px !important}
+  .sk-row .sk-sys b,.sk-row .sk-tot b{font-size:10.5px !important}
+  .sk-row .sk-in{height:30px !important;min-height:0 !important;font-size:14px !important;min-width:70px !important;flex-basis:70px !important}
+  .sk-row .sk-unit,.sk-row .sk-plus{min-height:0 !important}
+  .sk-row .sk-unit{height:28px !important}
+  .sk-row .sk-plus{width:26px !important;height:26px !important;flex:0 0 26px !important;font-size:14px !important}
+  .sk-row.done{box-shadow:inset 3px 0 0 var(--green) !important;background:#FBFEFC}
+  .sk-row.flash{box-shadow:inset 3px 0 0 var(--green) !important;background:#EEF9F2 !important}
+  .sk-row:focus-within{box-shadow:inset 3px 0 0 var(--brand) !important;background:#F7FBFA}
+  .sk-row .sk-cv,.sk-row .sk-newu{margin-top:3px}
+  .sk-row .sk-nil{display:none}
+  .sk-tool .inp{min-width:84px}
+  .sk-tool .sk-todo{padding:0 7px}
+  .sk-pick{border:0;border-bottom:1px solid var(--line-soft);border-radius:0;padding:6px 10px}
+  /* Tab Tổng hợp: danh sách 2 dòng thay bảng nhiều cột */
+  .sk-sum-tbl{display:none}
+  .sk-sl{display:block;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .sk-sl-r{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:8px;padding:4px 10px;border-bottom:1px solid var(--line-soft)}
+  .sk-sl-r:last-child{border-bottom:0}
+  .sk-sl-n{min-width:0;font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .sk-sl-n b{font-weight:700;margin-right:6px}
+  .sk-sl-t{font-size:12.5px;font-weight:800;text-align:right;white-space:nowrap}
+  .sk-sl-t small{font-size:10px;font-weight:700;color:var(--txt-3)}
+  .sk-sl-d{font-size:10.5px;color:var(--txt-3)}
+  .sk-sl-d em{font-style:normal;font-weight:800}
+  .sk-sl-r.nil .sk-sl-n b{color:var(--txt-3);font-weight:600}
+  .sk-sl-r.nil .sk-sl-d{color:var(--amber)}
+  /* ---- Gọn toàn app v2 (08/10): cùng tinh thần màn đếm — một màn chứa nhiều hơn ----
+     Thẻ số liệu (có ở gần mọi trang, 4 thẻ chiếm gần nửa màn): 86px → ~60px, mô tả còn 1 dòng */
+  /* v3 (09/10): mỗi thẻ thành một dòng mảnh "nhãn ……… số", bỏ dòng mô tả — 4 thẻ còn ~90px thay vì ~180px */
+  .stat{display:flex !important;flex-wrap:wrap;align-items:center;gap:1px 8px;padding:7px 10px !important;min-height:0 !important;border-radius:11px !important}
+  .stat .k{flex:1 1 auto;min-width:0;font-size:10.5px !important;gap:5px !important;line-height:1.25}
+  .stat .k>svg:first-child{padding:2px !important;width:10px !important;height:10px !important;border-radius:5px !important}
+  .stat .v{font-size:15px !important;margin:0 0 0 auto !important;line-height:1.2;white-space:nowrap}
+  .stat .d{display:none !important}
+  .g4:has(>.stat),.g3:has(>.stat),.g2:has(>.stat){gap:6px !important}
+  /* Tiêu đề trang nhỏ một nấc; mô tả dưới tiêu đề thẻ tối đa 2 dòng */
+  .topbar h1{font-size:19px !important}
+  .topbar .sub{font-size:11px !important}
+  .card-h p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  /* Checklist ngày: mỗi việc 95px → ~55px */
+  .ck{padding:8px 10px;gap:9px;margin-bottom:5px;border-radius:11px}
+  .ck-box{width:19px;height:19px;flex-basis:19px;border-radius:6px}
+  .ck-t{font-size:13px}
+  .ck-m{font-size:10.5px;gap:5px;margin-top:2px}
+  .ck-m .tag{font-size:9.5px;padding:1px 6px}
+  /* Thực đơn (công thức): ảnh thấp lại, chữ gọn */
+  .mn-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important}
+  .mn-top{height:86px}
+  .mn-b{padding:7px 9px 9px;gap:1px}
+  .mn-b b{font-size:12.5px}
+  .mn-b small{font-size:10.5px}
+  .mn-badge,.mn-time{font-size:9px;padding:2px 6px}
+  /* E-learning, đề xuất mua hàng, định mức */
+  .el-card-b{padding:7px 9px 9px}
+  .el-card-b b{font-size:12.5px}
+  .pq-br{padding:10px 12px;border-radius:12px}
+  .pq-br .pq-bn{font-size:13px;margin-bottom:4px}
+  .pq-br .n{font-size:22px}
+  .jar{padding:8px;border-radius:12px}
+  .jar-vis{height:38px;margin-bottom:5px}
+  /* Ca làm — lịch tuần của tôi: 7 ô cao 108px xếp chồng → mỗi ngày một dòng: thứ · ngày · các ca */
+  .card-b.scroll-x:has(.my-wk){overflow:visible}
+  .my-wk{grid-template-columns:1fr !important;gap:4px !important}
+  .my-wd{display:grid !important;grid-template-columns:30px 46px minmax(0,1fr);align-items:center;column-gap:6px;
+    min-height:0 !important;padding:6px 10px !important;border-radius:10px !important;border-width:1px !important}
+  .my-wd>div:first-child{font-size:11px !important}
+  .my-wd>.mono{font-size:13px !important}
+  .my-wd>.tag{grid-column:3;justify-self:start}
+  .my-wd>div:last-child{margin-top:0 !important;grid-column:3;display:flex !important;flex-wrap:wrap;gap:4px !important}
+  .my-wd>div:last-child>div{padding:3px 7px !important}
+  /* Trang Hàng hóa đã có cỡ riêng 36px — cho theo cỡ chung luôn */
+  .stk-page .btn:not(.modal .btn){height:auto;padding:7px 12px}
+  /* Hộp nguyên liệu: ảnh thành ô vuông nhỏ bên trái, nút ảnh bên phải — trước ảnh chiếm cả nửa màn hình */
+  .mt-ed{gap:10px !important}
+  /* Danh mục NVL: dòng gọn thay bảng 9 cột; công cụ xếp gọn; lưới ảnh 3 cột nhỏ */
+  .mt-rows{display:block;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .mt-tbl{display:none}
+  .mt-head{padding:10px 12px !important}
+  .mt-tools{width:100%;margin-left:0 !important;gap:6px !important}
+  .mt-tools .inp{flex:1 1 100%;width:auto !important;order:-1}
+  .mt-tools .seg{flex:0 0 auto}
+  .mt-noimg .card-b{padding:8px 12px;font-size:12px;gap:8px !important;flex-wrap:nowrap !important}
+  .mt-noimg-d{display:none}
+  .mt-noimg-s{display:inline}
+  .mt-tools .btn{padding:6px 10px;font-size:12px}
+  .mt-noimg .card-b>div{font-size:12px !important;min-width:0 !important}
+  .mt-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:7px !important}
+  .mt-grid .mt-img{height:78px !important}
+  .mt-grid .mt-b{padding:6px 7px !important}
+  .mt-grid .mt-b b{font-size:11.5px}
+  .mt-grid .mt-b small{display:none}
+  .mt-grid .mt-foot{font-size:10px}
+  .mt-grid .mt-badge,.mt-grid .mt-flag{font-size:8.5px;padding:1px 5px}
+  /* Hộp công thức món: hoạt hình thấp lại, bỏ dải thành phần trùng bảng định mức, chữ/đệm mỏng hơn */
+  .rcp-pl{gap:10px}
+  .rcp-pl .bar-svg{max-height:210px;width:100%;display:block}
+  .rcp-pl .pl-bar{padding:7px 10px;gap:7px}
+  .rcp-pl .pl-btn{width:32px;height:32px}
+  .rcp-pl .pl-btn.big{width:38px;height:38px;flex:0 0 38px}
+  .rcp-pl .rcp-ings{display:none}
+  .rcp-pl .card-h{flex-wrap:nowrap !important}
+  .rcp-pl .card-h>div:first-child{min-width:0;flex:1 1 auto}
+  .rcp-pl .card-h p{font-size:11.5px}
+  .rcp-pl .card-h .btn{flex:0 0 auto;width:auto}
+  .rcp-pl .banner{font-size:11.5px;padding:6px 10px;line-height:1.4;justify-content:flex-start}
+  .rcp-pl .grid{gap:10px !important}
+  .rcp-bom .card-h{padding:9px 12px !important;flex-wrap:wrap !important}
+  .rcp-bom .card-h>div:first-child{flex:1 1 100% !important}
+  .rcp-bom .card-h .tag{margin-left:0 !important}
+  .rcp-bom .card-h h3{font-size:13.5px !important}
+  .rcp-bom .card-h p{font-size:10.5px !important;line-height:1.35}
+  .rcp-bom .tb td,.rcp-bom .tb th{padding:6px 6px;font-size:11.5px}
+  .rcp-bom .tb small{display:none}
+  .rcp-pl .st-list.compact .st-row{padding:6px 9px}
+  .rcp-pl .st-list.compact .st-tx b{font-size:12px}
+  .rcp-pl .st-sec{font-size:10.5px}
+  .mt-imgcol{grid-template-columns:80px minmax(0,1fr);gap:6px 10px;align-items:start}
+  .mt-imgcol>div:first-child{grid-row:span 3}
+  .mt-imgcol .mt-hero{height:80px;padding:4px;border-radius:12px;font-size:10.5px !important}
+  .mt-imgcol .mt-hero span{display:none}
+  .mt-imghint{display:none}
+  .mt-sec{padding:9px 10px 1px}
+  .mt-sec .field label{font-size:11px}
+  .mt-sec .inp{padding:7px 9px}
+  .stk-page select.inp:not(.modal .inp),.stk-page input.inp:not(.modal .inp){height:auto;padding:8px 10px}
+}
+
+/* =====================================================================
+   10/10/2026 — MÀN ĐẾM TRÊN MÁY TÍNH / MÁY TÍNH BẢNG (≥641px)
+   Lưới 5 cột cũ (ảnh · tên · tồn HT · ô nhập · tổng) dựa vào sk-meta "trong suốt" (display:contents):
+   thêm phần tử nào vào sk-meta (vd số mờ HQ) là cả hàng lệch cột, ô nhập bị bóp mất. Dùng cùng bố cục
+   danh sách 2 tầng như điện thoại — một chỗ quyết định, không còn hai bố cục lệch nhau.
+   ===================================================================== */
+@media(min-width:641px){
+  .sk-list{gap:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .sk-list>.sk-hint{border-radius:0;border:0;border-bottom:1px solid var(--line-soft);margin:0}
+  .sk-row{grid-template-columns:38px minmax(0,1fr) auto;grid-template-areas:'img nm in' 'img meta in';
+    gap:2px 14px;padding:6px 14px 6px 10px;border:0;border-bottom:1px solid var(--line-soft);border-radius:0;box-shadow:none;align-items:center}
+  .sk-row:last-child{border-bottom:0}
+  .sk-row:focus-within{box-shadow:inset 3px 0 0 var(--brand);background:#F7FBFA}
+  .sk-row.done{box-shadow:inset 3px 0 0 var(--green);background:#FBFEFC}
+  .sk-row .sk-img{grid-area:img;width:38px;height:38px;border-radius:9px;padding:2px;align-self:center}
+  .sk-row .sk-nm{grid-area:nm;align-self:end}
+  .sk-row .sk-nm b{font-size:13.5px}
+  .sk-row .sk-meta{grid-area:meta;display:flex;flex-wrap:wrap;gap:2px 14px;align-items:center;align-self:start;min-width:0}
+  .sk-row .sk-sys,.sk-row .sk-tot{flex-direction:row;gap:5px;align-items:baseline}
+  .sk-row .sk-sys b,.sk-row .sk-tot b{font-size:12.5px}
+  .sk-row .sk-nil{display:none}
+  .sk-row .sk-inw{grid-area:in;gap:6px}
+  .sk-row .sk-in{flex:0 0 120px;width:120px;height:38px;min-height:0;font-size:15px}
+  .sk-row .sk-unit{flex:0 0 76px;width:76px;height:36px}
+  .sk-row .sk-plus{flex:0 0 34px;width:34px;height:34px;border-radius:50%}
+  .sk-row .sk-cv,.sk-row .sk-newu{grid-column:1/-1}
+  .sk-row.btp{grid-template-areas:'img nm in' 'img tot in'}
+  .sk-row.btp .sk-tot{grid-area:tot;align-self:start}
+  .sk-pick{border:0;border-bottom:1px solid var(--line-soft);border-radius:0}
+}
 </style>
 </head>
 <body>
@@ -4914,6 +5400,7 @@ const Ic = {
   clock: I(<><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></>),
   calendar: I(<><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 3v3M16 3v3"/></>),
   check: I(<path d="M4.5 12.5 9.5 17.5 19.5 7"/>),
+  mic: I(<><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></>),
   checklist: I(<><path d="M4 6.5 6 8.5 9.5 5"/><path d="M4 17.5 6 19.5 9.5 16"/><path d="M13 7h7M13 18h7"/></>),
   map: I(<><path d="M9 4 3 6.5v13.5L9 17.5l6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></>),
   ticket: I(<><path d="M3 9.5V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2.5a2.5 2.5 0 0 0 0 5V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2.5a2.5 2.5 0 0 0 0-5Z"/><path d="M14 5v14" strokeDasharray="2 2.4"/></>),
@@ -6572,7 +7059,15 @@ function CheckinCard() {
   };
 
   const inShiftNow = !!(myAtt && myAtt.inAt && !myAtt.outAt);
-  const relocate = () => { startWatch(); if (ips.length) loadIp(); setTimeout(frame, 50); };
+  /* Xin vị trí NGAY trong cú bấm: ứng dụng ngoài màn hình chính (iPhone) hay chỉ hiện hộp hỏi quyền
+     khi có thao tác của người dùng — watchPosition tự chạy lúc mở trang có khi bị từ chối luôn mà không hỏi. */
+  const relocate = () => {
+    if (canGeo) {
+      setLocating(true);
+      navigator.geolocation.getCurrentPosition(onFix, onFail, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    }
+    startWatch(); if (ips.length) loadIp(); setTimeout(frame, 50);
+  };
 
   /* ---- Gửi yêu cầu chấm công ngoài vùng = đơn bổ sung công điền sẵn ----
      Đi đúng luồng duyệt ops_attreqs đang có (vẫn bắt buộc ảnh bằng chứng). Ghi kèm khoảng cách,
@@ -6729,10 +7224,21 @@ function CheckinCard() {
   ) : null;
   const zoneLine = zone === 'ok' ? (onWifi ? 'Wi-Fi Hí Hế' : 'Trong vùng') + ' · ' + br.name : null;
 
+  /* Bị chặn quyền vị trí: chỉ đúng chỗ bật theo từng loại máy. Ứng dụng "Thêm vào màn hình chính" giữ quyền
+     RIÊNG với trình duyệt — lỡ bấm "Không cho phép" một lần là app không hỏi lại nữa, dù mở bằng Safari vẫn được. */
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isApp = !!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone);
+  const deniedHow = isIOS && isApp
+    ? 'Vào Cài đặt → Quyền riêng tư & Bảo mật → Dịch vụ định vị → Trang web Safari → chọn "Khi dùng ứng dụng". Vẫn không được thì xoá icon Hí Hế, mở bằng Safari, thêm lại vào Màn hình chính rồi bấm "Cho phép".'
+    : isIOS
+      ? 'Bấm "aA" trên thanh địa chỉ Safari → Cài đặt trang web → Vị trí → Cho phép, rồi bấm Định vị lại.'
+      : isApp
+        ? 'Giữ icon Hí Hế → Thông tin ứng dụng → Quyền → Vị trí → "Cho phép khi dùng ứng dụng", rồi bấm Định vị lại.'
+        : 'Bấm biểu tượng ổ khoá cạnh địa chỉ web → Quyền → Vị trí → Cho phép, rồi bấm Định vị lại.';
   const blockMsg = {
     out: { t: 'Bạn đang ngoài vùng chấm công', d: `Cách ${br.name} khoảng ${dist} m. Lại gần hơn${ips.length ? ' hoặc bắt Wi-Fi quán' : ''} để ${inShiftNow ? 'ra' : 'vào'} ca.` },
     err: geoErr === 'denied'
-      ? { t: 'Chưa được phép lấy vị trí', d: `Mở cài đặt trình duyệt, cho phép Vị trí với trang này rồi bấm Định vị lại${ips.length ? ' — hoặc bắt Wi-Fi quán' : ''}.` }
+      ? { t: 'Chưa được phép lấy vị trí', d: deniedHow + (ips.length ? ' Hoặc bắt Wi-Fi quán.' : '') }
       : { t: 'Không lấy được vị trí', d: `Bật Vị trí (GPS) trên điện thoại, ra chỗ thoáng rồi bấm Định vị lại${ips.length ? ' — hoặc bắt Wi-Fi quán' : ''}.` },
     offwifi: { t: 'Chưa bắt Wi-Fi của quán', d: `${br.name} chấm công bằng Wi-Fi. Kết nối Wi-Fi quán rồi bấm Định vị lại.` },
     nocfg: { t: 'Chi nhánh chưa cài vị trí chấm công', d: 'Báo quản lý khai toạ độ hoặc IP Wi-Fi ở Cấu hình → Chi nhánh.' },
@@ -6899,8 +7405,10 @@ function CheckinCard() {
                           <button key={o.shift.id + o.branchId + (o.dayKey || '')}
                             className={'ck-shift' + (chosen && chosen.shift.id === o.shift.id && chosen.branchId === o.branchId ? ' on' : '')}
                             onClick={() => pickShift(o.shift.id)}>
-                            <b>{o.shift.code}</b>
-                            <small>{o.shift.start}–{o.shift.end}</small>
+                            <b className={String(o.shift.code || '').length > 5 ? 'long' : ''}>{o.shift.code}</b>
+                            {/* Mã ca chính là giờ ca thì khỏi in lặp lần nữa */}
+                            {String(o.shift.code || '').replace(/[\s–-]/g, '') !== (o.shift.start + o.shift.end).replace(/\s/g, '')
+                              && <small>{o.shift.start}–{o.shift.end}</small>}
                             {(o.dayKey || o.away) && <em>{o.dayKey ? 'hôm qua' : branchOf(o.branchId).code}</em>}
                           </button>
                         ))}
@@ -7040,12 +7548,12 @@ function MyWeekTable() {
         </div>
       </div>
       <div className="card-b scroll-x">
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(7,minmax(112px,1fr))', gap: 8 }}>
+        <div className="grid my-wk" style={{ gridTemplateColumns: 'repeat(7,minmax(112px,1fr))', gap: 8 }}>
           {cells.map(c => {
             const isToday = c.k === todayKey();
             const hol = holidayOf(cfg, c.k);
             return (
-              <div key={c.k} style={{
+              <div key={c.k} className="my-wd" style={{
                 border: '1.5px solid ' + (isToday ? 'var(--brand)' : 'var(--line)'),
                 background: isToday ? 'var(--brand-wash)' : '#fff',
                 borderRadius: 13, padding: '10px 9px', minHeight: 108,
@@ -13370,15 +13878,44 @@ const STK_ST = {
 const stkStatus = (rec, date, today) => {
   if (rec && rec.closed) return 'closed';
   if (date > today) return 'future';
-  const n = ((rec || {}).snaps || []).length;
+  const n = ((rec || {}).snaps || []).length + (rec && rec.live && rec.live.at ? 1 : 0);
   if (n) return 'doing';                       /* đã có người đếm nhưng chưa ai chốt */
   return date === today ? 'today' : 'miss';    /* ngày đã qua mà không ai đếm -> đỏ */
 };
-/* Số tồn đang dùng của một ngày: bản CHỐT nếu đã chốt, không thì bản giao ca gần nhất */
+/* Số tồn đang dùng của một ngày: bản CHỐT nếu đã chốt, không thì bản giao ca gần nhất.
+   Từ 07/10 đếm kiểu realtime: số đang điền nằm ở rec.live (mỗi ô một chỗ, ai điền gì máy khác thấy ngay).
+   live mới hơn bản chụp cuối thì coi live là "lần đếm gần nhất" — dựng thành một bản chụp ảo cùng khuôn. */
+const stkLiveSnap = (live) => {
+  const parts = {};
+  Object.keys(live.f || {}).forEach(c => {
+    const o = {};
+    Object.keys(live.f[c] || {}).forEach(z => { const v = live.f[c][z]; if (v !== '' && v != null && !isNaN(+String(v).replace(',', '.'))) o[z] = +String(v).replace(',', '.'); });
+    if (Object.keys(o).length) parts[c] = o;
+  });
+  const btp = {};
+  Object.keys(live.fb || {}).forEach(k => { const v = live.fb[k]; if (v !== '' && v != null) btp[k] = +String(v).replace(',', '.') || 0; });
+  const items = {};
+  Object.keys(live.items || {}).forEach(c => { if (live.items[c] != null) items[c] = live.items[c]; });
+  return { at: live.at, kind: 'live', by: live.lastBy || '', byName: live.lastName || '', items, parts, raw: live.fr || {}, btp,
+    btpNvl: live.btpNvl || {}, note: live.note || '', n: Object.keys(items).length };
+};
 const stkLatest = (rec) => {
   const s = ((rec || {}).snaps || []);
-  if (!s.length) return null;
-  return s[s.length - 1];
+  const last = s.length ? s[s.length - 1] : null;
+  const live = rec && rec.live;
+  if (live && live.at && (!last || live.at > last.at)) return stkLiveSnap(live);
+  return last;
+};
+/* Ô đếm realtime nằm ở collection RIÊNG, mỗi chi nhánh-ngày một document. Tách khỏi ops_stock để không lệnh
+   ghi đè cả document nào (máy còn chạy bản cũ bấm "Lưu giao ca", nạp file, chốt) xoá được số đang đếm. */
+const COL_STKLIVE = 'ops_stklive';
+const STK_LIVE_CACHE = {};
+/* Gộp sâu cho bản ghi kho trong máy — y như Firestore set({merge:true}) làm trên máy chủ */
+const stkMerge = (a, b) => {
+  if (!b || typeof b !== 'object' || Array.isArray(b)) return b;
+  const o = { ...(a && typeof a === 'object' && !Array.isArray(a) ? a : {}) };
+  Object.keys(b).forEach(k => { o[k] = (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k])) ? stkMerge(o[k], b[k]) : b[k]; });
+  return o;
 };
 
 /* ---- Số tồn ĐÃ CHỐT ----
@@ -13470,9 +14007,20 @@ const stkBomOf = (recipes) => {
   };
 };
 
+/* ---- HÀNG HÓA (nhập về bán nguyên, không qua công thức): mã KiotViet → mã kho ----
+   Mã danh mục loại 'goods' khai một hay nhiều mã KiotViet (kvCodes). Bán 1 trên KiotViet là trừ đúng 1 ĐVT
+   của mã kho đó — vd "Hạt các loại" gom Hạt mix + Hướng Dương + Đậu phộng… */
+const stkGoodsMap = (cfg) => {
+  const o = {};
+  ((cfg || {}).items || []).forEach(m => {
+    if (m && m.type === 'goods') (m.kvCodes || []).forEach(k => { const c = String(k || '').trim().toUpperCase(); if (c) o[c] = m.code; });
+  });
+  return o;
+};
 const stkRecon = ({ cfg, stocks, pos, sales, moves, bid, baseDate, from, to, only, actDate, actStrict, recipes }) => {
   const cat = (cfg || {}).items || [];
   const bomOf = stkBomOf(recipes);
+  const goodsOf = stkGoodsMap(cfg);
   const soldBom = {};      /* món đã quy theo BOM: { mã KiotViet: { name, qty, noBom } } */
   const pick = (only && only.length) ? new Set(only) : null;
   const codes = {};
@@ -13525,6 +14073,9 @@ const stkRecon = ({ cfg, stocks, pos, sales, moves, bid, baseDate, from, to, onl
     /* Ghi số bán: mã là MÓN có định mức thì trừ vào từng NVL, còn lại trừ đúng mã đó */
     const sold = (c, q, it) => {
       if (!q) return;
+      /* Hàng hóa: bán bao nhiêu trừ bấy nhiêu vào mã kho đã gắn */
+      const gc = goodsOf[String(c).trim().toUpperCase()];
+      if (gc) return add(gc, 'sold', q);
       const b = bomOf(c);
       if (!b) return add(c, 'sold', q);
       const o = soldBom[c] || (soldBom[c] = { code: c, name: b.r.name, kvName: it.name || b.r.kvName || '', qty: 0, noBom: !b.per.length });
@@ -15494,6 +16045,9 @@ const VN_BANKS = [
   { bin: '963388', code: 'TIMO', name: 'Timo' },
 ];
 const bankOf = (bin) => VN_BANKS.find(b => b.bin === bin) || VN_BANKS[0];
+/* Đơn vị tính viết hoa chữ đầu KHI HIỂN THỊ ("kg" → "Kg", "hộp" → "Hộp"). Dữ liệu gốc giữ nguyên —
+   quy đổi đơn vị so theo chữ thường bỏ dấu nên không bị ảnh hưởng. Rỗng/undefined trả nguyên để "|| '—'" vẫn chạy. */
+const uCap = (u) => { if (!u) return u; const s = String(u); return s.charAt(0).toLocaleUpperCase('vi') + s.slice(1); };
 const noAccent = (str) => String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
 const cashCfg = (cfg, branchId) => {
   const g = cfg.cash || {};
@@ -19535,7 +20089,7 @@ function ReqForm({ type, onClose }) {
                   <select className="inp" value={cat.some(c => c.code === it.code) ? it.code : ''}
                     onChange={e => pickCode(i, e.target.value)}>
                     <option value="">— Chọn mã hàng —</option>
-                    {cat.map(c => <option key={c.code} value={c.code}>{c.name} · {c.unit}</option>)}
+                    {cat.map(c => <option key={c.code} value={c.code}>{c.name} · {uCap(c.unit)}</option>)}
                   </select>
                   {it.name && <div className="hint">{it.code}{it.unit ? ' · ' + it.unit : ''}</div>}
                 </Field>
@@ -19563,7 +20117,7 @@ function ReqForm({ type, onClose }) {
             </div>
           ))}
         </div>
-        <datalist id="itemcat">{cat.map(c => <option key={c.code} value={c.code}>{c.name} · {c.unit}</option>)}</datalist>
+        <datalist id="itemcat">{cat.map(c => <option key={c.code} value={c.code}>{c.name} · {uCap(c.unit)}</option>)}</datalist>
         <button className="btn btn-o btn-w" style={{ marginTop: 10, borderStyle: 'dashed' }}
           onClick={() => set('items', [...f.items, { code: '', name: '', unit: '', qty: 1, price: 0, unitMode: UNIT_MODES[0], link: '', note: '' }])}>
           <Ic.plus size={15} /> Thêm mặt hàng
@@ -20407,7 +20961,7 @@ function ReqDrawer({ id, onClose }) {
                 <tbody>
                   {(r.items || []).map((it, i) => (
                     <tr key={i}>
-                      <td className="mono">{it.code || '—'}</td><td>{it.name}</td><td>{it.unit}</td>
+                      <td className="mono">{it.code || '—'}</td><td>{it.name}</td><td>{uCap(it.unit)}</td>
                       <td className="mono">{it.qty}</td><td className="mono">{money(it.price)}</td>
                       <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>{money((it.qty || 0) * (it.price || 0))}</td>
                     </tr>
@@ -21276,7 +21830,7 @@ function ItemImport({ onClose }) {
           <table className="tb">
             <thead><tr><th>Mã</th><th>Tên hàng</th><th>ĐVT</th><th>Nhóm</th><th>Giá</th></tr></thead>
             <tbody>{parsed.slice(0, 100).map(p => (
-              <tr key={p.i}><td className="mono">{p.it.code}</td><td>{p.it.name}</td><td>{p.it.unit}</td><td>{p.it.group}</td><td className="mono">{money(p.it.price)}</td></tr>
+              <tr key={p.i}><td className="mono">{p.it.code}</td><td>{p.it.name}</td><td>{uCap(p.it.unit)}</td><td>{p.it.group}</td><td className="mono">{money(p.it.price)}</td></tr>
             ))}</tbody>
           </table>
         </div>
@@ -23626,22 +24180,279 @@ const stkUnitK = (from, to) => {
   if ((mass.includes(f) && mass.includes(t)) || (vol.includes(f) && vol.includes(t))) return G[f] / G[t];
   return 1;
 };
+/* ── Đếm bằng đơn vị nào cũng được ──
+   Trả [{ u, k }]: 1 u = k × ĐVT kho. Phần tử đầu luôn là ĐVT kho (k = 1). Lấy từ:
+   đơn vị mua + hệ số quy đổi, quy cách ("Lon 380g"), đóng gói ("Thùng 6 bịch × 3kg"), và cặp kg↔g, lít↔ml.
+   Kết quả vẫn lưu theo ĐVT kho — vì tồn hệ thống, định mức, báo cáo đều tính theo đơn vị đó. */
+const STK_CANON = { g: ['g', 1], gr: ['g', 1], gram: ['g', 1], gam: ['g', 1], kg: ['g', 1000], ky: ['g', 1000], ki: ['g', 1000],
+  kilo: ['g', 1000], lang: ['g', 100], ml: ['ml', 1], l: ['ml', 1000], lit: ['ml', 1000], liter: ['ml', 1000] };
+const stkUnitNorm = (u) => noAccent(String(u || '')).toLowerCase().replace(/\s+/g, '');
+const stkUnits = (m) => {
+  m = m || {};
+  const base = String(m.unit || '').trim();
+  if (!base) return [{ u: '', k: 1 }];
+  const canon = (u) => { const n = stkUnitNorm(u); return STK_CANON[n] ? { n: STK_CANON[n][0], x: STK_CANON[n][1] } : { n, x: 1 }; };
+  /* 1 a = q b, quy về tên chuẩn: "1 thùng = 6 bịch", "1 bịch = 3000 g" */
+  const rels = [];
+  const rel = (a, q, b) => {
+    const A = canon(a), B = canon(b);
+    if (!A.n || !B.n || A.n === B.n || !(q > 0)) return;
+    rels.push([A.n, q * B.x / A.x, B.n]);
+  };
+  if (m.buyUnit && +m.convRatio > 0) rel(m.buyUnit, +m.convRatio, base);
+  [m.spec, m.pack].forEach(str => {
+    let box = null;
+    String(str || '').replace(/(\d+(?:[.,]\d+)?)\s*([\p{L}]+)|([\p{L}]+)/gu, (all, q, u, w) => {
+      if (w) { box = w; return all; }
+      /* '1.000' trong quy cách là một nghìn (dấu chấm nghìn kiểu Việt), không phải 1 */
+      if (box) rel(box, /^\d{1,3}(\.\d{3})+$/.test(q) ? +q.replace(/\./g, '') : +q.replace(',', '.'), u);
+      box = u;
+      return all;
+    });
+  });
+  const B = canon(base);
+  const k = { [B.n]: 1 / B.x }; /* k[tên chuẩn] = bao nhiêu ĐVT kho */
+  for (let pass = 0; pass < 6; pass++) {
+    rels.forEach(([a, q, b]) => {
+      if (k[b] != null && k[a] == null) k[a] = q * k[b];
+      else if (k[a] != null && k[b] == null) k[b] = k[a] / q;
+    });
+  }
+  const out = [{ u: base, k: 1 }];
+  const seen = new Set([stkUnitNorm(base)]);
+  const push = (u, kk) => {
+    const n = stkUnitNorm(u);
+    if (!n || seen.has(n) || !(kk > 0) || !isFinite(kk)) return;
+    /* "gr" với "g", "lit" với "lít": cùng một đơn vị viết khác — chỉ giữ một */
+    const c = STK_CANON[n];
+    if (c && out.some(x => { const xc = STK_CANON[stkUnitNorm(x.u)]; return xc && xc[0] === c[0] && Math.abs(x.k - kk) < 1e-9; })) return;
+    seen.add(n); out.push({ u, k: kk });
+  };
+  /* Giữ chữ hiển thị như người khai (có dấu), không phải tên chuẩn */
+  const label = {};
+  [m.buyUnit, ...String((m.spec || '') + ' ' + (m.pack || '')).match(/[\p{L}]+/gu) || []].forEach(w => {
+    if (!w) return;
+    const c = canon(w);
+    if (k[c.n] != null && !label[c.n + '|' + c.x]) label[c.n + '|' + c.x] = w.toLowerCase();
+  });
+  Object.keys(label).forEach(key => {
+    const [n, x] = key.split('|');
+    push(label[key], k[n] * +x);
+  });
+  /* Đơn vị quản lý tự khai ngay lúc đếm ("1 két = 24 chai") */
+  (m.units || []).forEach(x => { if (x && x.u) push(String(x.u).trim(), +x.k); });
+  if (k.g != null) { push('kg', k.g * 1000); push('g', k.g); }
+  if (k.ml != null) { push('lít', k.ml * 1000); push('ml', k.ml); }
+  return [out[0], ...out.slice(1).sort((a, b) => b.k - a.k)];
+};
+/* Ô số lúc đếm: hiện kiểu Việt Nam "36.000", "2,5" cho dễ đọc; bên trong vẫn giữ chuỗi chuẩn "36000", "2.5".
+   Dấu phẩy luôn là thập phân. Dấu chấm: gõ thêm một dấu chấm ở CUỐI là thập phân (bàn phím số Android hay chỉ có
+   dấu chấm), còn lại là dấu nghìn do chính ô này chèn vào. Từ lúc có phần thập phân, ô hiện dấu phẩy nên không lẫn. */
+const stkFmtIn = (s) => {
+  s = String(s == null ? '' : s);
+  if (!s) return '';
+  const [i, f] = s.split('.');
+  const g = (i || '0').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return f === undefined ? g : g + ',' + f;
+};
+const stkParseIn = (t, prevShown) => {
+  t = String(t || '').replace(/[^\d.,]/g, '');
+  if (!t) return '';
+  if (t.includes(',')) {
+    const k = t.indexOf(',');
+    return t.slice(0, k).replace(/\./g, '') + '.' + t.slice(k + 1).replace(/[.,]/g, '');
+  }
+  if (t.endsWith('.') && !String(prevShown || '').endsWith('.')) return t.replace(/\./g, '') + '.';
+  /* Dán sẵn "2.5" (ô trước đó chưa có dấu chấm nghìn): một dấu chấm + 1–2 chữ số sau = thập phân */
+  if (!String(prevShown || '').includes('.') && /^\d+\.\d{1,2}$/.test(t)) return t;
+  return t.replace(/\./g, '');
+};
+/* Hiện "2 thùng + 3 lon" */
+const stkPartsTxt = (parts) => (parts || []).filter(p => p.q !== '' && p.q != null).map(p => numTxt(+String(p.q).replace(',', '.') || 0) + ' ' + uCap(p.u)).join(' + ');
+
+/* ── Đếm bằng giọng nói ──
+   Nhân viên nói "sữa đặc ba hộp, đường hai ký rưỡi" → tách ra từng món + số. Số đọc bằng chữ hay
+   máy tự đổi ra chữ số đều nhận. So từ số theo chữ CÓ DẤU, vì bỏ dấu thì "nấm" thành "năm", "bà" thành "ba". */
+const VN_DIG = { 'không': 0, 'một': 1, 'mốt': 1, 'hai': 2, 'ba': 3, 'bốn': 4, 'tư': 4, 'năm': 5, 'lăm': 5, 'nhăm': 5,
+  'sáu': 6, 'bảy': 7, 'bẩy': 7, 'tám': 8, 'chín': 9, 'mười': 10 };
+const VN_NUMC = new Set(['mươi', 'trăm', 'nghìn', 'ngàn', 'lẻ', 'linh', 'rưỡi', 'phẩy', 'chấm']);
+const VN_UNITW = new Set(['hộp', 'chai', 'thùng', 'gói', 'ký', 'kí', 'kg', 'kilo', 'lạng', 'lít', 'lit', 'l', 'bịch', 'túi', 'cái',
+  'lon', 'bao', 'hũ', 'hủ', 'can', 'gam', 'gram', 'gr', 'g', 'ml', 'cây', 'quả', 'trái', 'bình', 'cốc', 'ly', 'vỉ', 'khay',
+  'xô', 'bó', 'miếng', 'viên', 'mẻ', 'lốc', 'két', 'cuộn', 'tờ', 'chiếc', 'phần', 'gáo', 'thìa', 'muỗng']);
+const VN_FILLW = new Set(['còn', 'có', 'là', 'được', 'khoảng', 'chừng', 'với', 'và', 'rồi', 'nha', 'nhé', 'ạ', 'dạ', 'ok', 'số', 'lượng', 'tổng']);
+const vnIsDigit = (t) => /^\d+([.,]\d+)*$/.test(t);
+const vnNumStart = (t) => vnIsDigit(t) || VN_DIG[t] != null || t === 'nửa';
+const vnNum = (toks) => {
+  const di = toks.findIndex(t => t === 'phẩy' || t === 'chấm');
+  if (di >= 0) {
+    const ip = vnNum(toks.slice(0, di));
+    const fr = toks.slice(di + 1).map(t => /^\d+$/.test(t) ? t : (VN_DIG[t] != null && VN_DIG[t] < 10 ? String(VN_DIG[t]) : '')).join('');
+    return ip == null ? null : +(ip + '.' + (fr || '0'));
+  }
+  /* g: phần dưới nghìn đang ghép, last: chữ số đơn vừa đọc (để "hai mươi" nhân lên), mul: hàng vừa xong (để "rưỡi" biết cộng bao nhiêu) */
+  let n = 0, g = 0, last = 0, mul = 1, any = false;
+  toks.forEach(t => {
+    let v = null;
+    if (vnIsDigit(t)) v = /^\d{1,3}(\.\d{3})+$/.test(t) ? +t.replace(/\./g, '') : +t.replace(/,/g, '.');
+    else if (VN_DIG[t] != null) v = VN_DIG[t];
+    if (v != null && !isNaN(v)) { g += v; last = v; mul = 1; any = true; return; }
+    if (t === 'mươi') { g += last * 9; last = 0; mul = 10; }
+    else if (t === 'trăm') { g += last * 99; last = 0; mul = 100; }
+    else if (t === 'nghìn' || t === 'ngàn') { n += (g || 1) * 1000; g = 0; last = 0; mul = 1000; any = true; }
+    else if (t === 'rưỡi') g += mul === 1 ? 0.5 : mul / 2;
+    else if (t === 'nửa') { g += 0.5; any = true; }
+  });
+  return any ? n + g : null;
+};
+/* cands: [{ key, name, code }] — trả { add, hits: [{ key, name, val }], errs: [chuỗi] } */
+const voiceParse = (text, cands) => {
+  const nameToks = cands.map(c => noAccent(c.name).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+  const known = new Set(); nameToks.forEach(ts => ts.forEach(t => known.add(t)));
+  let toks = [];
+  String(text || '').toLowerCase().replace(/[^\p{L}\p{N}.,\s]/gu, ' ').split(/\s+/).forEach(t => {
+    t = vnIsDigit(t) ? t : t.replace(/^[.,]+|[.,]+$/g, '');
+    if (!t) return;
+    /* "3kg", "500ml" dính liền → tách số với đơn vị, trừ khi chính nó là một phần tên hàng (vd "1l") */
+    const m = t.match(/^(\d+(?:[.,]\d+)?)(\p{L}+)$/u);
+    if (m && VN_UNITW.has(m[2]) && !known.has(noAccent(t))) toks.push(m[1], m[2]); else toks.push(t);
+  });
+  let add = false;
+  if (toks[0] === 'thêm' || toks[0] === 'cộng') { add = true; toks = toks.slice(1); }
+  const na = toks.map(t => noAccent(t));
+  /* Tên hàng nói ĐỦ thì giữ nguyên cụm đó, để chữ số nằm trong tên ("Trà ba lá") không bị đọc thành số */
+  const prot = toks.map(() => false);
+  nameToks.map(ts => ts).sort((a, b) => b.length - a.length).forEach(ts => {
+    if (ts.length < 2) return;
+    for (let i = 0; i + ts.length <= na.length; i++) {
+      if (ts.every((t, j) => na[i + j] === t && !prot[i + j])) for (let j = 0; j < ts.length; j++) prot[i + j] = true;
+    }
+  });
+  /* Cắt câu thành chuỗi [tên][số][tên][số]… */
+  const parts = [];
+  let cur = [];
+  for (let i = 0; i < toks.length; i++) {
+    if (!prot[i] && vnNumStart(toks[i])) {
+      const run = [toks[i]];
+      let j = i + 1, runU = '';
+      while (j < toks.length && !prot[j]) {
+        if (vnNumStart(toks[j]) || VN_NUMC.has(toks[j])) { run.push(toks[j]); j++; }
+        else if (VN_UNITW.has(toks[j]) && toks[j + 1] === 'rưỡi') { runU = toks[j]; run.push('rưỡi'); j += 2; } /* "một ký rưỡi" */
+        else break;
+      }
+      if (cur.length) parts.push({ name: cur });
+      cur = [];
+      parts.push({ num: vnNum(run), raw: run.join(' '), u: runU });
+      i = j - 1;
+    } else cur.push(i);
+  }
+  if (cur.length) parts.push({ name: cur });
+  const clean = (ix) => {
+    const ts = ix.map(i => toks[i]);
+    while (ts.length && VN_UNITW.has(ts[0])) ts.shift();          /* đơn vị của số đứng trước */
+    while (ts.length && VN_UNITW.has(ts[ts.length - 1])) ts.pop(); /* "sữa đặc hộp" */
+    return ts.filter(t => !VN_FILLW.has(t));
+  };
+  const match = (ts) => {
+    const S = ts.map(t => noAccent(t));
+    const joined = S.join('');
+    const sc = cands.map((c, k) => {
+      const C = nameToks[k];
+      if (c.code && noAccent(c.code).toLowerCase() === joined) return { c, hit: S.length, cov: 1, exact: true, s: 2 };
+      let hit = 0;
+      S.forEach(t => { if (C.some(x => x === t || (t.length >= 3 && x.startsWith(t)))) hit++; });
+      return { c, hit, cov: hit / S.length, exact: hit === S.length && C.length === S.length, s: 0.6 * hit / S.length + 0.4 * hit / Math.max(C.length, 1) };
+    }).filter(x => x.hit > 0 && x.cov >= 0.5).sort((a, b) => b.s - a.s);
+    if (!sc.length) return { err: 'Không thấy món "' + ts.join(' ') + '"' };
+    const ex = sc.find(x => x.exact);
+    if (ex) return { c: ex.c };
+    const full = sc.filter(x => x.cov === 1);
+    if (full.length === 1) return { c: full[0].c };
+    const pool = full.length ? full : sc;
+    if (pool.length > 1 && pool[0].s - pool[1].s < 0.08)
+      return { err: '"' + ts.join(' ') + '" giống nhiều món: ' + pool.slice(0, 3).map(x => x.c.name).join(' / ') + ' — nói rõ hơn' };
+    return { c: pool[0].c };
+  };
+  const hits = [], errs = [];
+  /* Câu mở đầu bằng số ("ba hộp sữa đặc") thì số đi với tên PHÍA SAU, còn lại số đi với tên phía trước */
+  const numFirst = parts.length && parts[0].num !== undefined;
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    if (p.num === undefined) {
+      const nb = numFirst ? parts[i - 1] : parts[i + 1];
+      const ts = clean(p.name);
+      if (ts.length && !(nb && nb.num !== undefined)) errs.push('Chưa nghe số của "' + ts.join(' ') + '"');
+      continue;
+    }
+    const nm = numFirst ? parts[i + 1] : parts[i - 1];
+    const ts = nm && nm.name ? clean(nm.name) : [];
+    if (!ts.length) { errs.push('Nghe số ' + p.raw + ' nhưng không rõ món nào'); continue; }
+    if (p.num == null) { errs.push('Không hiểu số "' + p.raw + '"'); continue; }
+    const r = match(ts);
+    /* Chữ ngay sau số là đơn vị người nói dùng ("2 THÙNG") — màn đếm tự xét có phải đơn vị của món đó không */
+    const nx = parts[i + 1];
+    const uTok = p.u || (nx && nx.name ? toks[nx.name[0]] : '');
+    if (r.err) errs.push(r.err); else hits.push({ key: r.c.key, name: r.c.name, val: stkRound(p.num), u: uTok });
+  }
+  if (!hits.length && !errs.length && toks.length) errs.push('Không hiểu: "' + text.trim() + '"');
+  return { add, hits, errs };
+};
+
 function StockCountModal({ bid, date, onClose }) {
   /* Tồn hệ thống cần thêm ba nguồn: phiếu mua (nhập), doanh số (xuất bán), phiếu huỷ/điều chuyển.
      Nạp ở đây chứ không nạp sẵn toàn app — chỉ người đang mở màn hình đếm mới cần tới. */
   useNeed('po', 'sales', 'mv', 'rcp');
-  const { cfg, user, stocks, saveStock, employees, toast, pos, sales, moves, recipes } = useApp();
+  const { cfg, user, stocks, closeStock, saveStockLive, saveCfg, employees, toast, pos, sales, moves, recipes } = useApp();
   const rec = stocks[stkKey(bid, date)] || null;
+  const canCfg = canStockCfg(user);
   const list = stockItems(cfg, bid);
   const zones = stkZones(cfg, bid);
-  const prev = stkLatest(rec);
+  /* Hôm nay chưa ai CHỐT/giao ca thì lấy số của ngày gần nhất có đếm (thường là hôm qua) làm số điền sẵn —
+     ca mở cửa chỉ sửa mấy mã đã đổi, không phải gõ lại cả kho từ 0 */
+  const realLast = (rec && (rec.snaps || []).length) ? rec.snaps[rec.snaps.length - 1] : null;
+  const [prevDay] = useState(() => {
+    if (realLast) return null;
+    for (let i = 1; i <= 31; i++) {
+      const d = dAdd(date, -i);
+      const s0 = stkLatest(stocks[stkKey(bid, d)]);
+      if (s0) return { date: d, snap: s0 };
+    }
+    return null;
+  });
+  const prev = realLast || (prevDay && prevDay.snap);
+  /* Số đang đếm REALTIME của hôm nay (mỗi ô một chỗ trên máy chủ) — mới hơn bản chụp cuối thì phủ lên */
+  const liveId = stkKey(bid, date);
+  const [liveDoc, setLiveDoc] = useState(() => STK_LIVE_CACHE[liveId] || null);
+  useEffect(() => {
+    if (!cloud || !db) return undefined;
+    return db.collection(COL_STKLIVE).doc(liveId).onSnapshot(
+      s => { const v = s.exists ? s.data() : null; STK_LIVE_CACHE[liveId] = v; setLiveDoc(v); },
+      e => console.error('[đếm realtime] nghe lỗi', e));
+  }, [liveId]);
+  /* Số cũ còn nằm trong ops_stock.live (trước khi tách) vẫn được đọc, phần mới ở ops_stklive phủ lên */
+  const legacyLive = (rec && rec.live && rec.live.at && (!realLast || rec.live.at > realLast.at)) ? rec.live : null;
+  const freshLive = (liveDoc && liveDoc.at && (!realLast || liveDoc.at > realLast.at)) ? liveDoc : null;
+  const live = useMemo(() => (legacyLive || freshLive) ? stkMerge(legacyLive || {}, freshLive || {}) : null, [legacyLive, freshLive]);
+  /* ---- HỘP CHỜ GỬI trên chính điện thoại ----
+     Mỗi ô vừa gõ được ghi NGAY vào localStorage trước khi gửi, chỉ xoá khi máy chủ XÁC NHẬN đã nhận.
+     Kho mạng yếu / mất sóng / tắt app giữa chừng: mở lại vẫn còn số và tự gửi lại. Trước đây số chỉ nằm
+     trong bộ nhớ app — tắt app là mất, mà màn hình vẫn báo "Đã lưu". */
+  const outKey = 'vn-stkout:' + liveId;
+  const outRead = () => { try { return JSON.parse(localStorage.getItem(outKey) || 'null') || {}; } catch (_) { return {}; } };
+  const outWrite = (o) => {
+    try {
+      const has = Object.keys(o.f || {}).some(c => Object.keys(o.f[c] || {}).length) || Object.keys(o.fb || {}).length || ('note' in o);
+      if (has) localStorage.setItem(outKey, JSON.stringify(o)); else localStorage.removeItem(outKey);
+    } catch (_) {}
+  };
+  const [out0] = useState(() => (stkLocked(cfg, date) ? {} : outRead()));
+  const out0n = Object.keys(out0.f || {}).reduce((a, c) => a + Object.keys(out0.f[c] || {}).length, 0) + Object.keys(out0.fb || {}).length;
   /* Mọi BTP có sản lượng mẻ đều đếm được; khoá theo mã BTP, chưa có mã thì theo id công thức */
   const btps = useMemo(() => (recipes || []).filter(r => isBtp(r) && +((r.batch || {}).qty) > 0)
     .sort((a, b) => (a.code || '~').localeCompare(b.code || '~') || (a.name || '').localeCompare(b.name || '')), [recipes]);
   const bk = (r) => r.code || r.id;
   /* Mở ra là điền sẵn số của bản gần nhất — ca sau thường chỉ chỉnh vài mã, không đếm lại từ 0.
      Bản cũ chưa có chi tiết theo khu thì dồn cả số vào khu đầu tiên. */
-  const [f, setF] = useState(() => {
+  const prevF = () => {
     const base = {};
     list.forEach(it => {
       const o = {};
@@ -23655,17 +24466,162 @@ function StockCountModal({ bid, date, onClose }) {
       base[it.code] = o;
     });
     return base;
-  });
-  const [fb, setFb] = useState(() => {
+  };
+  const prevFb = () => {
     const o = {};
     Object.keys((prev && prev.btp) || {}).forEach(k => { o[k] = String(prev.btp[k]); });
     return o;
+  };
+  /* Dạng gốc người ta đếm ("2 thùng + 3 lon") — chỉ giữ ô nào KHÁC kiểu gõ thẳng số theo ĐVT kho */
+  const prevFr = () => JSON.parse(JSON.stringify((prev && prev.raw) || {}));
+  const putRaw = (b, c, z, v) => {
+    const o = { ...(b[c] || {}) };
+    if (v && v.length) o[z] = v; else delete o[z];
+    if (Object.keys(o).length) b[c] = o; else delete b[c];
+  };
+  /* Số ngày trước KHÔNG điền thẳng vào ô nữa (nhìn như đã đếm, dễ chốt nhầm số cũ). Nó thành "số mờ":
+     hiện dưới tên hàng, chạm vào mới chép sang. Chỉ số của CHÍNH hôm nay (đã chốt rồi mở lại) mới điền sẵn. */
+  const [ghost] = useState(() => (!realLast && prevDay) ? { f: prevF(), fr: prevFr(), fb: prevFb(), date: prevDay.date } : null);
+  const emptyF = () => { const b = {}; list.forEach(it => { const o = {}; zones.forEach(z => { o[z.id] = ''; }); b[it.code] = o; }); return b; };
+  const [f, setF] = useState(() => {
+    const b = realLast ? prevF() : emptyF();
+    if (live) Object.keys(live.f || {}).forEach(c => { b[c] = { ...(b[c] || {}), ...live.f[c] }; });
+    Object.keys(out0.f || {}).forEach(c => { b[c] = { ...(b[c] || {}), ...out0.f[c] }; });
+    return b;
+  });
+  const [fb, setFb] = useState(() => { const b = realLast ? prevFb() : {}; return { ...b, ...((live && live.fb) || {}), ...(out0.fb || {}) }; });
+  const [fr, setFr] = useState(() => {
+    const b = realLast ? prevFr() : {};
+    if (live) Object.keys(live.fr || {}).forEach(c => Object.keys(live.fr[c] || {}).forEach(z => putRaw(b, c, z, live.fr[c][z])));
+    Object.keys(out0.fr || {}).forEach(c => Object.keys(out0.fr[c] || {}).forEach(z => putRaw(b, c, z, out0.fr[c][z])));
+    return b;
   });
   const [tab, setTab] = useState(() => zones[0].id);
   const [q, setQ] = useState('');
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(() => ('note' in out0 ? out0.note : (live && live.note)) || '');
+  /* Ô đã có người đụng tới trong lần đếm này ('khu|mã') — tính CHUNG cả nhóm: ô nào ai đó đã điền hôm nay
+     (live.by) cũng là đã đếm, cộng với ô máy này vừa chạm vào */
+  const [seen, setSeen] = useState({});
+  const markSeen = (zid, code) => setSeen(p => p[zid + '|' + code] ? p : { ...p, [zid + '|' + code]: 1 });
+  const seenAll = useMemo(() => {
+    const o = { ...seen }, by = (live && live.by) || {};
+    Object.keys(by).forEach(c => Object.keys(by[c] || {}).forEach(z => { o[z + '|' + c] = 1; }));
+    return o;
+  }, [seen, live]);
+  const [todo, setTodo] = useState(false);
+  const [editZ, setEditZ] = useState(false);
+  const [newU, setNewU] = useState(null);
+
+  /* ---- ĐỒNG BỘ REALTIME ----
+     Gõ ô nào thì ô đó được ghi lên máy chủ sau ~0,45 giây (gộp, không đè ô người khác). Máy khác đang mở
+     nhận ngay qua listener. `pend` nhớ giá trị máy này vừa gửi để lúc máy chủ trả về không giật lùi ô đang gõ. */
+  const dirty = useRef({});
+  const pend = useRef({});
+  const inflight = useRef(0);
+  const flushT = useRef(null), flushFn = useRef(null);
+  const [sync, setSync] = useState({ st: live ? 'ok' : 'idle', at: live ? live.at : null });
+  const queue = (key) => {
+    if (!canStockCount(user) || stkLocked(cfg, date)) return;
+    dirty.current[key] = 1;
+    setSync(s => ({ ...s, st: 'saving' }));
+    clearTimeout(flushT.current);
+    flushT.current = setTimeout(() => flushFn.current && flushFn.current(), 300);
+  };
+  /* Chuyển app / khoá màn hình / đóng tab: gửi NGAY phần còn chờ, không đợi hết nhịp chờ */
+  useEffect(() => {
+    const now = () => { if (document.visibilityState === 'hidden' && flushFn.current) { clearTimeout(flushT.current); flushFn.current(); } };
+    const bye = () => { clearTimeout(flushT.current); if (flushFn.current) flushFn.current(); };
+    document.addEventListener('visibilitychange', now);
+    window.addEventListener('pagehide', bye);
+    return () => { document.removeEventListener('visibilitychange', now); window.removeEventListener('pagehide', bye); };
+  }, []);
+  /* Còn ô chưa gửi từ lần trước (mất mạng, tắt app) → đánh dấu chờ gửi và gửi lại ngay */
+  useEffect(() => {
+    if (!out0n) return;
+    Object.keys(out0.f || {}).forEach(c => Object.keys(out0.f[c] || {}).forEach(z => { dirty.current['f|' + c + '|' + z] = 1; }));
+    Object.keys(out0.fb || {}).forEach(k => { dirty.current['b|' + k] = 1; });
+    if ('note' in out0) dirty.current.n = 1;
+    toast('Đã khôi phục ' + out0n + ' ô đếm chưa kịp gửi lên máy chủ — đang gửi lại');
+    flushT.current = setTimeout(() => flushFn.current && flushFn.current(), 600);
+  }, []);
+  /* ---- Ai đang đếm cùng (kiểu Google Sheet) ---- */
+  const whoRef = useRef({ k: '', t: 0 });
+  /* Giữ ô: chạm vào / đang gõ thì báo "tôi đang gõ ô này" (gia hạn mỗi 5 giây khi còn gõ). Người khác thấy ô
+     khoá ~20 giây kể từ lần báo cuối — rời ô thì nhả ngay. Hai người không gõ đè lên cùng một ô được. */
+  const LOCK_MS = 20000;
+  const pingWho = (code, zid) => {
+    if (!cloud || !canStockCount(user)) return;
+    const k = code + '|' + zid;
+    if (whoRef.current.k === k && Date.now() - whoRef.current.t < 5000) return;
+    whoRef.current = { k, t: Date.now() };
+    putDoc(COL_STKLIVE, liveId, { who: { [user.id]: { n: user.name || user.id, c: code, z: zid, at: new Date().toISOString() } } });
+  };
+  const releaseWho = (code, zid) => {
+    if (!cloud || whoRef.current.k !== code + '|' + zid) return;
+    whoRef.current = { k: '', t: 0 };
+    putDoc(COL_STKLIVE, liveId, { who: { [user.id]: { n: user.name || user.id, c: '', z: '', at: new Date().toISOString() } } });
+  };
+  const [tick, setTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 4000); return () => clearInterval(t); }, []);
+  const others = useMemo(() => Object.entries((liveDoc && liveDoc.who) || {})
+    .filter(([id, w]) => id !== user.id && w && w.at && Date.now() - Date.parse(w.at) < 60000)
+    .map(([id, w]) => ({ id, ...w })), [liveDoc, tick]);
+  const [rmt, setRmt] = useState({});
+  /* Ô đang bị người khác giữ (đang gõ) — trả về người đó, không thì null */
+  const lockedBy = (code, zid) => others.find(w => w.c === code && w.z === zid && Date.now() - Date.parse(w.at) < LOCK_MS) || null;
+  /* Đóng màn hình giữa chừng thì ghi nốt phần còn chờ */
+  useEffect(() => () => { clearTimeout(flushT.current); if (flushFn.current) flushFn.current(); }, []);
+  const liveSig = (legacyLive ? legacyLive.at : '') + '|' + (freshLive ? freshLive.at : '');
+  useEffect(() => {
+    if (!live) return;
+    const P = pend.current, now = Date.now(), ob = outRead();
+    const ok = (k, v) => {
+      if (dirty.current[k]) return false;
+      /* Ô còn trong hộp chờ gửi (máy này có số mới hơn, chưa lên máy chủ) — không để số máy chủ đè lên */
+      const [t, a, b] = k.split('|');
+      if (t === 'f' && ob.f && ob.f[a] && b in ob.f[a] && ob.f[a][b] !== v) return false;
+      if (t === 'b' && ob.fb && a in ob.fb && ob.fb[a] !== v) return false;
+      const p = P[k];
+      if (p) { if (p.v === v || now - p.t > 6000) delete P[k]; else return false; }
+      return true;
+    };
+    const takeF = [];
+    Object.keys(live.f || {}).forEach(c => Object.keys(live.f[c] || {}).forEach(z => { if (ok('f|' + c + '|' + z, live.f[c][z])) takeF.push([c, z]); }));
+    const takeB = Object.keys(live.fb || {}).filter(k => ok('b|' + k, live.fb[k]));
+    /* Ô người khác vừa sửa: nháy xanh 1,5 giây cho biết số vừa đổi */
+    const mine = (c, z) => { const b = ((live.by || {})[c] || {})[z]; return !b || b.n === (user.name || user.id); };
+    const flashC = takeF.filter(([c, z]) => !mine(c, z) && (f[c] || {})[z] !== live.f[c][z]).map(([c]) => c);
+    if (flashC.length) {
+      setRmt(p => { const o = { ...p }; flashC.forEach(c => { o[c] = Date.now(); }); return o; });
+      setTimeout(() => setRmt(p => { const o = { ...p }; flashC.forEach(c => { if (Date.now() - (o[c] || 0) >= 1400) delete o[c]; }); return o; }), 1500);
+    }
+    if (takeF.length) {
+      setF(p => {
+        let ch = false; const o = { ...p };
+        takeF.forEach(([c, z]) => { const v = live.f[c][z]; if ((o[c] || {})[z] !== v) { o[c] = { ...(o[c] || {}), [z]: v }; ch = true; } });
+        return ch ? o : p;
+      });
+      setFr(p => {
+        const o = { ...p };
+        takeF.forEach(([c, z]) => { if (live.fr && live.fr[c] && z in live.fr[c]) putRaw(o, c, z, live.fr[c][z]); });
+        return o;
+      });
+    }
+    if (takeB.length) setFb(p => { const o = { ...p }; takeB.forEach(k => { o[k] = live.fb[k]; }); return o; });
+    if (!dirty.current.n && typeof live.note === 'string') setNote(live.note);
+  }, [liveSig]);
+
+  /* Nút ＋ cạnh ô số: đang có 200, đếm thêm chỗ khác được 50 thì cộng vào chứ không gõ lại 250 */
+  const [addAt, setAddAt] = useState(null);
+  const [addV, setAddV] = useState('');
   /* Chỉ số bản đếm đang mở xem — null là đang đóng hết */
   const [seeSnap, setSeeSnap] = useState(null);
+  /* Đếm bằng giọng nói: mic bật là nghe liên tục tới khi bấm tắt, mỗi câu nói xong là điền luôn */
+  const [mic, setMic] = useState(false);
+  const [heard, setHeard] = useState('');
+  const [vlog, setVlog] = useState([]);
+  const [flash, setFlash] = useState(null);
+  const recRef = useRef(null), micOn = useRef(false), onSpeech = useRef(null);
   const closed = !!(rec && rec.closed);
   /* Ngày đã KHOÁ (quản trị) là thứ duy nhất chặn ghi. Đã CHỐT thì vẫn nhập tiếp và chốt lại được:
      ca sau phát hiện đếm sai mà phải đi xin mở lại thì số cuối ngày còn sai lâu hơn. */
@@ -23678,7 +24634,122 @@ function StockCountModal({ bid, date, onClose }) {
   const sys = useMemo(() => stkSysRows({ cfg, stocks, pos, sales, moves, bid, date, recipes }),
     [cfg, stocks, pos, sales, moves, bid, date, recipes]);
   const numOf = (v) => (v === '' || v == null) ? null : (+String(v).replace(',', '.') || 0);
-  const setZ = (code, zid, v) => setF(p => ({ ...p, [code]: { ...(p[code] || {}), [zid]: v } }));
+  /* Đơn vị đếm được của từng mã — phần tử đầu là ĐVT kho */
+  const unitMap = useMemo(() => {
+    const o = {};
+    list.forEach(it => { o[it.code] = stkUnits(matOf(cfg, it.code) || it); });
+    return o;
+  }, [list, cfg]);
+  const unitsOf = (code) => unitMap[code] || [{ u: '', k: 1 }];
+  const baseU = (code) => unitsOf(code)[0].u;
+  const kOf = (code, u) => (unitsOf(code).find(x => x.u === u) || { k: 1 }).k;
+  /* Đơn vị nghe/gõ được ("ký", "Kg", "kí") → đúng tên trong danh sách của mã, không khớp thì null */
+  const unitLike = (code, said) => {
+    const n = stkUnitNorm(said), cn = STK_CANON[n];
+    if (!n) return null;
+    const hit = unitsOf(code).find(x => {
+      const xn = stkUnitNorm(x.u), xc = STK_CANON[xn];
+      return xn === n || (cn && xc && cn[0] === xc[0] && cn[1] === xc[1]);
+    });
+    return hit ? hit.u : null;
+  };
+  /* Đơn vị mặc định khi đếm = ĐƠN VỊ MUA (gói, thùng…) — kho thường đếm nguyên gói. Mã chưa khai đơn vị mua
+     thì dùng ĐVT kho. Số điền sẵn (lưu theo ĐVT kho) được đổi sang đơn vị này để hiện: 36000 g → 36 gói. */
+  const defU = (code) => { const m = matOf(cfg, code) || {}; return (m.buyUnit && unitLike(code, m.buyUnit)) || baseU(code); };
+  const cellParts = (code, zid) => {
+    const raw = (fr[code] || {})[zid];
+    /* Dạng gốc chỉ dùng khi mọi đơn vị trong đó còn tồn tại — đơn vị đã đổi tên (vd "Túi" → "Gói") thì
+       ô chọn không có, sẽ hiện nhầm sang đơn vị đầu danh sách. Khi đó quy lại từ số đã lưu. */
+    if (raw && raw.every(p => unitsOf(code).some(x => x.u === p.u))) return raw;
+    const v = numOf((f[code] || {})[zid]);
+    if (v == null) return [{ q: '', u: defU(code) }];
+    /* Đổi sang đơn vị mua mà ra số lẻ khó đọc (96 g → 0,096 gói) thì giữ ĐVT kho */
+    const u = defU(code), qd = stkRound(v / kOf(code, u));
+    if (Math.abs(qd * 100 - Math.round(qd * 100)) < 1e-6) return [{ q: String(qd), u }];
+    return [{ q: String(v), u: baseU(code) }];
+  };
+  /* Số mờ của một ô (số ngày trước): hiện theo đơn vị mặc định nếu tròn, không thì theo ĐVT kho */
+  /* Trả DANH SÁCH phần như hôm qua đếm — giữ nguyên đơn vị hôm qua ("2 Thùng + 3 Lon"), không quy về đơn vị
+     mặc định. Hôm qua không lưu dạng gốc (hay đơn vị đó đã bị đổi tên) thì mới quy từ số ĐVT kho. */
+  const ghostOf = (code, zid) => {
+    if (!ghost) return null;
+    const v = numOf((ghost.f[code] || {})[zid]);
+    if (v == null) return null;
+    const raw = ((ghost.fr[code] || {})[zid] || []).filter(p => numOf(p.q) != null);
+    if (raw.length && raw.every(p => unitsOf(code).some(x => x.u === p.u))) return raw.map(p => ({ q: String(p.q), u: p.u }));
+    const u = defU(code), qd = stkRound(v / kOf(code, u));
+    return [Math.abs(qd * 100 - Math.round(qd * 100)) < 1e-6 ? { q: String(qd), u } : { q: String(v), u: baseU(code) }];
+  };
+  const takeGhost = (code, zid) => {
+    const lk = lockedBy(code, zid);
+    if (lk) return toast(lk.n + ' đang gõ ô này — chờ chút');
+    const g = ghostOf(code, zid); if (g) setCell(code, zid, g);
+  };
+  /* Chép số mờ cho mọi mã CHƯA có số ở khu đang mở — một lần bấm thay vì chạm từng dòng */
+  const takeGhostAll = (zid) => {
+    let n = 0;
+    zItems(zid).forEach(it => { if (numOf((f[it.code] || {})[zid]) == null && ghostOf(it.code, zid) && !lockedBy(it.code, zid)) { takeGhost(it.code, zid); n++; } });
+    toast(n ? 'Đã chép số ngày ' + dShort(ghost.date) + ' cho ' + n + ' mã' : 'Không còn mã nào trống có số hôm trước');
+  };
+  /* Ghi một ô theo dạng gốc: tự quy ra ĐVT kho cho f, còn dạng gốc cất ở fr */
+  const setCell = (code, zid, parts, extraK) => {
+    const kk = (u) => (extraK && extraK[u]) || kOf(code, u);
+    const used = parts.filter(p => numOf(p.q) != null);
+    const v = used.length ? String(stkRound(used.reduce((s, p) => s + numOf(p.q) * kk(p.u), 0))) : '';
+    markSeen(zid, code);
+    const plain = parts.length === 1 && parts[0].u === baseU(code);
+    /* Cất vào hộp chờ gửi NGAY từng phím — không đợi nhịp gửi 0,3 giây: máy tắt ngang giữa chừng cũng không mất */
+    if (canStockCount(user) && !stkLocked(cfg, date)) {
+      const ob = outRead(); ob.f = ob.f || {}; ob.fr = ob.fr || {};
+      (ob.f[code] = ob.f[code] || {})[zid] = v;
+      (ob.fr[code] = ob.fr[code] || {})[zid] = plain ? null : parts;
+      outWrite(ob);
+    }
+    queue('f|' + code + '|' + zid);
+    setF(p => ({ ...p, [code]: { ...(p[code] || {}), [zid]: v } }));
+    setFr(p => {
+      const o = { ...(p[code] || {}) };
+      if (plain) delete o[zid]; else o[zid] = parts;
+      const n = { ...p, [code]: o };
+      if (!Object.keys(o).length) delete n[code];
+      return n;
+    });
+  };
+  /* Cộng thêm q đơn vị u vào ô: trùng đơn vị thì gộp, ô trống thì thay */
+  const addCell = (code, zid, q, u) => {
+    const ps = cellParts(code, zid);
+    const has = ps.filter(p => numOf(p.q) != null);
+    if (!has.length) return setCell(code, zid, [{ q: String(q), u }]);
+    const i = has.findIndex(p => p.u === u);
+    if (i >= 0) has[i] = { ...has[i], q: String(stkRound(numOf(has[i].q) + q)) };
+    else has.push({ q: String(q), u });
+    setCell(code, zid, has);
+  };
+  const setZ = (code, zid, v) => setCell(code, zid, [{ q: v, u: baseU(code) }]);
+  /* Mã của một khu: khu có danh sách riêng thì chỉ những mã đó (cộng mã nào lỡ đã có số ở khu này, để không giấu số) */
+  const zItems = (zid) => {
+    const z = zones.find(x => x.id === zid);
+    return z && z.items ? list.filter(it => z.items.includes(it.code) || numOf((f[it.code] || {})[zid]) != null) : list;
+  };
+  const inZone = (zid, code) => { const z = zones.find(x => x.id === zid); return !z || !z.items || z.items.includes(code); };
+  const toggleInZone = (zid, code) => {
+    const z = zones.find(x => x.id === zid) || { id: zid };
+    const cur = z.items || list.map(it => it.code);
+    const items = cur.includes(code) ? cur.filter(c => c !== code) : [...cur, code];
+    saveCfg({ stkZones: { ...(cfg.stkZones || {}), [bid]: zones.map(x => x.id === zid ? { ...x, items } : x) } });
+  };
+  /* Khai đơn vị mới cho một mã ngay lúc đếm — lưu vào danh mục để lần sau ai đếm cũng có */
+  const saveNewUnit = () => {
+    const u = String((newU || {}).u || '').trim(), k = numOf(newU && newU.k);
+    if (!u || !(k > 0)) return toast('Nhập tên đơn vị và 1 ' + (u || 'đơn vị') + ' bằng bao nhiêu ' + baseU(newU.code));
+    if (unitsOf(newU.code).some(x => stkUnitNorm(x.u) === stkUnitNorm(u))) return toast('Mã này đã có đơn vị "' + u + '"');
+    saveCfg({ items: (cfg.items || []).map(x => x.code === newU.code
+      ? { ...x, units: [...(x.units || []), { u, k }] } : x) });
+    const ps = cellParts(newU.code, newU.zid);
+    setCell(newU.code, newU.zid, [{ ...ps[0], u }, ...ps.slice(1)], { [u]: k });
+    toast('Đã thêm đơn vị: 1 ' + uCap(u) + ' = ' + numTxt(k) + ' ' + uCap(baseU(newU.code)));
+    setNewU(null);
+  };
 
   /* BTP đếm được → NVL gốc. Số đếm theo ĐVT mẻ (vd ml), chia sản lượng mẻ ra số mẻ, rồi nhân định mức */
   const btpConv = useMemo(() => {
@@ -23703,34 +24774,314 @@ function StockCountModal({ bid, date, onClose }) {
     return zs == null && !b ? null : stkRound((zs || 0) + b);
   };
   const filled = list.filter(it => totalOf(it.code) != null).length;
-  const zFilled = (zid) => list.filter(it => numOf((f[it.code] || {})[zid]) != null).length;
+  const zFilled = (zid) => zItems(zid).filter(it => numOf((f[it.code] || {})[zid]) != null).length;
+  const zSeen = (zid) => zItems(zid).filter(it => seenAll[zid + '|' + it.code]).length;
   const bFilled = btps.filter(r => numOf(fb[bk(r)]) != null).length;
+
+  /* Gán lại mỗi lần render để bộ nghe (tạo 1 lần) luôn thấy tab và số mới nhất */
+  onSpeech.current = (text) => {
+    if (!canCount || tab === 'sum') return;
+    const isB = tab === 'btp';
+    const cands = isB ? btps.map(r => ({ key: bk(r), name: r.name, code: r.code || '' }))
+      : list.map(it => ({ key: it.code, name: it.name, code: it.code }));
+    const r = voiceParse(text, cands);
+    const at = Date.now();
+    const rows = r.hits.map((h, i) => {
+      const id = at + '-' + i;
+      if (isB) {
+        const before = fb[h.key] || '';
+        const nv = r.add ? stkRound((numOf(before) || 0) + h.val) : h.val;
+        setFb(p => ({ ...p, [h.key]: String(nv) })); queue('b|' + h.key);
+        return { id, ok: true, tab, key: h.key, before, txt: h.name + ' → ' + numTxt(nv) + (r.add ? ' (+' + numTxt(h.val) + ')' : '') };
+      }
+      const lk = lockedBy(h.key, tab);
+      if (lk) return { id, ok: false, txt: h.name + ': ' + lk.n + ' đang gõ ô này — chờ chút' };
+      const before = cellParts(h.key, tab);
+      const u = unitLike(h.key, h.u) || defU(h.key);
+      /* Nói đơn vị mà món này chưa khai quy đổi → tính như ĐVT kho, nhưng báo cho biết */
+      const odd = h.u && VN_UNITW.has(h.u) && !unitLike(h.key, h.u) ? ' (chưa khai 1 ' + h.u + ' = ? ' + baseU(h.key) + ', tính như ' + uCap(defU(h.key)) + ')' : '';
+      if (r.add) addCell(h.key, tab, h.val, u); else setCell(h.key, tab, [{ q: String(h.val), u }]);
+      return { id, ok: true, tab, key: h.key, before, txt: h.name + (r.add ? ' + ' : ' → ') + numTxt(h.val) + ' ' + uCap(u) + odd };
+    });
+    r.errs.forEach((e, i) => rows.push({ id: at + '-e' + i, ok: false, txt: e }));
+    if (!rows.length) return;
+    setVlog(p => [...rows, ...p].slice(0, 8));
+    if (navigator.vibrate) navigator.vibrate(r.errs.length ? [60, 80, 60] : 40);
+    const last = r.hits[r.hits.length - 1];
+    if (last) {
+      setQ(''); setFlash(last.key);
+      setTimeout(() => {
+        const el = document.querySelector('[data-sk="' + CSS.escape(last.key) + '"]');
+        if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 30);
+      setTimeout(() => setFlash(k => k === last.key ? null : k), 1600);
+    }
+  };
+  const [addU, setAddU] = useState('');
+  const openAdd = (k, u) => { setAddAt(addAt === k ? null : k); setAddV(''); setAddU(u || ''); };
+  const commitAdd = () => {
+    const v = numOf(addV);
+    if (v != null && addAt) {
+      const [kind, key] = [addAt.slice(0, addAt.indexOf('|')), addAt.slice(addAt.indexOf('|') + 1)];
+      if (kind === 'btp') { setFb(p => ({ ...p, [key]: String(stkRound((numOf(p[key]) || 0) + v)) })); queue('b|' + key); }
+      else addCell(key, kind, v, addU || baseU(key));
+    }
+    setAddAt(null); setAddV('');
+  };
+  /* Chọn đơn vị đếm. Quản lý có thêm dòng "＋ Đơn vị khác…" để khai đơn vị mới ngay tại dòng hàng */
+  const unitSel = (code, value, onChange, onNew, dis) => {
+    const us = unitsOf(code);
+    const can = !!onNew && canCfg && canCount;
+    if (us.length < 2 && !can) return <span className="sk-u1">{uCap(us[0].u) || '—'}</span>;
+    return (
+      <select className="sk-unit" value={value} disabled={!canCount || !!dis}
+        onChange={e => { if (e.target.value === '__new') onNew(); else onChange(e.target.value); }}>
+        {us.map(x => <option key={x.u} value={x.u}>{uCap(x.u)}</option>)}
+        {can && <option value="__new">＋ Đơn vị khác…</option>}
+      </select>
+    );
+  };
+  /* Ô đếm của một mã trong một khu: số + đơn vị + nút ＋ */
+  const zoneIn = (code, zid) => {
+    const ps = cellParts(code, zid), k = zid + '|' + code, lk = lockedBy(code, zid);
+    const p0 = ps[0], rest = ps.slice(1);
+    return (
+      <div className={'sk-inw' + (lk ? ' locked' : '')}>
+        <input className="inp mono sk-in" inputMode="decimal" disabled={!canCount || !!lk} placeholder={lk ? initials(lk.n) + ' đang gõ' : '—'}
+          title={lk ? lk.n + ' đang gõ ô này' : ''}
+          value={stkFmtIn(p0.q)} onFocus={() => { markSeen(zid, code); pingWho(code, zid); }}
+          onBlur={() => releaseWho(code, zid)}
+          onChange={e => { pingWho(code, zid); setCell(code, zid, [{ ...p0, q: stkParseIn(e.target.value, stkFmtIn(p0.q)) }, ...rest]); }} />
+        {unitSel(code, p0.u, u => { pingWho(code, zid); setCell(code, zid, [{ ...p0, u }, ...rest]); }, () => setNewU({ code, zid, u: '', k: '' }), lk)}
+        {canCount && <button type="button" className={'sk-plus' + (addAt === k ? ' on' : '')} title="Cộng thêm (có thể khác đơn vị)"
+          disabled={!!lk} onClick={() => openAdd(k, baseU(code))}>＋</button>}
+        {addAt === k && (
+          <div className="sk-addpop">
+            <span className="mono">+</span>
+            <input autoFocus className="inp mono" inputMode="decimal" placeholder="số thêm" value={stkFmtIn(addV)}
+              onChange={e => setAddV(stkParseIn(e.target.value, stkFmtIn(addV)))}
+              onKeyDown={e => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') setAddAt(null); }} />
+            {unitSel(code, addU || baseU(code), setAddU)}
+            <button type="button" className="btn btn-p btn-sm" onClick={commitAdd}>Cộng</button>
+          </div>
+        )}
+      </div>
+    );
+  };
+  /* Dòng "2 thùng + 3 lon = 99 lon" — chỉ hiện khi có đếm khác ĐVT kho hoặc nhiều lần cộng */
+  const convLine = (code, zid) => {
+    const ps = cellParts(code, zid).filter(p => numOf(p.q) != null);
+    /* Một phần thôi thì "Tổng … G" ngay dưới tên đã cho thấy quy đổi — chỉ hiện dòng này khi cộng nhiều phần */
+    if (ps.length < 2) return null;
+    const v = numOf((f[code] || {})[zid]);
+    return (
+      <div className="sk-cv">
+        {ps.map((p, i) => (
+          <span key={i} className="sk-pt">
+            {i > 0 ? '+ ' : ''}<b className="mono">{numTxt(numOf(p.q))}</b> {uCap(p.u)}
+            {i > 0 && canCount && <button type="button" title="Bỏ phần này" onClick={() => setCell(code, zid, cellParts(code, zid).filter(x => x !== p))}>✕</button>}
+          </span>
+        ))}
+        <span className="sk-eq">= <b className="mono">{v == null ? '—' : numTxt(v)}</b> {uCap(baseU(code))}</span>
+      </div>
+    );
+  };
+  /* Ô số + nút ＋. k = '<khu>|<mã>' hoặc 'btp|<mã BTP>' */
+  /* Gọi như hàm thường, KHÔNG dùng <NumIn/>: component khai trong render bị dựng lại mỗi lần gõ → mất con trỏ */
+  const numIn = (k, value, onChange, ph) => (
+    <div className="sk-inw">
+      <input className="inp mono sk-in" inputMode="decimal" disabled={!canCount} placeholder={ph || '—'}
+        value={stkFmtIn(value)} onChange={e => onChange(stkParseIn(e.target.value, stkFmtIn(value)))} />
+      {canCount && <button type="button" className={'sk-plus' + (addAt === k ? ' on' : '')} title="Cộng thêm vào số đang có"
+        onClick={() => openAdd(k)}>＋</button>}
+      {addAt === k && (
+        <div className="sk-addpop">
+          <span className="mono">{value || 0} +</span>
+          <input autoFocus className="inp mono" inputMode="decimal" placeholder="số thêm" value={addV}
+            onChange={e => setAddV(e.target.value.replace(/[^\d.,]/g, ''))}
+            onKeyDown={e => { if (e.key === 'Enter') commitAdd(); if (e.key === 'Escape') setAddAt(null); }} />
+          <button type="button" className="btn btn-p btn-sm" onClick={commitAdd}>Cộng</button>
+        </div>
+      )}
+    </div>
+  );
+  const undoVoice = (v) => {
+    if (v.tab === 'btp') { setFb(p => ({ ...p, [v.key]: v.before })); queue('b|' + v.key); } else setCell(v.key, v.tab, v.before);
+    setVlog(p => p.filter(x => x.id !== v.id));
+  };
+  const stopMic = () => {
+    micOn.current = false; setMic(false); setHeard('');
+    try { recRef.current && recRef.current.stop(); } catch (_) {}
+  };
+  const startMic = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return toast('Máy này chưa nghe được giọng nói — mở app bằng Chrome (Android) hoặc Safari (iPhone)');
+    const r = new SR();
+    r.lang = 'vi-VN'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+    r.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const x = e.results[i];
+        if (x.isFinal) onSpeech.current(x[0].transcript); else interim += x[0].transcript;
+      }
+      setHeard(interim);
+    };
+    r.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
+        micOn.current = false; setMic(false); setHeard('');
+        toast(e.error === 'audio-capture' ? 'Không mở được micro của máy' : 'Chưa cho phép dùng micro — bấm ổ khoá 🔒 cạnh địa chỉ web để cho phép');
+      }
+    };
+    /* Trình duyệt tự ngắt sau một lúc im lặng — còn đang bật thì nghe tiếp */
+    r.onend = () => { if (micOn.current) { try { r.start(); } catch (_) {} } else setHeard(''); };
+    recRef.current = r; micOn.current = true; setMic(true);
+    try { r.start(); } catch (_) {}
+  };
+  useEffect(() => () => { micOn.current = false; try { recRef.current && recRef.current.abort(); } catch (_) {} }, []);
+  useEffect(() => { if (tab === 'sum' && micOn.current) stopMic(); setEditZ(false); setNewU(null); }, [tab]);
+  /* Đặt mép dính của hàng tab đúng bằng chiều cao tiêu đề hộp thoại (tiêu đề dài xuống 2 dòng thì cao hơn) */
+  const headRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = headRef.current, mh = el && el.closest('.modal') && el.closest('.modal').querySelector('.modal-h');
+    if (!el || !mh) return;
+    const fit = () => { el.style.top = mh.offsetHeight + 'px'; };
+    fit();
+    const ro = window.ResizeObserver ? new ResizeObserver(fit) : null;
+    if (ro) ro.observe(mh);
+    return () => ro && ro.disconnect();
+  }, [list.length]);
+
+  /* Gán lại mỗi lần render để luôn ghi số MỚI NHẤT. Kèm tổng từng mã (items) để màn khác — tồn toàn hệ
+     thống, lịch — đọc được số đang đếm mà không phải đợi ai chốt. */
+  const liveOf = (keys, at) => {
+    const L = { at, lastBy: user.id, lastName: user.name || user.id, f: {}, fr: {}, fb: {}, by: {}, items: {}, btpNvl: {} };
+    keys.forEach(k => {
+      const [t, a, b] = k.split('|');
+      if (t === 'f') {
+        const v = (f[a] || {})[b] == null ? '' : String((f[a] || {})[b]);
+        (L.f[a] = L.f[a] || {})[b] = v;
+        (L.fr[a] = L.fr[a] || {})[b] = ((fr[a] || {})[b]) || null;
+        /* Chỉ ô CÓ SỐ mới ghi người đếm — ô trống không tính là đã đếm (kẻo chốt xong tiến độ nhảy lên đủ) */
+        if (v !== '') (L.by[a] = L.by[a] || {})[b] = { n: user.name || user.id, at };
+        pend.current[k] = { v, t: Date.now() };
+      } else if (t === 'b') {
+        L.fb[a] = fb[a] == null ? '' : String(fb[a]);
+        pend.current[k] = { v: L.fb[a], t: Date.now() };
+      } else if (t === 'n') L.note = note;
+    });
+    list.forEach(it => { const tt = totalOf(it.code); L.items[it.code] = tt == null ? null : tt; L.btpNvl[it.code] = btpConv.by[it.code] || 0; });
+    return L;
+  };
+  flushFn.current = () => {
+    const keys = Object.keys(dirty.current);
+    if (!keys.length) return;
+    dirty.current = {};
+    const at = new Date().toISOString();
+    const L = liveOf(keys, at);
+    /* 1) Cất vào hộp chờ gửi TRƯỚC — có gì xảy ra sau đó (mất mạng, tắt app) số vẫn còn trên máy */
+    const ob = outRead(); ob.f = ob.f || {}; ob.fr = ob.fr || {}; ob.fb = ob.fb || {};
+    keys.forEach(k => {
+      const [t, a, b] = k.split('|');
+      if (t === 'f') { (ob.f[a] = ob.f[a] || {})[b] = L.f[a][b]; (ob.fr[a] = ob.fr[a] || {})[b] = L.fr[a][b]; }
+      else if (t === 'b') ob.fb[a] = L.fb[a];
+      else if (t === 'n') ob.note = L.note;
+    });
+    outWrite(ob);
+    /* 2) Gửi. Chỗ chính: ops_stklive; bản sao gộp vào ops_stock.live cho lịch, tồn hệ thống đọc như cũ */
+    saveStockLive(liveId, { id: liveId, branchId: bid, date, upAt: at, upBy: user.id, live: L }, true);
+    inflight.current++;
+    setSync({ st: 'saving', at, since: Date.now() });
+    const done = () => {
+      inflight.current--;
+      /* 3) Máy chủ đã nhận: bỏ khỏi hộp chờ những ô chưa bị gõ đè trong lúc chờ */
+      const o2 = outRead();
+      keys.forEach(k => {
+        const [t, a, b] = k.split('|');
+        if (t === 'f' && o2.f && o2.f[a] && o2.f[a][b] === L.f[a][b] && !dirty.current[k]) { delete o2.f[a][b]; if (o2.fr && o2.fr[a]) delete o2.fr[a][b]; if (!Object.keys(o2.f[a]).length) delete o2.f[a]; }
+        else if (t === 'b' && o2.fb && o2.fb[a] === L.fb[a] && !dirty.current[k]) delete o2.fb[a];
+        else if (t === 'n' && o2.note === L.note && !dirty.current.n) delete o2.note;
+      });
+      outWrite(o2);
+      if (!inflight.current) setSync({ st: 'ok', at: new Date().toISOString() });
+    };
+    if (!cloud || !db) { done(); return; }
+    db.collection(COL_STKLIVE).doc(liveId).set({ id: liveId, branchId: bid, date, ...L }, { merge: true })
+      .then(done)
+      .catch(e => { inflight.current--; console.error('[đếm] gửi lỗi', e); setSync({ st: 'err', at, msg: (e && e.code) || 'lỗi' }); });
+    /* Quá 5 giây chưa có xác nhận → báo đỏ (mạng yếu). Firestore vẫn tự gửi lại khi có mạng. */
+    setTimeout(() => { if (inflight.current > 0) setSync(s => s.st === 'saving' ? { ...s, st: 'slow' } : s); }, 5000);
+  };
 
   const write = async (kind) => {
     /* Chốt chặn cuối: nút đã ẩn khi khoá, nhưng chặn ở đây nữa để không có đường vòng nào ghi được */
     if (lockedD) return toast('Ngày ' + dShort(date) + ' đã bị khoá sổ — nhờ quản trị mở khoá trước');
     if (!list.length) return toast('Chi nhánh chưa khai mã hàng nào — vào Thiết lập kho để thêm');
+    /* Trước khi chốt: gửi nốt số của máy này, rồi hỏi MÁY CHỦ số mới nhất. Máy chốt có thể chậm vài giây so với
+       người khác đang đếm — chốt theo số cũ là đè mất số họ vừa gõ. Có ô nào khác thì lấy về, bắt xem lại rồi chốt. */
+    if (cloud && db) {
+      clearTimeout(flushT.current);
+      if (flushFn.current) flushFn.current();
+      let d = null;
+      try {
+        const s = await db.collection(COL_STKLIVE).doc(liveId).get({ source: 'server' });
+        d = s.exists ? s.data() : null;
+      } catch (e) {
+        return toast('Chưa kết nối được máy chủ nên chưa chốt — có mạng rồi bấm Chốt lại (số đang đếm vẫn giữ trên máy)');
+      }
+      if (d && d.f && !(realLast && d.at && d.at <= realLast.at)) {
+        const ob = outRead(), diffs = [];
+        Object.keys(d.f).forEach(c => Object.keys(d.f[c] || {}).forEach(z => {
+          const k = 'f|' + c + '|' + z;
+          if (dirty.current[k] || (ob.f && ob.f[c] && z in ob.f[c])) return;   /* ô máy này đang có số mới hơn */
+          const sv = d.f[c][z] == null ? '' : String(d.f[c][z]), lv = (f[c] || {})[z] == null ? '' : String((f[c] || {})[z]);
+          if (sv !== lv) diffs.push([c, z, sv]);
+        }));
+        if (diffs.length) {
+          setF(p => { const o = { ...p }; diffs.forEach(([c, z, v]) => { o[c] = { ...(o[c] || {}), [z]: v }; }); return o; });
+          setFr(p => { const o = { ...p }; diffs.forEach(([c, z]) => putRaw(o, c, z, ((d.fr || {})[c] || {})[z])); return o; });
+          setRmt(p => { const o = { ...p }; diffs.forEach(([c]) => { o[c] = Date.now(); }); return o; });
+          return toast('Có ' + diffs.length + ' ô vừa được người khác cập nhật — đã lấy số mới nhất. Xem lại rồi bấm Chốt lần nữa.');
+        }
+      }
+    }
     if (!filled) return toast('Chưa nhập số nào');
     if (kind === 'close' && filled < list.length
       && !await zsAsk('Còn ' + (list.length - filled) + ' mã chưa nhập số.\n\nChốt luôn? Mã chưa nhập sẽ được ghi là 0.')) return;
-    const items = {}, parts = {}, btp = {}, btpNvl = {};
+    const items = {}, parts = {}, btp = {}, btpNvl = {}, raw = {};
     list.forEach(it => {
       const tot = totalOf(it.code);
       if (tot != null || kind === 'close') items[it.code] = tot || 0;
       const pz = {};
       zones.forEach(z => { const v = numOf((f[it.code] || {})[z.id]); if (v != null) pz[z.id] = v; });
       if (Object.keys(pz).length) parts[it.code] = pz;
+      /* Dạng gốc ("2 thùng + 3 lon") đi kèm, để sau này xem lại biết người đếm đếm theo kiểu gì */
+      const rz = {};
+      zones.forEach(z => {
+        const ps = ((fr[it.code] || {})[z.id] || []).filter(x => numOf(x.q) != null);
+        if (ps.length && pz[z.id] != null) rz[z.id] = ps.map(x => ({ q: numOf(x.q), u: x.u }));
+      });
+      if (Object.keys(rz).length) raw[it.code] = rz;
       if (btpConv.by[it.code]) btpNvl[it.code] = btpConv.by[it.code];
     });
     btps.forEach(r => { const c = numOf(fb[bk(r)]); if (c != null) btp[bk(r)] = c; });
     const snap = {
       at: new Date().toISOString(), by: user.id, byName: user.name || user.id,
-      kind, items, parts, btp, btpNvl, zones: zones.map(z => ({ id: z.id, name: z.name })),
+      kind, items, parts, raw, btp, btpNvl, zones: zones.map(z => ({ id: z.id, name: z.name })),
       note: note.trim(), n: Object.keys(items).length,
     };
+    /* Ghi đè cả bản ghi lúc chốt — nên mang theo số đang đếm (live) đầy đủ, kẻo mất. Cùng mốc giờ với bản chụp
+       nên lúc mở lại, bản chốt được dùng; ai sửa tiếp sau chốt thì live mới hơn và lại phủ lên. */
+    clearTimeout(flushT.current); dirty.current = {};
+    const allKeys = [];
+    list.forEach(it => zones.forEach(z => { if (numOf((f[it.code] || {})[z.id]) != null) allKeys.push('f|' + it.code + '|' + z.id); }));
+    Object.keys(fb).forEach(k => allKeys.push('b|' + k));
+    allKeys.push('n');
+    const L = liveOf(allKeys, snap.at);
+    L.by = stkMerge(L.by, (rec && rec.live && rec.live.by) || {});   /* giữ tên người đã đếm từng ô */
     const next = {
       id: stkKey(bid, date), branchId: bid, date,
       snaps: [...((rec || {}).snaps || []), snap],
+      live: L,
       upAt: new Date().toISOString(), upBy: user.id,
     };
     if (kind === 'close') {
@@ -23742,14 +25093,21 @@ function StockCountModal({ bid, date, onClose }) {
       next.at2359 = date + 'T23:59:59';
       next.items = items;
     }
-    saveStock(next);
-    toast(kind === 'close' ? 'Đã chốt tồn ngày ' + dShort(date) : 'Đã lưu bản giao ca ' + fmtTime(new Date()));
+    const { snaps: _all, ...patch } = next;
+    closeStock(next.id, patch, snap);
+    try { localStorage.removeItem(outKey); } catch (_) {}
+    toast('Đã chốt tồn ngày ' + dShort(date));
     onClose();
   };
 
   const nq = noAccent(q.trim()).toLowerCase();
-  const shown = list.filter(it => !nq || noAccent(it.code + ' ' + it.name).toLowerCase().includes(nq));
-  const Img = ({ it }) => {
+  const hitQ = (it) => !nq || noAccent(it.code + ' ' + it.name).toLowerCase().includes(nq);
+  /* Tab khu: chỉ mã của khu đó; bật "Chưa đếm" thì chỉ còn mã chưa ai đụng tới trong lần đếm này.
+     Đang sửa mã của khu thì hiện hết để tick thêm/bớt. Tab Tổng hợp luôn đủ mọi mã. */
+  const shown = (zones.some(z => z.id === tab) && !editZ ? zItems(tab) : list)
+    .filter(it => hitQ(it) && (!todo || editZ || tab === 'sum' || !seenAll[tab + '|' + it.code]));
+  /* Gọi như hàm (img(it)), không phải <Img/> — component khai trong render bị dựng lại mỗi lần gõ phím, ảnh nháy và tải lại */
+  const img = (it) => {
     const m = matOf(cfg, it.code) || it;
     return m.img
       ? <img className="sk-img" src={imgUrl(m.img)} alt="" loading="lazy" />
@@ -23771,16 +25129,24 @@ function StockCountModal({ bid, date, onClose }) {
     <Modal wide title={'Đếm tồn ' + dShort(date)}
       sub={branchOf(bid).name + ' · ' + list.length + ' mã · ' + zones.length + ' khu' + (closed ? ' · đã chốt' : '')}
       onClose={onClose}
-      footer={<>
-        <span className="sk-foot-n">Đã có số <b>{filled}/{list.length}</b> mã</span>
-        <button className="btn btn-o" onClick={onClose}>Đóng</button>
-        {canCount && <button className="btn btn-b" onClick={() => write('shift')}>
-          <Ic.clock size={15} /> Lưu giao ca
-        </button>}
+      footer={<div className="sk-ft">
+        <span className="sk-foot-n">
+          <span>Đã đếm <b>{zones.reduce((s, z) => s + zSeen(z.id), 0)}/{zones.reduce((s, z) => s + zItems(z.id).length, 0)}</b> ô · có số <b>{filled}/{list.length}</b> mã</span>
+          <i className="sk-prog"><i style={{ width: Math.round(100 * zones.reduce((s, z) => s + zSeen(z.id), 0) / Math.max(1, zones.reduce((s, z) => s + zItems(z.id).length, 0))) + '%' }} /></i>
+        </span>
+        {/* Không còn nút lưu: gõ là tự lưu và đồng bộ cho mọi máy đang mở. Chỉ còn Chốt — số chính thức cuối ngày */}
+        <span className={'sk-sync ' + sync.st}>
+          {sync.st === 'saving' ? 'Đang gửi lên máy chủ…'
+            : sync.st === 'slow' ? '⚠ Chưa lên máy chủ — mạng yếu? Số vẫn giữ trên máy này, có mạng sẽ tự gửi'
+            : sync.st === 'err' ? '⚠ Gửi lỗi (' + sync.msg + ') — số vẫn giữ trên máy này, thử tải lại app'
+            : sync.at ? '✓ Máy chủ đã nhận ' + fmtTime(new Date(sync.at)) : '● Tự lưu khi gõ'}
+          {live && live.lastName && live.lastBy !== user.id ? <small> · {live.lastName} vừa sửa</small> : null}
+        </span>
+        <button className="btn btn-o sk-ft-x" onClick={onClose}>Đóng</button>
         {canClose && <button className="btn btn-p" onClick={() => write('close')}>
-          <Ic.check size={15} /> {closed ? 'Chốt lại cuối ngày' : 'Chốt cuối ngày'}
+          <Ic.check size={15} /> {closed ? 'Chốt lại' : 'Chốt cuối ngày'}
         </button>}
-      </>}>
+      </div>}>
       {lockedD && (
         <div className="pay-calc bad" style={{ marginBottom: 12 }}><span>
           Ngày <b>{dShort(date)}</b> đã bị <b>KHOÁ SỔ</b> — số tồn của ngày này không sửa được nữa,
@@ -23794,29 +25160,47 @@ function StockCountModal({ bid, date, onClose }) {
           Phát hiện sai thì cứ sửa lại số rồi bấm <b>Chốt cuối ngày</b> lần nữa — bản chốt mới đè lên bản cũ.
         </span></div>
       )}
+      {ghost && canCount && filled < list.length ? (
+        <div className="sk-note">
+          <span>Ô trống = chưa đếm · <b>HQ</b> = số ngày {dShort(ghost.date)}, chạm <b>↺</b> để giữ nguyên.</span>
+        </div>
+      ) : null}
       {!list.length ? (
         <Empty title="Chi nhánh chưa khai mã hàng" desc="Vào Thiết lập kho để chọn mã hàng đang bán tại cơ sở này." />
       ) : (
         <>
           {/* Đây là số người đếm sẽ tin theo, nên phải nói rõ nó lấy từ đâu. Không nói thì nhân viên
               thấy lệch là sửa số đếm cho khớp sổ — hỏng đúng cái mà việc đếm sinh ra để phát hiện. */}
-          {sys.ok ? (
-            <div className="hint" style={{ marginBottom: 10 }}>
-              <b>Tồn hệ thống</b> = đầu kỳ (chốt {dShort(sys.baseDate)}) + nhập − xuất sử dụng NVL (bán × định mức) − huỷ ± chuyển,
-              cộng dồn tới {dShort(date)}; số bán KiotViet về mỗi giờ nên còn nhúc nhích. <b>Cứ đếm đúng thứ bạn thấy</b> —
-              lệch không phải đếm sai, đó chính là thứ cần tìm ra.
-              {sys.soldPartial ? <> ⚠ Có tháng chưa có số bán theo ngày — cột hệ thống có thể trừ dư.</> : null}
-            </div>
-          ) : (
-            <div className="hint" style={{ marginBottom: 10 }}>
-              Cơ sở này chưa có <b>bản chốt ngày {dShort(sys.baseDate)}</b> (mốc đầu kỳ) nên chưa tính được tồn hệ thống.
-              {' '}Mốc đầu kỳ đặt ở tab <b>Báo cáo chênh lệch</b>.
+          {/* Thu gọn thành 1 dòng bấm mở — để nguyên đoạn dài thì trên điện thoại ăn mất nửa màn hình đếm */}
+          <details className="sk-why">
+            <summary>{sys.ok ? 'Tồn hệ thống tính thế nào?' : 'Chưa tính được tồn hệ thống — vì sao?'}</summary>
+            {sys.ok ? (
+              <div className="hint">
+                <b>Tồn hệ thống</b> = đầu kỳ (chốt {dShort(sys.baseDate)}) + nhập − xuất sử dụng NVL (bán × định mức) − huỷ ± chuyển,
+                cộng dồn tới {dShort(date)}; số bán KiotViet về mỗi giờ nên còn nhúc nhích. <b>Cứ đếm đúng thứ bạn thấy</b> —
+                lệch không phải đếm sai, đó chính là thứ cần tìm ra.
+              </div>
+            ) : (
+              <div className="hint">
+                Cơ sở này chưa có <b>bản chốt ngày {dShort(sys.baseDate)}</b> (mốc đầu kỳ) nên chưa tính được tồn hệ thống.
+                {' '}Mốc đầu kỳ đặt ở tab <b>Báo cáo chênh lệch</b>.
+              </div>
+            )}
+          </details>
+          {sys.ok && sys.soldPartial ? <div className="hint" style={{ marginBottom: 8 }}>⚠ Có tháng chưa có số bán theo ngày — cột hệ thống có thể trừ dư.</div> : null}
+          {/* Tab khu + ô tìm dính ngay dưới tiêu đề hộp thoại: cuộn tới mã thứ 40 vẫn đổi khu / tìm được ngay */}
+          <div className="sk-head" ref={headRef}>
+          {others.length > 0 && (
+            <div className="sk-peers">
+              <i className="sk-live-dot" />
+              <span>Đang đếm cùng: {others.map(w => <b key={w.id} title={w.n}>{w.n}{zones.length > 1 && w.z ? <small> · {(zones.find(z => z.id === w.z) || {}).name || ''}</small> : null}</b>)}</span>
             </div>
           )}
           <div className="sk-tabs">
             {zones.map(z => (
               <button key={z.id} className={tab === z.id ? 'on' : ''} onClick={() => setTab(z.id)}>
-                <b>{z.name}</b><small>{zFilled(z.id)}/{list.length}</small>
+                <b>{z.name}</b><small>{zSeen(z.id)}/{zItems(z.id).length}</small>
+                {zItems(z.id).length > 0 && zSeen(z.id) >= zItems(z.id).length && <i className="sk-tdone">✓</i>}
               </button>
             ))}
             <button className={'btp' + (tab === 'btp' ? ' on' : '')} onClick={() => setTab('btp')}>
@@ -23826,35 +25210,127 @@ function StockCountModal({ bid, date, onClose }) {
               <b>Tổng hợp</b><small>{filled}/{list.length}</small>
             </button>
           </div>
-          {tab !== 'btp' && <input className="inp" placeholder="Tìm mã hoặc tên hàng…" value={q} onChange={e => setQ(e.target.value)} style={{ margin: '8px 0' }} />}
+          {/* Mic bật thì có thanh nổi trên cùng: vừa cuộn vừa đọc vẫn thấy máy nghe gì, điền gì, tắt ở đâu */}
+          {mic && (
+            <div className="sk-vfloat">
+              <button type="button" onClick={stopMic} aria-label="Tắt mic"><Ic.mic size={18} /></button>
+              <div>
+                <b>{heard ? '“' + heard + '”' : 'Đang nghe… đọc "sữa đặc ba hộp"'}</b>
+                {vlog[0] && <small className={vlog[0].ok ? 'ok' : 'bad'}>{vlog[0].ok ? '✓ ' : '✗ '}{vlog[0].txt}</small>}
+              </div>
+              {vlog[0] && vlog[0].ok && <button type="button" className="sk-vundo" onClick={() => undoVoice(vlog[0])}>Hoàn tác</button>}
+            </div>
+          )}
+          {/* Một hàng: ô tìm + nút mic. Trước đây là khối mic to + chữ hướng dẫn + ô tìm riêng, chiếm gần nửa màn hình điện thoại */}
+          {(tab !== 'btp' || (canCount && tab !== 'sum')) && (
+            <div className="sk-tool">
+              {tab !== 'btp'
+                ? <input className="inp" type="search" placeholder="Tìm mã, tên…" value={q} onChange={e => setQ(e.target.value)} />
+                : <span className="sk-tool-t">Đếm theo ĐVT mẻ</span>}
+              {isZone && !editZ && canCount && ghost && zItems(tab).some(it => numOf((f[it.code] || {})[tab]) == null && ghostOf(it.code, tab)) && (
+                <button type="button" className="sk-todo sk-copy" onClick={() => takeGhostAll(tab)} title={'Chép số ngày ' + dShort(ghost.date) + ' cho mọi mã chưa đếm ở khu này'}>
+                  <span className="sk-mic-l">Như hôm qua</span><span className="sk-mic-s">↺ HQ</span>
+                </button>
+              )}
+              {isZone && !editZ && (
+                <button type="button" className={'sk-todo' + (todo ? ' on' : '')} onClick={() => setTodo(!todo)}
+                  title="Chỉ hiện mã chưa đếm trong lần này">
+                  Chưa đếm <b>{Math.max(0, zItems(tab).length - zSeen(tab))}</b>
+                </button>
+              )}
+              {canCount && tab !== 'sum' && (
+                <button type="button" className={'sk-mic' + (mic ? ' on' : '')} onClick={mic ? stopMic : startMic}
+                  title='Bấm rồi đọc: "sữa đặc ba hộp", "đường hai ký rưỡi". Nói "thêm …" để cộng dồn.'>
+                  <Ic.mic size={19} /><span className="sk-mic-l">{mic ? 'Tắt mic' : 'Giọng nói'}</span><span className="sk-mic-s">{mic ? 'Tắt' : 'Nói'}</span>
+                </button>
+              )}
+            </div>
+          )}
+          {canCount && tab !== 'sum' && vlog.length > 0 && (
+            <div className="sk-vlog">
+              {vlog.map(v => (
+                <div key={v.id} className={v.ok ? 'ok' : 'bad'}>
+                  <span>{v.ok ? '✓' : '✗'} {v.txt}</span>
+                  {v.ok && <button type="button" onClick={() => undoVoice(v)}>Hoàn tác</button>}
+                </div>
+              ))}
+            </div>
+          )}
+          </div>
 
           {isZone && (
-            <div className="sk-list">
-              <div className="sk-hint">Đang đếm ở <b>{curZ.name}</b> — chỉ nhập số THẤY Ở KHU NÀY. Mã không có ở đây thì để trống.</div>
-              {shown.map(it => {
+            <div className={'sk-list' + (sys.ok ? '' : ' nosys')}>
+              {editZ ? (
+                <div className="sk-hint sk-hint-edit">
+                  <span>Tick mã <b>có ở {curZ.name}</b> — bỏ tick thì tab này không hiện mã đó nữa.</span>
+                  <button type="button" className="btn btn-p btn-sm" onClick={() => setEditZ(false)}>Xong</button>
+                </div>
+              ) : (
+                <div className="sk-hint sk-hint-edit">
+                  <span>Chỉ nhập số <b>thấy ở {curZ.name}</b>. Không có thì để trống.</span>
+                  {canCfg && <button type="button" className="sk-link" onClick={() => setEditZ(true)}>Thêm/bớt mã</button>}
+                </div>
+              )}
+              {editZ && shown.map(it => (
+                <label key={it.code} className={'sk-pick' + (inZone(tab, it.code) ? ' on' : '')}>
+                  <input type="checkbox" checked={inZone(tab, it.code)} onChange={() => toggleInZone(tab, it.code)} />
+                  {img(it)}
+                  <span><b>{it.name}</b><small className="mono">{it.code} · {uCap(it.unit) || '—'}</small></span>
+                </label>
+              ))}
+              {!editZ && shown.map(it => {
                 const book = sysOf(it.code), tot = totalOf(it.code);
                 const others = zones.filter(z => z.id !== tab).map(z => [z.name, numOf((f[it.code] || {})[z.id])]).filter(x => x[1] != null);
                 const bn = btpConv.by[it.code];
                 const d = (book != null && tot != null) ? stkRound(tot - book) : null;
                 return (
-                  <div key={it.code} className="sk-row">
-                    <Img it={it} />
+                  <div key={it.code} data-sk={it.code} className={'sk-row' + (flash === it.code ? ' flash' : '')
+                    + (numOf((f[it.code] || {})[tab]) != null ? (seenAll[tab + '|' + it.code] ? ' done' : ' pre') : '')
+                    + (rmt[it.code] ? ' rmt' : '')}>
+                    {img(it)}
                     <div className="sk-nm">
-                      <b>{it.name}</b>
-                      <small className="mono">{it.code} · {it.unit || '—'}</small>
+                      <b>{others.filter(w => w.c === it.code && w.z === tab).map(w => <span key={w.id} className="sk-who" title={w.n + ' đang gõ ô này'}>{initials(w.n)}</span>)}{it.name}</b>
+                      <small className="mono">{it.code} · {uCap(it.unit) || '—'}</small>
                       {(others.length > 0 || bn) && <small className="sk-oth">
                         {others.map(x => x[0] + ' ' + numTxt(x[1])).join(' · ')}{bn ? (others.length ? ' · ' : '') + 'BTP ' + numTxt(bn) : ''}
                       </small>}
                     </div>
-                    <div className="sk-sys" title={sysTitle(it.code)}><small>Tồn HT</small><b className="mono">{book == null ? '—' : numTxt(book)}</b></div>
-                    <input className="inp mono sk-in" inputMode="decimal" disabled={!canCount} placeholder="—"
-                      value={(f[it.code] || {})[tab] || ''} onChange={e => setZ(it.code, tab, e.target.value.replace(/[^\d.,-]/g, ''))} />
-                    <div className="sk-tot"><small>Tổng</small><b className="mono">{tot == null ? '—' : numTxt(tot)}</b>
-                      {d != null && <em className={diffCls(d)}>{sgn(d)}</em>}</div>
+                    {/* sk-meta: máy tính thì "trong suốt" (display:contents) để 2 ô này vẫn là cột riêng; điện thoại thì gom lại nằm dưới tên */}
+                    <div className="sk-meta">
+                      {(() => {
+                        const g = numOf((f[it.code] || {})[tab]) == null && ghostOf(it.code, tab);
+                        return g ? <button type="button" className="sk-ghost" disabled={!canCount} title={'Số ngày ' + dShort(ghost.date) + ' — chạm để giữ nguyên'}
+                          onClick={() => takeGhost(it.code, tab)}>HQ {stkPartsTxt(g)} <i>↺</i></button> : null;
+                      })()}
+                      <div className="sk-sys" title={sysTitle(it.code)}><small>Tồn HT</small><b className="mono">{book == null ? '—' : numTxt(book)}</b></div>
+                      <div className={'sk-tot' + (tot == null ? ' sk-nil' : '')}><small>Tổng</small><b className="mono">{tot == null ? '—' : numTxt(tot)}</b>
+                        {tot != null && <small className="sk-tu">{uCap(baseU(it.code))}</small>}
+                        {d != null && <em className={diffCls(d)}>{sgn(d)}</em>}</div>
+                    </div>
+                    {zoneIn(it.code, tab)}
+                    {convLine(it.code, tab)}
+                    {newU && newU.code === it.code && newU.zid === tab && (
+                      <div className="sk-newu">
+                        <span>1</span>
+                        <input autoFocus className="inp" placeholder="thùng, két…" value={newU.u} onChange={e => setNewU({ ...newU, u: e.target.value })} />
+                        <span>=</span>
+                        <input className="inp mono" inputMode="decimal" placeholder="24" value={newU.k}
+                          onChange={e => setNewU({ ...newU, k: e.target.value.replace(/[^\d.,]/g, '') })}
+                          onKeyDown={e => { if (e.key === 'Enter') saveNewUnit(); }} />
+                        <span>{uCap(baseU(it.code))}</span>
+                        <button type="button" className="btn btn-p btn-sm" onClick={saveNewUnit}>Lưu</button>
+                        <button type="button" className="sk-x" onClick={() => setNewU(null)} aria-label="Huỷ">✕</button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
-              {!shown.length && <div className="rc-sub" style={{ padding: 10 }}>Không tìm thấy mã nào</div>}
+              {!shown.length && (
+                <div className="sk-empty">
+                  {todo ? <>🎉 Đã đếm hết mã ở <b>{curZ.name}</b>. <button type="button" className="sk-link" onClick={() => setTodo(false)}>Xem lại tất cả</button></>
+                    : q ? 'Không tìm thấy mã nào' : <>Khu này chưa có mã nào{canCfg ? <> — bấm <b>Thêm/bớt mã</b> ở trên</> : ''}.</>}
+                </div>
+              )}
             </div>
           )}
 
@@ -23867,16 +25343,16 @@ function StockCountModal({ bid, date, onClose }) {
                 const c = numOf(fb[bk(r)]);
                 const conv = btpConv.per[bk(r)] || [];
                 return (
-                  <div key={r.id} className="sk-row btp">
+                  <div key={r.id} data-sk={bk(r)} className={'sk-row btp' + (flash === bk(r) ? ' flash' : '')}>
                     {r.img ? <img className="sk-img" src={r.img} alt="" /> : <div className="sk-img sk-ph">🫙</div>}
                     <div className="sk-nm">
                       <b>{r.name}</b>
-                      <small className="mono">{r.code ? r.code + ' · ' : ''}mẻ {numFmt(r.batch.qty)} {r.batch.unit}</small>
+                      <small className="mono">{r.code ? r.code + ' · ' : ''}mẻ {numFmt(r.batch.qty)} {uCap(r.batch.unit)}</small>
                       {c ? <small className="sk-conv">= {conv.map(u => (u.name || u.sku) + ' ' + numTxt(stkRound(u.qty)) + (u.unit || '')).join(' · ') || 'không quy được NVL nào'}</small> : null}
                     </div>
-                    <input className="inp mono sk-in" inputMode="decimal" disabled={!canCount} placeholder="—"
-                      value={fb[bk(r)] || ''} onChange={e => { const v = e.target.value.replace(/[^\d.,-]/g, ''); setFb(p => ({ ...p, [bk(r)]: v })); }} />
-                    <div className="sk-tot"><small>ĐVT</small><b>{r.batch.unit || '—'}</b></div>
+                    {numIn('btp|' + bk(r), fb[bk(r)] || '', v => { setFb(p => ({ ...p, [bk(r)]: v })); queue('b|' + bk(r)); },
+                      ghost && ghost.fb[bk(r)] != null ? 'HQ ' + stkFmtIn(ghost.fb[bk(r)]) : '—')}
+                    <div className="sk-tot"><small>ĐVT</small><b>{uCap(r.batch.unit) || '—'}</b></div>
                   </div>
                 );
               })}
@@ -23884,8 +25360,34 @@ function StockCountModal({ bid, date, onClose }) {
             </div>
           )}
 
+          {/* Điện thoại: mỗi mã 2 dòng mảnh — tên … tổng / số từng khu · lệch — vừa màn hình, không phải vuốt ngang.
+              Máy tính giữ bảng đủ cột bên dưới. */}
           {tab === 'sum' && (
-            <div className="scroll-x">
+            <div className="sk-sl">
+              {shown.map(it => {
+                const book = sysOf(it.code), tot = totalOf(it.code);
+                const d = (book != null && tot != null) ? stkRound(tot - book) : null;
+                const zs = zones.map(z => [z.name, numOf((f[it.code] || {})[z.id])]).filter(x => x[1] != null);
+                const bn = btpConv.by[it.code];
+                return (
+                  <div key={it.code} className={'sk-sl-r' + (tot == null ? ' nil' : '')}>
+                    <span className="sk-sl-n"><b>{it.name}</b>
+                    <span className="sk-sl-d">
+                      {tot == null ? 'chưa đếm' : [
+                        ...zs.map(x => x[0] + ' ' + numTxt(x[1])),
+                        ...(bn ? ['BTP ' + numTxt(bn)] : []),
+                      ].join(' · ')}
+                      {book != null && <> · HT {numTxt(book)}</>}
+                      {d != null && <em className={diffCls(d)}> {sgn(d)}</em>}
+                    </span></span>
+                    <span className="sk-sl-t mono">{tot == null ? '—' : numTxt(tot)}<small>{tot == null ? '' : ' ' + uCap(baseU(it.code))}</small></span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {tab === 'sum' && (
+            <div className="scroll-x sk-sum-tbl">
               <table className="tb tb-compact sk-sum">
                 <thead><tr>
                   <th style={{ minWidth: 170 }}>Mã · Tên hàng</th>
@@ -23903,9 +25405,13 @@ function StockCountModal({ bid, date, onClose }) {
                     const before = prev && prev.items ? prev.items[it.code] : null;
                     return (
                       <tr key={it.code}>
-                        <td><div className="sk-tdn"><Img it={it} /><div><b>{it.name}</b><div className="rc-sub mono">{it.code} · {it.unit || '—'}</div></div></div></td>
+                        <td><div className="sk-tdn">{img(it)}<div><b>{it.name}</b><div className="rc-sub mono">{it.code} · {uCap(it.unit) || '—'}</div></div></div></td>
                         {sys.ok && <td className="mono r" title={sysTitle(it.code)} style={{ fontWeight: 700 }}>{book == null ? '—' : numTxt(book)}</td>}
-                        {zones.map(z => { const v = numOf((f[it.code] || {})[z.id]); return <td key={z.id} className="mono r">{v == null ? '—' : numTxt(v)}</td>; })}
+                        {zones.map(z => {
+                          const v = numOf((f[it.code] || {})[z.id]);
+                          const rt = stkPartsTxt((fr[it.code] || {})[z.id]);
+                          return <td key={z.id} className="mono r">{v == null ? '—' : numTxt(v)}{rt && v != null ? <div className="rc-sub sk-rawt">{rt}</div> : null}</td>;
+                        })}
                         <td className="mono r" style={{ color: 'var(--txt-3)' }}>{btpConv.by[it.code] ? numTxt(btpConv.by[it.code]) : '—'}</td>
                         <td className="mono r" style={{ fontWeight: 800 }}>{tot == null ? '—' : numTxt(tot)}</td>
                         {sys.ok && <td className={'mono r sk-d ' + diffCls(d)}>{sgn(d)}</td>}
@@ -23919,10 +25425,10 @@ function StockCountModal({ bid, date, onClose }) {
           )}
           {canCount && (
             <Field label="Ghi chú bàn giao" hint="Ví dụ: thiếu 2 lon do khách trả lại, đã báo quản lý">
-              <input className="inp" value={note} onChange={e => setNote(e.target.value)} />
+              <input className="inp" value={note} onChange={e => { setNote(e.target.value); queue('n'); }} />
             </Field>
           )}
-          <div className="hint"><b>Lưu giao ca</b> ghi lại số kèm giờ để ca sau đối chiếu — chưa phải số cuối ngày.
+          <div className="hint">Số gõ vào <b>tự lưu và hiện ngay</b> trên máy mọi người đang đếm — nhiều người chia khu đếm cùng lúc được.
             {' '}<b>Chốt cuối ngày</b> mới là số chính thức — ai đếm ca cuối thì người đó chốt.</div>
         </>
       )}
@@ -23964,13 +25470,16 @@ function StockCountModal({ bid, date, onClose }) {
                             const df = (before != null && now != null) ? now - before : null;
                             const pz = (s.parts || {})[it.code], zn = s.zones || zones;
                             const det = [
-                              ...(pz ? zn.filter(z => pz[z.id] != null).map(z => z.name + ' ' + numTxt(pz[z.id])) : []),
+                              ...(pz ? zn.filter(z => pz[z.id] != null).map(z => {
+                                const rt = stkPartsTxt(((s.raw || {})[it.code] || {})[z.id]);
+                                return z.name + ' ' + numTxt(pz[z.id]) + (rt ? ' (' + rt + ')' : '');
+                              }) : []),
                               ...((s.btpNvl || {})[it.code] ? ['BTP ' + numTxt(s.btpNvl[it.code])] : []),
                             ];
                             return (
                               <tr key={it.code}>
-                                <td><b>{it.name}</b><div className="rc-sub mono">{it.code}{det.length > 1 ? ' · ' + det.join(' + ') : ''}</div></td>
-                                <td className="rc-sub">{it.unit || '—'}</td>
+                                <td><b>{it.name}</b><div className="rc-sub mono">{it.code}{det.length > 1 || (s.raw || {})[it.code] ? ' · ' + det.join(' + ') : ''}</div></td>
+                                <td className="rc-sub">{uCap(it.unit) || '—'}</td>
                                 <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>{numTxt(now)}</td>
                                 <td className="mono" style={{ textAlign: 'right', fontWeight: df ? 800 : 400,
                                   color: df == null ? 'var(--txt-3)' : df < 0 ? 'var(--red)' : df > 0 ? 'var(--green)' : 'var(--txt-3)' }}>
@@ -24130,8 +25639,21 @@ function StockSetupModal({ bid, onClose }) {
   const toggle = (code) => setSel(p => p.includes(code) ? p.filter(x => x !== code) : [...p, code]);
   /* Khu đếm (chỗ chứa) của chi nhánh: mỗi khu một tab lúc đếm, app cộng các khu thành tổng */
   const [zs, setZs] = useState(() => stkZones(cfg, bid).map(z => ({ ...z })));
+  /* Mã của từng khu: khu chưa từng chỉnh (items undefined) = có mọi mã đang đếm.
+     Chỉnh một ô là khu đó chuyển sang danh sách riêng. */
+  const zHas = (z, code) => !z.items || z.items.includes(code);
+  const toggleZ = (i, code) => setZs(p => p.map((z, k) => {
+    if (k !== i) return z;
+    const base = z.items || sel.slice();
+    return { ...z, items: base.includes(code) ? base.filter(c => c !== code) : [...base, code] };
+  }));
+  const zAll = (i, on) => setZs(p => p.map((z, k) => k === i ? { ...z, items: on ? undefined : [] } : z));
   const save = () => {
-    const zones = zs.map(z => ({ id: z.id, name: String(z.name || '').trim() })).filter(z => z.name);
+    const zones = zs.map(z => {
+      const o = { id: z.id, name: String(z.name || '').trim() };
+      if (z.items) o.items = z.items.filter(c => sel.includes(c));
+      return o;
+    }).filter(z => z.name);
     if (!zones.length) return toast('Cần ít nhất một khu đếm');
     saveCfg({ stockItems: { ...(cfg.stockItems || {}), [bid]: sel }, stkZones: { ...(cfg.stkZones || {}), [bid]: zones } });
     toast('Đã lưu ' + sel.length + ' mã hàng, ' + zones.length + ' khu đếm cho ' + branchOf(bid).name);
@@ -24169,21 +25691,41 @@ function StockSetupModal({ bid, onClose }) {
             <button className="btn btn-o btn-sm" onClick={() => setSel(cat.map(x => x.code))}>Chọn tất cả</button>
             <button className="btn btn-o btn-sm" onClick={() => setSel([])}>Bỏ hết</button>
           </div>
+          {zs.filter(z => z.name).length > 1 && (
+            <div className="hint" style={{ marginBottom: 8 }}>Tick ở cột từng khu để chọn <b>mã nào nằm ở khu nào</b> — lúc đếm, tab mỗi khu chỉ hiện đúng mã của khu đó, đỡ phải cuộn qua mã không có ở đấy.</div>
+          )}
           <div className="scroll-x">
-            <table className="tb tb-compact">
-              <thead><tr><th style={{ width: 46 }} /><th>Mã</th><th>Tên hàng</th><th>ĐVT</th></tr></thead>
+            <table className="tb tb-compact sk-setup">
+              <thead><tr><th style={{ width: 46 }}>Đếm</th><th>Mã</th><th>Tên hàng</th><th>ĐVT</th>
+                {zs.length > 1 && zs.map((z, i) => z.name ? (
+                  <th key={z.id} className="sk-zcol">
+                    <div>{z.name}</div>
+                    <button type="button" onClick={() => zAll(i, !!(z.items && z.items.length < sel.length))}>
+                      {z.items && z.items.length < sel.length ? 'chọn hết' : 'bỏ hết'}
+                    </button>
+                  </th>
+                ) : null)}
+              </tr></thead>
               <tbody>
-                {shown.map(it => (
-                  <tr key={it.code} onClick={() => toggle(it.code)} style={{ cursor: 'pointer' }}>
-                    <td style={{ textAlign: 'center' }}>
-                      <input type="checkbox" readOnly checked={sel.includes(it.code)} />
-                    </td>
-                    <td className="mono">{it.code}</td>
-                    <td>{it.name}</td>
-                    <td className="rc-sub">{it.unit || '—'}</td>
-                  </tr>
-                ))}
-                {!shown.length && <tr><td colSpan={4}><span className="rc-sub">Không tìm thấy mã nào</span></td></tr>}
+                {shown.map(it => {
+                  const on = sel.includes(it.code);
+                  return (
+                    <tr key={it.code} onClick={() => toggle(it.code)} style={{ cursor: 'pointer' }}>
+                      <td style={{ textAlign: 'center' }}>
+                        <input type="checkbox" readOnly checked={on} />
+                      </td>
+                      <td className="mono">{it.code}</td>
+                      <td>{it.name}</td>
+                      <td className="rc-sub">{uCap(it.unit) || '—'}</td>
+                      {zs.length > 1 && zs.map((z, i) => z.name ? (
+                        <td key={z.id} className="sk-zcol" onClick={e => { e.stopPropagation(); if (on) toggleZ(i, it.code); }}>
+                          <input type="checkbox" readOnly disabled={!on} checked={on && zHas(z, it.code)} />
+                        </td>
+                      ) : null)}
+                    </tr>
+                  );
+                })}
+                {!shown.length && <tr><td colSpan={4 + zs.length}><span className="rc-sub">Không tìm thấy mã nào</span></td></tr>}
               </tbody>
             </table>
           </div>
@@ -24199,20 +25741,16 @@ function StockView() {
   const { user } = useApp();
   const [page, setPage] = useState('cal');
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid stk-page" style={{ gap: 14 }}>
       <div className="card"><div className="card-b" style={{ paddingBottom: 12 }}>
         <Seg value={page} onChange={setPage} options={[
           { v: 'cal', l: 'Lịch đếm tồn' },
-          { v: 'sys', l: 'Tồn toàn hệ thống' },
           { v: 'move', l: 'Xuất hủy & điều chuyển' },
-          { v: 'ledger', l: 'Nhập - Xuất - Tồn' },
           { v: 'diff', l: 'Báo cáo chênh lệch' },
         ]} />
       </div></div>
       {page === 'cal' && <StkCalendar />}
-      {page === 'sys' && <StkSystem />}
       {page === 'move' && <StkMoveView />}
-      {page === 'ledger' && <StkLedgerView />}
       {page === 'diff' && <StkDiffView />}
     </div>
   );
@@ -24253,7 +25791,7 @@ function StkCalendar() {
 
       <div className="card">
         <div className="card-h" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <div><h3>Tồn kho theo ngày</h3><p>Bấm vào ngày để đếm tồn · giao ca lưu lại số kèm giờ, chốt mới là số cuối ngày</p></div>
+          <div><h3>Tồn kho theo ngày</h3><p>Bấm vào ngày để đếm · gõ là tự lưu cho mọi người, chốt mới là số cuối ngày</p></div>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <select className="inp" style={{ width: 'auto' }} value={bid} onChange={e => setBid(e.target.value)}>
               {brs.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -24292,9 +25830,9 @@ function StkCalendar() {
           )}
         </div>
         <div className="card-b scroll-x" style={{ paddingTop: 0 }}>
-          <table className="tb tb-compact" style={{ minWidth: 520 }}>
+          <table className="tb tb-compact sk-cal">
             <thead><tr>
-              <th style={{ width: 46 }} />
+              <th className="wk" style={{ width: 46 }} />
               {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((w, i) => (
                 <th key={w} style={{ textAlign: 'center', color: i >= 5 ? 'var(--violet)' : 'var(--txt-3)' }}>{w}</th>
               ))}
@@ -24302,7 +25840,7 @@ function StkCalendar() {
             <tbody>
               {weeks.map((wk, wi) => (
                 <tr key={wi}>
-                  <td className="rc-sub" style={{ whiteSpace: 'nowrap' }}>T{wi + 1}</td>
+                  <td className="rc-sub wk" style={{ whiteSpace: 'nowrap' }}>T{wi + 1}</td>
                   {wk.map((d, di) => {
                     if (!d) return <td key={di} />;
                     const k = st(d);
@@ -24312,18 +25850,18 @@ function StkCalendar() {
                     const lk = stkLocked(cfg, d);
                     return (
                       <td key={di} style={{ padding: 3, textAlign: 'center' }}>
-                        <button onClick={() => setOpen(d)} disabled={d > today}
+                        <button className="sk-day" onClick={() => setOpen(d)} disabled={d > today}
                           title={dShort(d) + ' · ' + S.l + (nSnap ? ' · ' + nSnap + ' lần đếm' : '') + (lk ? ' · ĐÃ KHOÁ, chỉ xem' : '')}
                           style={{
-                            width: '100%', minWidth: 54, background: S.bg, border: '1.5px solid ' + S.bd,
-                            borderRadius: 9, padding: '8px 3px', cursor: d > today ? 'default' : 'pointer',
+                            width: '100%', background: S.bg, border: '1.5px solid ' + S.bd,
+                            borderRadius: 9, cursor: d > today ? 'default' : 'pointer',
                             opacity: d > today ? .5 : 1,
                           }}>
                           <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--txt-2)' }}>
                             {lk ? '🔒 ' : ''}{+d.slice(8)}
                           </div>
                           <div style={{ fontSize: 9.5, color: lk ? 'var(--red)' : S.bd, fontWeight: 700 }}>
-                            {lk ? 'đã khoá' : k === 'closed' ? '✓ chốt' : k === 'doing' ? nSnap + ' lần' : k === 'miss' ? 'sót' : k === 'today' ? 'hôm nay' : ''}
+                            {lk ? 'đã khoá' : k === 'closed' ? '✓ chốt' : k === 'doing' ? (nSnap ? nSnap + ' lần' : 'đang đếm') : k === 'miss' ? 'sót' : k === 'today' ? 'hôm nay' : ''}
                           </div>
                         </button>
                       </td>
@@ -24529,7 +26067,7 @@ function StkSystem() {
                 <tr key={r.code}>
                   <td><b>{r.name}</b><div className="rc-sub mono">{r.code}</div></td>
                   <td className="rc-sub">{r.group || '—'}</td>
-                  <td className="rc-sub">{r.unit || '—'}</td>
+                  <td className="rc-sub">{uCap(r.unit) || '—'}</td>
                   <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>{numTxt(r.total)}</td>
                   <td className="mono" style={{ textAlign: 'right' }}>{r.price ? money(r.total * r.price) : '—'}</td>
                   {brs.map(b => (
@@ -24844,7 +26382,7 @@ function StkMoveModal({ kind, item, onClose }) {
                         const n = { ...p }; if (n[it.code]) delete n[it.code]; else n[it.code] = { qty: 1, note: '' }; return n;
                       })} /></td>
                       <td><b>{it.name}</b><div className="rc-sub mono">{it.code}</div></td>
-                      <td className="rc-sub">{it.unit || '—'}</td>
+                      <td className="rc-sub">{uCap(it.unit) || '—'}</td>
                       <td><input className="inp mono" inputMode="decimal" disabled={!on} style={{ padding: '5px 8px', textAlign: 'right' }}
                         value={on ? sel[it.code].qty : ''} onChange={e => setSel(p => ({ ...p, [it.code]: { ...p[it.code], qty: e.target.value.replace(/[^\d.]/g, '') } }))} /></td>
                       <td><input className="inp" disabled={!on} style={{ padding: '5px 8px' }}
@@ -24867,7 +26405,7 @@ function StkMoveModal({ kind, item, onClose }) {
             <tbody>
               {(f.items || []).map((i, k) => (
                 <tr key={k}><td><b>{i.name}</b><div className="rc-sub mono">{i.code}</div></td>
-                  <td className="rc-sub">{i.unit || '—'}</td>
+                  <td className="rc-sub">{uCap(i.unit) || '—'}</td>
                   <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>{numTxt(i.qty)}</td>
                   <td className="rc-sub">{i.note || '—'}</td></tr>
               ))}
@@ -25246,7 +26784,7 @@ function StkLedgerView() {
             <tbody>
               {rows.map(r => (
                 <tr key={r.code}>
-                  <td><b>{r.name}</b><br /><span className="mono hint">{r.code} · {r.unit}</span></td>
+                  <td><b>{r.name}</b><br /><span className="mono hint">{r.code} · {uCap(r.unit)}</span></td>
                   <td className="mono" style={{ textAlign: 'right' }}>{numFmt(r.open)}</td>
                   <td className="mono" style={{ textAlign: 'right' }}>{r.inQty ? '+' + numFmt(r.inQty) : '—'}</td>
                   <td className="mono" style={{ textAlign: 'right' }}>{r.adjIn ? '+' + numFmt(r.adjIn) : '—'}</td>
@@ -25892,7 +27430,7 @@ function StkPickCodes({ cfg, value, canSave, onSave, onClose }) {
                 <td><input type="checkbox" checked={sel.has(i.code)} disabled={!canSave} onChange={() => flip(i.code)} /></td>
                 <td><b>{i.name}</b><div className="rc-sub mono">{i.code}</div></td>
                 <td className="rc-sub">{i.group || '—'}</td>
-                <td className="rc-sub">{i.unit || '—'}</td>
+                <td className="rc-sub">{uCap(i.unit) || '—'}</td>
                 <td className="mono" style={{ textAlign: 'right', color: i.price ? null : 'var(--red)' }}>
                   {i.price ? money(i.price) : 'chưa khai'}
                 </td>
@@ -25920,7 +27458,7 @@ function StkPickCodes({ cfg, value, canSave, onSave, onClose }) {
    đếm, và lần chốt tay kế tiếp sẽ làm mất luôn mã đó. Nên mặc định nạp file cũng bổ sung mã vào
    danh mục của cơ sở — có vậy "nạp toàn hệ thống" mới thật sự là thiết lập được cả hệ thống. */
 function StkUploadModal({ onClose }) {
-  const { cfg, user, stocks, saveStock, saveCfg, toast } = useApp();
+  const { cfg, user, stocks, saveStock, closeStock, saveCfg, toast } = useApp();
   const brs = bizList(cfg).filter(b => inScope(user, b.id));
   const [d, setD] = useState(() => todayKey());
   const [raw, setRaw] = useState(null);
@@ -25999,18 +27537,18 @@ function StkUploadModal({ onClose }) {
     }
     built.per.forEach(x => {
       const old = stocks[stkKey(x.b.id, d)] || null;
-      saveStock({
+      /* Ghi GỘP (closeStock), không đè cả document — giữ nguyên số đang đếm realtime nếu có */
+      closeStock(stkKey(x.b.id, d), {
         id: stkKey(x.b.id, d), branchId: x.b.id, date: d,
         closed: true, closedBy: user.id, closedName: user.name || user.id,
         closedAt: new Date().toISOString(), at2359: d + 'T23:59:59',
         items: x.items,
-        /* Vẫn ghi vào lịch sử đếm như một lần chốt bình thường, có ghi rõ nguồn là nạp file */
-        snaps: [...((old || {}).snaps || []), {
-          at: new Date().toISOString(), by: user.id, byName: user.name || user.id,
-          kind: 'close', items: x.items, n: Object.keys(x.items).length,
-          note: 'Nạp từ file Excel toàn hệ thống',
-        }],
         upAt: new Date().toISOString(), upBy: user.id,
+      }, {
+        /* Vẫn ghi vào lịch sử đếm như một lần chốt bình thường, có ghi rõ nguồn là nạp file */
+        at: new Date().toISOString(), by: user.id, byName: user.name || user.id,
+        kind: 'close', items: x.items, n: Object.keys(x.items).length,
+        note: 'Nạp từ file Excel toàn hệ thống',
       });
     });
     toast('Đã chốt tồn ngày ' + dShort(d) + ' cho ' + built.per.length + ' cơ sở'
@@ -26563,7 +28101,7 @@ function PoSeeModal({ po, onClose, onRc }) {
               const dates = poRcLines(po).filter(l => l.idx === i).map(l => dShort(l.date)).filter((v, j, a) => a.indexOf(v) === j);
               return (
                 <tr key={i}><td>{it.name || it.code}<div className="rc-sub mono">{it.code}</div></td>
-                  <td className="rc-sub">{it.unit || '—'}</td>
+                  <td className="rc-sub">{uCap(it.unit) || '—'}</td>
                   <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>{it.qty}</td>
                   <td>{got <= 0 ? <span className="rc-sub">chưa về</span>
                     : <><span className={'tag ' + (got >= (+it.qty || 0) ? 't-green' : 't-amber')}>{got}/{it.qty}</span>
@@ -27460,7 +28998,7 @@ function PoModal({ item, onClose }) {
                   {free
                     ? <input className="inp" value={it.unit} disabled={!canEdit} placeholder="đvt"
                         style={{ padding: '5px 8px', width: '100%' }} onChange={e => setItem(i, 'unit', e.target.value)} />
-                    : <span className="rc-sub" style={{ display: 'inline-block', padding: '6px 0' }}>{it.unit || '—'}</span>}
+                    : <span className="rc-sub" style={{ display: 'inline-block', padding: '6px 0' }}>{uCap(it.unit) || '—'}</span>}
                 </td>
                 <td><input className="inp mono" inputMode="decimal" value={it.qty} disabled={!canEdit}
                   style={{ padding: '5px 8px', textAlign: 'right', width: '100%' }} onChange={e => setItem(i, 'qty', +e.target.value.replace(/[^\d.]/g, '') || 0)} /></td>
@@ -28245,7 +29783,7 @@ function PoReqView() {
                 const take = list.filter(x => x.status === 'taken').length;
                 return (
                   <button key={b.id} className={'pq-br' + (live.length ? ' hot' : '')} onClick={() => setBid(b.id)}>
-                    <div className="bn">{b.name}</div>
+                    <div className="pq-bn">{b.name}</div>
                     <div className="n">{live.length}</div>
                     <div className="sub">{live.length ? 'đề xuất đang treo' : 'không có việc treo'}</div>
                     <div className="tags">
@@ -28418,7 +29956,7 @@ function PqChat({ x }) {
               {(x.items || []).map((it, i) => (
                 <tr key={i}>
                   <td><b>{it.name}</b><div className="rc-sub mono">{it.code}</div></td>
-                  <td className="rc-sub">{it.unit || '—'}</td>
+                  <td className="rc-sub">{uCap(it.unit) || '—'}</td>
                   <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>{numTxt(it.qty)}</td>
                   <td className="rc-sub">{it.note || '—'}</td>
                 </tr>
@@ -28644,7 +30182,7 @@ function PqNewModal({ bid, onClose, onDone }) {
                     <tr key={it.code} style={{ background: on ? 'var(--brand-wash)' : null }}>
                       <td><input type="checkbox" checked={on} onChange={() => toggle(it.code)} /></td>
                       <td><b>{it.name}</b><div className="rc-sub mono">{it.code}</div></td>
-                      <td className="rc-sub">{it.unit || '—'}</td>
+                      <td className="rc-sub">{uCap(it.unit) || '—'}</td>
                       <td>
                         <input className="inp mono" inputMode="decimal" disabled={!on} style={{ padding: '5px 8px', textAlign: 'right' }}
                           value={on ? sel[it.code].qty : ''} onChange={e => setQty(it.code, e.target.value.replace(/[^\d.]/g, ''))} />
@@ -28971,7 +30509,7 @@ function SalesView() {
                     <tr key={r.code}>
                       <td><b>{r.name}</b><div className="rc-sub mono">{r.code}</div></td>
                       <td className="rc-sub">{r.group || '—'}</td>
-                      <td className="rc-sub">{r.unit || '—'}</td>
+                      <td className="rc-sub">{uCap(r.unit) || '—'}</td>
                       <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>{numTxt(r.qty)}</td>
                       <td className="mono" style={{ textAlign: 'right' }}>{money(r.amount)}</td>
                       {bf === 'all' && brs.map(b => (
@@ -35562,9 +37100,10 @@ function StaffView() {
 
         <div className="card">
           <div className="card-h"><div><h3>Cơ cấu giới tính</h3><p>{active.length} nhân sự đang làm</p></div></div>
-          <div className="card-b" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className="card-b" style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <Ring pct={pctNam} size={84} color="var(--blue)" label="nam" />
-            <div style={{ flex: 1 }}>
+            {/* min-width:0 + cho xuống hàng: thẻ hẹp (máy tính bảng, 2 cột) thì nhãn "Chưa khai báo 14" không tràn khung */}
+            <div style={{ flex: '1 1 140px', minWidth: 0 }}>
               <div style={{ display: 'flex', height: 12, borderRadius: 8, overflow: 'hidden', background: '#F2F0EF' }}>
                 <div style={{ width: pctNam + '%', background: 'var(--blue)' }} />
                 <div style={{ width: pctNu + '%', background: '#E85D9E' }} />
@@ -38970,7 +40509,7 @@ function RcpCallout({ it, cfg, x, y, w, h, ax, ay, side, on }) {
       </text>
       <text x={x + h} y={y + 29} fontSize="10.5" fontWeight="800" fill={on ? '#FFC9A8' : '#C8A288'}
         style={{ fontVariantNumeric: 'tabular-nums' }}>
-        {numFmt(it.qty)}{it.unit}
+        {numFmt(it.qty)} {uCap(it.unit)}
       </text>
     </g>
   );
@@ -39408,7 +40947,7 @@ function RcpPlayer({ recipe, onEdit }) {
   );
 
   return (
-    <div className="split" style={{ alignItems: 'start' }}>
+    <div className="split rcp-pl" style={{ alignItems: 'start' }}>
       <div className="card" style={{ overflow: 'hidden', position: 'relative' }}>
         {/* Ảnh món thật — góc trên bên phải hoạt hình, để nhân viên đối chiếu ly thật
             trông ra sao ngay cả khi mô phỏng chưa đúng 100% màu/độ trong. */}
@@ -39457,7 +40996,8 @@ function RcpPlayer({ recipe, onEdit }) {
               <Ic.edit size={14} /> Sửa công thức</button>}
           </div>
           {recipe.desc && <div className="card-b" style={{ padding: '0 14px 8px' }}><p className="hint">{recipe.desc}</p></div>}
-          <div className="card-b" style={{ padding: '0 14px 10px' }}>
+          {/* Trên điện thoại ẩn dải này: bảng Định mức ngay dưới đã liệt kê đủ nguyên liệu */}
+          <div className="card-b rcp-ings" style={{ padding: '0 14px 10px' }}>
             <div className="eyebrow" style={{ marginBottom: 5 }}>Thành phần</div>
             {/* Ảnh thật lấy từ danh mục nguyên liệu theo mã hàng — nguyên liệu nào chưa
                 có ảnh thì rơi về ô màu như cũ, không để trống chỗ. */}
@@ -39486,7 +41026,7 @@ function RcpPlayer({ recipe, onEdit }) {
                         còn lại rút về đúng một dòng tên, đỡ rợp mắt khi liệt kê cả quy trình. */}
                     {on && <small>{s.note || A.d}</small>}
                     {on && !!ing.length && <span className="st-ings">
-                      {ing.map(x => <span key={x.id} className="st-ing"><MatDot sku={x.sku} />{x.name} {x.qty}{x.unit}</span>)}
+                      {ing.map(x => <span key={x.id} className="st-ing"><MatDot sku={x.sku} />{x.name} {x.qty} {uCap(x.unit)}</span>)}
                     </span>}
                   </span>
                   <span className="st-sec">{hhmmss(Math.max(1, +s.sec || A.sec))}</span>
@@ -39515,7 +41055,7 @@ function RcpBomCard({ recipe }) {
   const total = its.reduce((a, x) => a + (+x.qty || 0) * (+x.cost || 0), 0);
   const pct = recipe.price ? Math.round(total / recipe.price * 100) : null;
   return (
-    <div className="card">
+    <div className="card rcp-bom">
       <div className="card-h" style={{ padding: '10px 14px', gap: 8, flexWrap: 'wrap' }}>
         <div><h3 style={{ fontSize: 14 }}>Định mức (BOM){recipe.code ? ' · ' + recipe.code : ''}</h3>
           <p>{[recipe.cup || recipe.size, recipe.status].filter(Boolean).join(' · ') || 'Định lượng cho 1 ly'}</p>
@@ -39534,7 +41074,7 @@ function RcpBomCard({ recipe }) {
                   <td><MatDot sku={x.sku} /><b>{x.name}</b>
                     {x.btp && <span className="tag t-violet" style={{ marginLeft: 6 }}>BTP</span>}
                     {x.sku && <small className="hint mono"> · {x.sku}</small>}</td>
-                  <td className="mono" style={{ textAlign: 'right' }}>{numFmt(+x.qty || 0)} {x.unit}</td>
+                  <td className="mono" style={{ textAlign: 'right' }}>{numFmt(+x.qty || 0)} {uCap(x.unit)}</td>
                   <td className="mono" style={{ textAlign: 'right' }}>{x.noStock ? '—' : money(Math.round((+x.qty || 0) * (+x.cost || 0)))}</td>
                 </tr>
               ))}
@@ -39779,7 +41319,7 @@ function RcpEditor({ item, onClose }) {
                         <button key={x.id} className={'tag ' + (on ? 't-brand' : 't-gray')}
                           style={{ padding: '5px 10px', border: '1px solid ' + (on ? 'var(--brand)' : 'var(--line)') }}
                           onClick={() => updStep(i, { use: on ? s.use.filter(u => u !== x.id) : [...(s.use || []), x.id] })}>
-                          {x.name || 'chưa đặt tên'} {x.qty}{x.unit}
+                          {x.name || 'chưa đặt tên'} {x.qty} {uCap(x.unit)}
                         </button>
                       );
                     })}
@@ -40656,7 +42196,7 @@ function NvlOutView() {
                     <td className="mono"><MatDot sku={r.sku} />{r.sku}</td>
                     <td><b>{r.name}</b></td>
                     <td><span className="tag t-gray">{r.group || '—'}</span></td>
-                    <td className="mono" style={{ textAlign: 'right' }}><b>{numFmt(r2(r.qty))}</b> {r.unit}</td>
+                    <td className="mono" style={{ textAlign: 'right' }}><b>{numFmt(r2(r.qty))}</b> {uCap(r.unit)}</td>
                     <td className="mono" style={{ textAlign: 'right' }}>{buyTxt(r)}</td>
                     <td className="mono" style={{ textAlign: 'right' }}>{money(Math.round(r.cost))}</td>
                     <td className="mono" style={{ textAlign: 'right' }}>{R.cost ? Math.round(r.cost / R.cost * 1000) / 10 + '%' : '—'}</td>
@@ -41177,7 +42717,7 @@ function NormView() {
                           ? <span className={'tag ' + (known ? 't-gray' : 't-amber')} title={known ? '' : 'Mã này chưa có trong danh mục mã hàng'}>{u.sku}</span>
                           : <span className="tag t-amber" title="Chưa gắn mã kho nên không trừ tồn được">chưa gắn mã</span>}</td>
                         <td><b>{u.name}</b></td>
-                        <td className="mono" style={{ textAlign: 'right' }}><b>{Math.round(u.qty * 100) / 100}</b> {u.unit}</td>
+                        <td className="mono" style={{ textAlign: 'right' }}><b>{Math.round(u.qty * 100) / 100}</b> {uCap(u.unit)}</td>
                         <td className="mono" style={{ textAlign: 'right' }}>{money(Math.round(u.cost))}</td>
                         <td><span className="hint">{u.from.map(f => `${f.name} ×${f.n}`).join(' · ')}</span></td>
                       </tr>
@@ -41230,7 +42770,7 @@ function NormView() {
                       </td>}
                       <td className="mono">{x.sku || '—'}</td>
                       <td>{x.name}</td>
-                      <td className="mono" style={{ textAlign: 'right' }}>{x.qty} {x.unit}</td>
+                      <td className="mono" style={{ textAlign: 'right' }}>{x.qty} {uCap(x.unit)}</td>
                       <td className="mono" style={{ textAlign: 'right' }}>{money(Math.round((+x.qty || 0) * (+x.cost || 0)))}</td>
                     </tr>
                   ));
@@ -48918,7 +50458,7 @@ const TITLES = {
   prep: ['Sơ chế bán thành phẩm', 'Định mức từng mẻ nấu, giá vốn và quy trình làm từng bước'],
   mats: ['Danh mục nguyên liệu', 'Tên đầy đủ, quy cách, xuất xứ và giá thị trường — AI tra trên Google'],
   norms: ['Định mức', 'Bàn pha chế, giá vốn từng ly và lượng nguyên liệu phải xuất'],
-  stock: ['Hàng hóa', 'Đếm tồn kho theo ngày, giao ca và chốt cuối ngày'],
+  stock: ['Hàng hóa', 'Đếm tồn theo ngày, nhiều người đếm cùng lúc, chốt cuối ngày'],
   purchase: ['Mua hàng', 'Phiếu mua hàng, công nợ và thanh toán nhà cung cấp'],
   poreceipt: ['Nghiệm thu mua hàng', 'Đơn của bộ phận bạn — hàng về thì ký nhận kèm ảnh'],
   poreq: ['Đề xuất mua hàng', 'Chi nhánh đề xuất, trao đổi trực tiếp với người mua'],
@@ -49649,7 +51189,16 @@ function TableDrill() {
       if (e.target.closest('button, a, input, select, textarea, label')) return;
       const tr = e.target.closest('table.tb tbody tr');
       if (!tr) return;
+      /* Không bật khi: đang trong hộp thoại (bảng định mức trong công thức — chạm là khung này đè lên);
+         dòng đã có việc riêng khi bấm (mở chi tiết NVL…) — trước đây bật thêm khung thứ hai;
+         bảng đang hiện đủ mọi cột — popup chỉ lặp lại đúng thứ đang thấy. */
+      if (tr.closest('.modal, .no-drill')) return;
+      if (tr.style.cursor === 'pointer' || getComputedStyle(tr).cursor === 'pointer') return;
       const table = tr.closest('table');
+      const box = table.closest('.scroll-x') || table.parentElement;
+      const cut = (box && box.scrollWidth > box.clientWidth + 2)
+        || Array.from(tr.children).some(td => getComputedStyle(td).display === 'none');
+      if (!cut) return;
       const head = Array.from(table.querySelectorAll('thead th')).map(th => (th.innerText || '').trim());
       const tds = Array.from(tr.children);
       /* Dòng trạng thái rỗng (kiểu "chưa có dữ liệu") dùng colSpan — không có gì để bóc tách */
@@ -49936,6 +51485,11 @@ const kbTxt = (b) => b >= 1024 * 1024 ? (b / 1024 / 1024).toFixed(2) + ' MB' : M
 
 const MAT_GROUPS = ['Cà phê', 'Trà', 'Sữa & kem', 'Syrup & đường', 'Topping', 'Trái cây', 'Bột & nền', 'Đá', 'Bao bì', 'Vật tư', 'Khác'];
 /* Thứ tự hiện trong popup chi tiết. Khai một chỗ để thêm trường sau này khỏi sửa hai nơi. */
+/* Quy cách tự hiểu từ quy đổi: "1 Gói = 1000 g" → "Gói 1000 g". Số ghi thô (1000, không 1.000) vì
+   stkUnits đọc lại chuỗi quy cách để ra đơn vị đếm kho — "1.000" sẽ bị hiểu thành 1. */
+const matAutoSpec = (m) => m && m.buyUnit && +m.convRatio > 0
+  ? uCap(String(m.buyUnit).trim()) + ' ' + String(+m.convRatio) + (m.unit ? ' ' + String(m.unit).trim() : '') : '';
+const matSpec = (m) => (m && m.spec) || matAutoSpec(m);
 const MAT_ROWS = [
   ['brand', 'Thương hiệu'], ['spec', 'Quy cách'], ['pack', 'Đóng gói'], ['origin', 'Xuất xứ'],
   ['store', 'Bảo quản'], ['shelf', 'Hạn sử dụng'], ['alias', 'Tên gọi khác'],
@@ -49985,7 +51539,7 @@ function IngStrip({ items, mul, compact }) {
                 {(m && m.group === 'Đá') || x.kind === 'ice' ? '🧊' : '🧺'}
               </div>}
             <b style={compact ? { fontSize: 11 } : null}>{x.name}</b>
-            <small>{numFmt(qty)}{x.unit}</small>
+            <small>{numFmt(qty)} {uCap(x.unit)}</small>
             {!compact && m && m.spec && <small style={{ color: 'var(--txt-3)', fontWeight: 600, fontSize: 10 }}>{m.spec}</small>}
           </div>
         );
@@ -50009,7 +51563,7 @@ function MatUsedIn({ sku }) {
       {list.map(r => {
         const it = (r.items || []).find(x => x.sku === sku) || {};
         return <button key={r.id} className="bt-chip" onClick={() => go(page)} title={'Mở tab ' + label}>
-          {r.name} <b className="mono">{it.qty}{it.unit}</b>
+          {r.name} <b className="mono">{it.qty} {uCap(it.unit)}</b>
         </button>;
       })}
     </div>
@@ -50324,7 +51878,7 @@ function BomImport({ onClose }) {
                   return (
                     <tr key={n.code}>
                       <td className="mono">{n.code}</td>
-                      <td><b>{n.name}</b>{b && <small className="hint"> · mẻ {numFmt(n.batch.qty)}{n.batch.unit}</small>}</td>
+                      <td><b>{n.name}</b>{b && <small className="hint"> · mẻ {numFmt(n.batch.qty)} {uCap(n.batch.unit)}</small>}</td>
                       <td>{n.cat}</td>
                       <td className="mono" style={{ textAlign: 'right' }}>{n.price ? money(n.price) : '—'}</td>
                       <td className="mono" style={{ textAlign: 'right' }}>{b ? money(Math.round(cost * 100) / 100) + '/' + n.batch.unit : money(Math.round(cost))}</td>
@@ -50354,6 +51908,12 @@ function MatDetail({ idx, onClose, onGo }) {
   const fileRef = useRef(null);
   const camRef = useRef(null);
   const upd = (p) => saveCfg({ items: items.map((x, i) => i === idx ? { ...x, ...p } : x) });
+  /* Đổi đơn vị / quy đổi thì quy cách đi theo — trừ khi quy cách là do người ta tự gõ (khác bản tự sinh lần trước) */
+  const updConv = (p) => {
+    const n = { ...m, ...p }, auto = matAutoSpec(n);
+    if (!m.spec || m.spec === m.specAuto || m.spec === matAutoSpec(m)) { p = { ...p, spec: auto, specAuto: auto }; }
+    upd(p);
+  };
 
   /* Ảnh: ưu tiên Drive vì ảnh trên Drive không tính vào cấu hình. Chưa cấu hình Drive
      thì nén thật nhỏ nhét vào cấu hình, nhưng phải đo TRƯỚC — vượt ngưỡng thì từ chối
@@ -50448,8 +52008,8 @@ function MatDetail({ idx, onClose, onGo }) {
         )}
         <button className="btn btn-p" onClick={onClose}>Xong</button>
       </>}>
-      <div className="grid g2" style={{ gap: 16, alignItems: 'start' }}>
-        <div style={{ display: 'grid', gap: 10 }}>
+      <div className="grid g2 mt-ed" style={{ gap: 16, alignItems: 'start' }}>
+        <div className="mt-imgcol">
           {/* Cả khung ảnh là vùng dán/thả: bấm vào để giành quyền dán khi đang mở nhiều popup */}
           <div onMouseDown={claimPaste} onDrop={admin ? onDrop : null}
             onDragOver={admin ? (e => { e.preventDefault(); setHot(true); }) : null}
@@ -50492,55 +52052,77 @@ function MatDetail({ idx, onClose, onGo }) {
               {rawRef.current && <span className="hint" style={{ margin: 0 }}>Bấm để làm lại với ảnh vừa dán</span>}
             </div>
           )}
-          {admin && <div className="hint">
+          {admin && <div className="hint mt-imghint">
             Copy ảnh ngoài web hay chụp màn hình rồi <b>Ctrl + V</b> thẳng vào đây là nhanh nhất.
             Ảnh chụp trên nền trắng sẽ được <b>tách nền và cắt sát sản phẩm</b> tự động; nền rối
             thì app giữ nguyên ảnh gốc và báo lại.
           </div>}
         </div>
 
-        <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+        <div className="mt-form">
           {admin ? (
             <>
-              <Field label="Tên gọi nội bộ"><input className="inp" value={m.name || ''} onChange={e => upd({ name: e.target.value })} /></Field>
-              <Field label="Tên đầy đủ trên thị trường" hint="Dùng khi đặt hàng với nhà cung cấp">
-                <input className="inp" value={m.fullName || ''} onChange={e => upd({ fullName: e.target.value })} placeholder="Hồng trà Ceylon CTC bịch 500g" />
-              </Field>
-              <div className="grid g3" style={{ gap: 0, columnGap: 10 }}>
-                <Field label="Mã"><input className="inp mono" value={m.code || ''} onChange={e => upd({ code: e.target.value })} /></Field>
-                <Field label="ĐVT quy đổi" hint="Đơn vị dùng trong công thức, vd g/ml">
-                  <input className="inp" value={m.unit || ''} onChange={e => upd({ unit: e.target.value })} placeholder="g, ml…" />
+              {/* Chia nhóm, ô xếp 2–3 cột: trước mỗi ô một hàng kèm dòng gợi ý dài, điện thoại phải cuộn mãi.
+                  Gợi ý dời vào chữ mờ trong ô (placeholder) và dòng tóm tắt quy đổi bên dưới. */}
+              <div className="mt-sec">
+                <div className="mt-sec-h">Thông tin</div>
+                <div className="mt-r mt-r2">
+                  <Field label="Tên gọi nội bộ"><input className="inp" value={m.name || ''} onChange={e => upd({ name: e.target.value })} /></Field>
+                  <Field label="Mã"><input className="inp mono" value={m.code || ''} onChange={e => upd({ code: e.target.value })} /></Field>
+                </div>
+                <Field label="Tên đầy đủ (dùng khi đặt hàng)">
+                  <input className="inp" value={m.fullName || ''} onChange={e => upd({ fullName: e.target.value })} placeholder="Hồng trà Ceylon CTC bịch 500g" />
                 </Field>
-                <Field label="Giá vốn / ĐVT quy đổi"><MoneyInput value={m.price || 0} onChange={v => upd({ price: v })} /></Field>
+                {/* Hàng hóa = nhập về bán nguyên (snack, hạt…): bán 1 trên KiotViet trừ 1 trong kho.
+                    NVL = nguyên liệu pha chế: trừ kho theo định mức công thức. */}
+                <div className="mt-type">
+                  <button type="button" className={m.type !== 'goods' ? 'on' : ''} onClick={() => upd({ type: 'nvl' })}>
+                    <b>Nguyên liệu (NVL)</b><small>trừ kho theo công thức món</small></button>
+                  <button type="button" className={m.type === 'goods' ? 'on' : ''} onClick={() => upd({ type: 'goods' })}>
+                    <b>Hàng hóa</b><small>bán 1 trên KiotViet trừ 1</small></button>
+                </div>
+                {m.type === 'goods' && (
+                  <Field label="Mã KiotViet bán ra (nhiều mã cách nhau dấu phẩy)">
+                    {/* Gõ tự do, rời ô mới tách mã — tách ngay lúc gõ thì dấu phẩy vừa gõ bị nuốt, không gõ được mã thứ hai */}
+                    <input key={m.code} className="inp mono" defaultValue={(m.kvCodes || []).join(', ')} placeholder="SP000164, SP000039"
+                      onBlur={e => upd({ kvCodes: e.target.value.toUpperCase().split(/[,;\s]+/).map(x => x.trim()).filter(Boolean) })} />
+                  </Field>
+                )}
+                <Field label="Nhóm">
+                  <select className="inp" value={m.group || ''} onChange={e => upd({ group: e.target.value })}>
+                    <option value="">— chưa phân nhóm —</option>
+                    {MAT_GROUPS.concat((cfg.items || []).map(x => x.group).filter(g => g && !MAT_GROUPS.includes(g)))
+                      .filter((g, i, a) => a.indexOf(g) === i).map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </Field>
               </div>
-              <div className="hint" style={{ margin: '2px 0 4px' }}>
-                Mua theo <b>đơn vị mua</b> (thùng, bao…), quy ra <b>ĐVT quy đổi</b> ở trên để tính định mức trong công thức —
-                vd mua 1 <i>thùng</i>, quy đổi <i>12</i>, ra 12 <i>lon</i>.
+              <div className="mt-sec">
+                <div className="mt-sec-h">Đơn vị &amp; giá</div>
+                <div className="mt-r mt-r3">
+                  <Field label="ĐVT dùng"><input className="inp" value={m.unit || ''} onChange={e => updConv({ unit: e.target.value })} placeholder="g, ml…" title="Đơn vị dùng trong công thức và khi đếm kho" /></Field>
+                  <Field label="Đơn vị mua"><input className="inp" value={m.buyUnit || ''} onChange={e => updConv({ buyUnit: e.target.value })} placeholder="thùng…" title="Đơn vị trên hoá đơn nhà cung cấp" /></Field>
+                  <Field label="1 ĐV mua ="><input className="inp mono" type="number" inputMode="decimal" value={m.convRatio || ''} onChange={e => updConv({ convRatio: +e.target.value })} placeholder="12" title="1 đơn vị mua bằng bao nhiêu ĐVT dùng" /></Field>
+                </div>
+                <div className="mt-r mt-r2">
+                  <Field label={'Giá vốn / ' + (uCap(m.unit) || 'ĐVT')}><MoneyInput value={m.price || 0} onChange={v => upd({ price: v })} /></Field>
+                  <Field label={'Giá mua / ' + (uCap(m.buyUnit) || 'ĐV mua')}><MoneyInput value={m.buyPrice || 0} onChange={v => upd({ buyPrice: v })} /></Field>
+                </div>
+                {(m.buyUnit && +m.convRatio > 0) ? (
+                  <div className="mt-sum">
+                    <b>1 {uCap(m.buyUnit)} = {numFmt(+m.convRatio)} {uCap(m.unit) || ''}</b>
+                    <span>Quy cách: {matSpec(m)}</span>
+                    {m.buyPrice ? <span>{money(m.buyPrice)}/{uCap(m.buyUnit)} → ≈ {money(Math.round(m.buyPrice / m.convRatio))}/{uCap(m.unit) || 'ĐVT'}</span> : null}
+                  </div>
+                ) : (
+                  <div className="mt-sum mt-sum-off">Mua theo thùng/bao? Điền <b>Đơn vị mua</b> và <b>1 ĐV mua =</b> mấy {uCap(m.unit) || 'ĐVT'} để app tự quy đổi.</div>
+                )}
               </div>
-              <div className="grid g3" style={{ gap: 0, columnGap: 10 }}>
-                <Field label="Đơn vị mua vào" hint="Đơn vị trên hoá đơn nhà cung cấp">
-                  <input className="inp" value={m.buyUnit || ''} onChange={e => upd({ buyUnit: e.target.value })} placeholder="thùng, bao…" />
-                </Field>
-                <Field label="Quy đổi" hint="1 đơn vị mua = ? ĐVT quy đổi">
-                  <input className="inp mono" type="number" value={m.convRatio || ''} onChange={e => upd({ convRatio: +e.target.value })} placeholder="12" />
-                </Field>
-                <Field label="Giá mua / đơn vị mua" hint="Giá trên hoá đơn, để trống thì tự tính từ giá vốn">
-                  <MoneyInput value={m.buyPrice || 0} onChange={v => upd({ buyPrice: v })} />
-                </Field>
-              </div>
-              <Field label="Nhóm">
-                <select className="inp" value={m.group || ''} onChange={e => upd({ group: e.target.value })}>
-                  <option value="">— chưa phân nhóm —</option>
-                  {MAT_GROUPS.concat((cfg.items || []).map(x => x.group).filter(g => g && !MAT_GROUPS.includes(g)))
-                    .filter((g, i, a) => a.indexOf(g) === i).map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </Field>
             </>
           ) : (
             <dl className="mt-kv">
               <dt>Tên đầy đủ</dt><dd>{m.fullName || m.name || '—'}</dd>
               <dt>Mã</dt><dd className="mono">{m.code || '—'}</dd>
-              <dt>ĐVT quy đổi</dt><dd>{m.unit || '—'}</dd>
+              <dt>ĐVT quy đổi</dt><dd>{uCap(m.unit) || '—'}</dd>
               <dt>Giá vốn / ĐVT quy đổi</dt><dd className="mono">{m.price ? money(m.price) : '—'}</dd>
               {!!m.buyUnit && <><dt>Đơn vị mua vào</dt><dd>{m.buyUnit}{m.convRatio ? ' · 1 ' + m.buyUnit + ' = ' + numFmt(m.convRatio) + ' ' + (m.unit || '') : ''}</dd></>}
               {!!m.buyPrice && <><dt>Giá mua / đơn vị mua</dt><dd className="mono">{money(m.buyPrice)}</dd></>}
@@ -50548,22 +52130,24 @@ function MatDetail({ idx, onClose, onGo }) {
           )}
 
           {admin ? (
-            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, display: 'grid', gap: 0 }}>
-              <div className="grid g2" style={{ gap: 0, columnGap: 10 }}>
+            <details className="mt-sec mt-more" open={MAT_ROWS.some(([k]) => m[k]) || !!m.desc || undefined}>
+              <summary className="mt-sec-h">Quy cách, đóng gói, bảo quản…</summary>
+              <div className="mt-r mt-r2">
                 {MAT_ROWS.map(([k, l]) => (
-                  <Field key={k} label={l}>
-                    <input className="inp" value={m[k] || ''} onChange={e => upd({ [k]: e.target.value })} placeholder={MAT_PH[k] || ''} />
+                  <Field key={k} label={k === 'spec' && matAutoSpec(m) ? l + ' (tự theo quy đổi)' : l}>
+                    <input className="inp" value={m[k] || ''} onChange={e => upd({ [k]: e.target.value })}
+                      placeholder={(k === 'spec' && matAutoSpec(m)) || MAT_PH[k] || ''} />
                   </Field>
                 ))}
               </div>
-              <Field label="Ghi chú cách dùng" hint="Hiện kèm khi nhân viên mở nguyên liệu này trong công thức">
+              <Field label="Ghi chú cách dùng (hiện trong công thức)">
                 <input className="inp" value={m.desc || ''} onChange={e => upd({ desc: e.target.value })} placeholder="Định lượng phổ biến 25–30ml mỗi ly" />
               </Field>
-            </div>
+            </details>
           ) : (
             <>
               <dl className="mt-kv">
-                {MAT_ROWS.map(([k, l]) => <React.Fragment key={k}><dt>{l}</dt><dd>{m[k] || '—'}</dd></React.Fragment>)}
+                {MAT_ROWS.map(([k, l]) => <React.Fragment key={k}><dt>{l}</dt><dd>{(k === 'spec' ? matSpec(m) : m[k]) || '—'}</dd></React.Fragment>)}
               </dl>
               {m.desc && <div style={{ background: 'var(--canvas)', border: '1px solid var(--line)', borderRadius: 12, padding: '11px 13px', fontSize: 13, lineHeight: 1.6 }}>{m.desc}</div>}
             </>
@@ -50588,7 +52172,9 @@ function MatView() {
   const [open, setOpen] = useState(null);
   const [imp, setImp] = useState(false);
   const [bom, setBom] = useState(false);      /* popup nạp bộ BOM chuẩn (NVL + BTP + định mức món) */
-  const [view, setView] = useState('grid');   /* 'grid' ảnh lớn để gắn ảnh, 'list' từng dòng để xem đơn vị/giá */
+  /* 'grid' ảnh lớn để gắn ảnh, 'list' từng dòng để xem đơn vị/giá. Điện thoại mặc định từng dòng — lưới ảnh
+     mỗi màn chỉ được 4 món */
+  const [view, setView] = useState(() => (window.innerWidth <= 640 ? 'list' : 'grid'));
 
   /* Giữ vị trí gốc trong mảng cfg.items: mọi thao tác sửa/xoá đều theo index đó,
      nên lọc và sắp xếp thoải mái mà không sợ sửa nhầm dòng khác. */
@@ -50606,9 +52192,9 @@ function MatView() {
   return (
     <div className="grid" style={{ gap: 14 }}>
       <div className="card">
-        <div className="card-h" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <div className="card-h mt-head" style={{ gap: 8, flexWrap: 'wrap' }}>
           <div><h3>Nguyên liệu</h3><p>{items.length} mặt hàng · dùng chung với công thức và đề xuất mua sắm</p></div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="mt-tools" style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Seg value={view} onChange={setView} options={[{ v: 'grid', l: 'Lưới ảnh' }, { v: 'list', l: 'Từng dòng' }]} />
             <input className="inp" style={{ width: 190 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm tên, mã, thương hiệu…" />
             {admin && <button className="btn btn-o" onClick={() => setImp(true)}><Ic.upload size={15} /> Nhập danh sách</button>}
@@ -50634,11 +52220,12 @@ function MatView() {
       </div>
 
       {admin && !!items.length && !items.some(m => m.img) && (
-        <div className="card"><div className="card-b" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="card mt-noimg"><div className="card-b" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <Ic.camera size={18} />
           <div style={{ flex: 1, minWidth: 220, fontSize: 13, lineHeight: 1.55 }}>
-            <b>Chưa mặt hàng nào có ảnh.</b> Bấm vào từng nguyên liệu rồi chụp bịch hàng đang dùng ở kho —
-            ảnh sẽ hiện kèm trong công thức và quy trình sơ chế, nhân viên mới nhìn là biết lấy đúng thứ.
+            <b>Chưa mặt hàng nào có ảnh.</b><span className="mt-noimg-d"> Bấm vào từng nguyên liệu rồi chụp bịch hàng đang dùng ở kho —
+            ảnh sẽ hiện kèm trong công thức và quy trình sơ chế, nhân viên mới nhìn là biết lấy đúng thứ.</span>
+            <span className="mt-noimg-s"> Bấm vào món để chụp ảnh.</span>
           </div>
         </div></div>
       )}
@@ -50659,7 +52246,21 @@ function MatView() {
       )}
 
       {rows.length ? (view === 'list' ? (
-        <div className="card"><div className="scroll-x">
+        <>
+        {/* Điện thoại: mỗi món một dòng gọn — ảnh nhỏ, tên, quy cách, giá theo ĐVT. Máy tính giữ bảng đủ cột. */}
+        <div className="mt-rows">
+          {rows.map(m => (
+            <button key={m._i} className="mt-rw" onClick={() => setOpen(m._i)}>
+              {m.img ? <img src={imgUrl(m.img)} alt="" loading="lazy" /> : <span className="mt-rw-ph">🧺</span>}
+              <span className="mt-rw-t">
+                <b>{m.type === 'goods' && <span className="mt-hh">HH</span>}{m.name}</b>
+                <small>{[matSpec(m), m.group].filter(Boolean).join(' · ') || m.code}</small>
+              </span>
+              <span className="mt-rw-p mono">{m.price ? money(m.price) : '—'}<small>{m.unit ? '/' + uCap(m.unit) : ''}</small></span>
+            </button>
+          ))}
+        </div>
+        <div className="card mt-tbl"><div className="scroll-x">
           <table className="tb tb-compact">
             <thead><tr>
               <th>Mã</th><th>Tên</th><th>Nhóm</th>
@@ -50671,11 +52272,11 @@ function MatView() {
               {rows.map(m => (
                 <tr key={m._i} onClick={() => setOpen(m._i)} style={{ cursor: 'pointer' }}>
                   <td className="mono">{m.code || '—'}</td>
-                  <td><b>{m.name}</b>{m.fullName && <><br /><small className="hint">{m.fullName}</small></>}</td>
+                  <td><b>{m.type === 'goods' && <span className="mt-hh">HH</span>}{m.name}</b>{m.fullName && <><br /><small className="hint">{m.fullName}</small></>}</td>
                   <td>{m.group || '—'}</td>
                   <td>{m.buyUnit || '—'}</td>
                   <td style={{ textAlign: 'right' }} className="mono">{m.convRatio ? numFmt(m.convRatio) : '—'}</td>
-                  <td>{m.unit || '—'}</td>
+                  <td>{uCap(m.unit) || '—'}</td>
                   <td style={{ textAlign: 'right' }} className="mono">{m.price ? money(m.price) : '—'}</td>
                   <td style={{ textAlign: 'right' }} className="mono">{m.buyPrice ? money(m.buyPrice) : '—'}</td>
                   <td>{m.img ? <img src={imgUrl(m.img)} alt={m.name} loading="lazy" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} /> : <span className="hint">—</span>}</td>
@@ -50684,6 +52285,7 @@ function MatView() {
             </tbody>
           </table>
         </div></div>
+        </>
       ) : (
         <div className="mt-grid">
           {rows.map(m => (
@@ -50695,7 +52297,7 @@ function MatView() {
               </div>
               <div className="mt-b">
                 <b>{m.name}</b>
-                <small>{m.fullName || m.brand || m.spec || 'Chưa khai thông tin'}</small>
+                <small>{m.fullName || m.brand || matSpec(m) || 'Chưa khai thông tin'}</small>
                 <div className="mt-foot">
                   <span className="mono" style={{ color: 'var(--txt-3)' }}>{m.code}</span>
                   <span style={{ marginLeft: 'auto' }}>{m.price ? money(m.price) + (m.unit ? '/' + m.unit : '') : '—'}</span>
@@ -50853,7 +52455,7 @@ function BtpDetail({ item, onEdit }) {
                 <tr key={x.id}>
                   <td className="mono" style={{ color: 'var(--txt-3)' }}>{x.sku || '—'}</td>
                   <td><MatDot sku={x.sku} size={22} /><b>{x.name}</b></td>
-                  <td className="r mono"><b>{numFmt(+((+x.qty || 0) * mul).toFixed(2))}</b> {x.unit}</td>
+                  <td className="r mono"><b>{numFmt(+((+x.qty || 0) * mul).toFixed(2))}</b> {uCap(x.unit)}</td>
                   <td className="r mono" style={{ color: 'var(--txt-3)' }}>{x.cost ? money(x.cost) + '/' + x.unit : '—'}</td>
                   <td className="r mono">{money(Math.round((+x.qty || 0) * (+x.cost || 0) * mul))}</td>
                 </tr>
@@ -50903,7 +52505,7 @@ function BtpDetail({ item, onEdit }) {
                   {!!(st.use || []).length && (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
                       {(st.use || []).map(id => byId[id]).filter(Boolean).map(x => (
-                        <span key={x.id} className="bt-chip"><MatDot sku={x.sku} size={18} />{x.name} <b className="mono">{numFmt(+((+x.qty || 0) * mul).toFixed(2))}{x.unit}</b></span>
+                        <span key={x.id} className="bt-chip"><MatDot sku={x.sku} size={18} />{x.name} <b className="mono">{numFmt(+((+x.qty || 0) * mul).toFixed(2))} {uCap(x.unit)}</b></span>
                       ))}
                     </div>
                   )}
@@ -52407,6 +54009,14 @@ function App() {
      `items` là map mã hàng -> số lượng, mà bỏ một mã khỏi danh mục thì phải mất hẳn — merge sẽ
      giữ lại mã cũ y như lỗi tick checklist trước đây. */
   const saveStock = (r) => { setStocks(p => ({ ...p, [r.id]: r })); setDocAll(COL.stk, r.id, r); };
+  /* Ghi GỘP một phần bản ghi kho (số đang đếm từng ô): hai người gõ hai ô cùng lúc không đè mất số của nhau */
+  const saveStockLive = (id, patch) => { setStocks(p => ({ ...p, [id]: stkMerge(p[id], patch) })); putDoc(COL.stk, id, patch); };
+  /* CHỐT kiểu GỘP: thêm bản chụp bằng arrayUnion + đánh dấu chốt — KHÔNG ghi đè cả document. Ghi đè từng
+     xoá mất số người khác vừa gõ (máy chốt thấy chậm vài giây) và cả số đang đếm (live). */
+  const closeStock = (id, patch, snap) => {
+    setStocks(p => { const o = stkMerge(p[id], patch); o.snaps = [...((p[id] || {}).snaps || []), snap]; return { ...p, [id]: o }; });
+    if (cloud && window.firebase) putDoc(COL.stk, id, { ...patch, snaps: firebase.firestore.FieldValue.arrayUnion(snap) });
+  };
   const savePo = (p2) => { setPos(p => p.find(x => x.id === p2.id) ? p.map(x => x.id === p2.id ? p2 : x) : [p2, ...p]); setDocAll(COL.po, p2.id, p2); };
   const delPo = (id) => { setPos(p => p.filter(x => x.id !== id)); rmDoc(COL.po, id); };
   /* Đề xuất mua hàng: ghi ĐÈ cả document. `msgs`/`items` là mảng, và trạng thái có thể lùi lại —
@@ -52659,7 +54269,7 @@ function App() {
     revenue, saveRevenue, targets, saveTarget, txns, saveTxn, saveTxns, incomes, saveInc, saveIncs, visits, saveVisits, aggs, saveAgg, rebuildAgg, loadAllVisits,
     recipes, saveRecipe, delRecipe,
     saveEmp, delEmp, wipeDemo, saveTicket, addTickets, delTicket, saveCfg, saveAtt, delAtt, saveReg, saveCheck, seedAll,
-    stocks, saveStock, pos, savePo, delPo, preqs, savePreq, delPreq, sales, saveSales, moves, saveMove, delMove,
+    stocks, saveStock, saveStockLive, closeStock, pos, savePo, delPo, preqs, savePreq, delPreq, sales, saveSales, moves, saveMove, delMove,
     msReviews, saveMs, needData, toast, go, logout, tkOpen, setTkOpen, staffModal, setStaffModal, branchView, setBranchView, fetchAttMonth, fetchAttRange, fetchRevMonth, fetchRevRange, fetchBkMonth, fetchVisMonth, fetchSchedMonth, fetchRunMonth, gpsSignal, setGpsSignal,
     needSchedRange, needSchedMonth,
   };
@@ -52945,7 +54555,22 @@ var zsShowUpdateToast = function (sig) {
     return;
   }
 
-  step(20, 'Lần đầu mở trên máy này, đang chuẩn bị…');
+  /* Bản dịch sẵn lúc deploy (tools/prebuild.mjs → /app.js). Chỉ dùng khi dòng đầu mang ĐÚNG chữ ký
+     của mã trong trang này — app.js cũ còn trong bộ nhớ đệm, hay đường dẫn trả về trang index.html
+     (Hosting rewrite) đều bị loại, rơi xuống đường dịch bằng Babel bên dưới. */
+  var useBabel = function () {
+    step(20, 'Lần đầu mở trên máy này, đang chuẩn bị…');
+    babelBuild();
+  };
+  step(30, 'Đang tải giao diện…');
+  var pre = window.fetch ? fetch('/app.js?v=' + encodeURIComponent(sig)) : Promise.reject();
+  pre.then(function (r) { return r.ok ? r.text() : null; }).then(function (code) {
+    if (!code || code.indexOf('/*ZSPRE:' + sig + '*/') !== 0) return useBabel();
+    try { localStorage.setItem(KEY, JSON.stringify({ sig: sig, code: code })); } catch (e) {}
+    runIt(code);
+  }).catch(useBabel);
+
+  function babelBuild() {
   var b = document.createElement('script');
   b.src = 'https://cdn.jsdelivr.net/npm/@babel/standalone@7.24.7/babel.min.js';
   b.crossOrigin = 'anonymous';
@@ -52965,6 +54590,7 @@ var zsShowUpdateToast = function (sig) {
     if (box) box.innerHTML = '<div style="color:#E0453F;font-weight:700">Không tải được thư viện</div><div>Kiểm tra kết nối mạng rồi tải lại trang.</div>';
   };
   document.head.appendChild(b);
+  }
 })();
 </script>
 </body>

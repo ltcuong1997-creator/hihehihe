@@ -1,0 +1,11 @@
+{
+  "name": "hihe-tools",
+  "private": true,
+  "description": "Công cụ build lúc deploy: dịch sẵn JSX của index.html ra app.js",
+  "scripts": {
+    "prebuild": "node prebuild.mjs"
+  },
+  "dependencies": {
+    "@babel/standalone": "7.24.7"
+  }
+}
