@@ -1,0 +1,37 @@
+# Deploy luật + chỉ mục Firestore (firestore.rules, firestore.indexes.json) lên project hihehihe.
+# Tự chạy khi 2 file đó (hoặc file này) đổi trên main; muốn chạy lại thì Actions → Run workflow.
+# Dùng chung secret FIREBASE_SERVICE_ACCOUNT_HIHEHIHE với workflow deploy Hosting.
+name: Deploy Firestore rules & indexes
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - firestore.rules
+      - firestore.indexes.json
+      - .github/workflows/firebase-firestore-deploy.yml
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-firestore
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Ghi khoá tài khoản dịch vụ
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HIHEHIHE }}
+        run: printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+      - name: Deploy Firestore
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@latest deploy --only firestore --project hihehihe --non-interactive
+      - name: Xoá khoá
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"
