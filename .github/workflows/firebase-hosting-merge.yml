@@ -1,0 +1,33 @@
+# Tự deploy app Hí Hế lên Firebase Hosting (project hihehihe) mỗi khi có code mới vào main.
+# Secret cần có: FIREBASE_SERVICE_ACCOUNT_HIHEHIHE (JSON tài khoản dịch vụ có quyền Firebase Hosting Admin).
+# Chỉ deploy Hosting — luật/chỉ mục Firestore vẫn deploy tay: firebase deploy --only firestore
+name: Deploy to Firebase Hosting on merge
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-hosting-live
+  cancel-in-progress: false
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Dịch sẵn JSX ra app.js để điện thoại khỏi tải Babel + tự dịch 3.7MB mã (xem tools/prebuild.mjs).
+      # Lỗi bước này vẫn deploy tiếp: trang tự quay về dịch bằng Babel như trước.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Biên dịch sẵn giao diện
+        continue-on-error: true
+        run: npm ci --prefix tools && node tools/prebuild.mjs
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HIHEHIHE }}
+          channelId: live
+          projectId: hihehihe
