@@ -28,6 +28,37 @@ jobs:
         env:
           SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HIHEHIHE }}
         run: printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+      # Chẩn đoán: in tài khoản dịch vụ đang dùng (che bớt vì repo công khai) và các quyền nó thực sự có
+      # trên project hihehihe — để đối chiếu với chỗ đã cấp quyền trong IAM. Lỗi bước này vẫn chạy tiếp.
+      - name: Kiểm tra tài khoản dịch vụ
+        continue-on-error: true
+        env:
+          SA_FILE: ${{ runner.temp }}/sa.json
+        run: |
+          npm i --no-save --silent --prefix "$RUNNER_TEMP/ga" google-auth-library@9 >/dev/null 2>&1
+          node -e '
+            const fs = require("fs");
+            const { GoogleAuth } = require(process.env.RUNNER_TEMP + "/ga/node_modules/google-auth-library");
+            let sa;
+            try { sa = JSON.parse(fs.readFileSync(process.env.SA_FILE, "utf8")); }
+            catch (e) { console.log("Secret KHÔNG phải file JSON hợp lệ:", e.message); process.exit(0); }
+            const em = String(sa.client_email || "");
+            const [lp, dom] = em.split("@");
+            console.log("Tài khoản dịch vụ :", (lp || "").slice(0, 14) + "…@" + (dom || "?"));
+            console.log("Thuộc project     :", sa.project_id || "?");
+            const need = ["serviceusage.services.get", "firebaserules.rulesets.create", "firebaserules.releases.update",
+              "datastore.indexes.list", "datastore.indexes.create"];
+            (async () => {
+              try {
+                const auth = new GoogleAuth({ credentials: sa, scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
+                const c = await auth.getClient();
+                const r = await c.request({ url: "https://cloudresourcemanager.googleapis.com/v1/projects/hihehihe:testIamPermissions",
+                  method: "POST", data: { permissions: need } });
+                const ok = (r.data && r.data.permissions) || [];
+                need.forEach(p => console.log((ok.includes(p) ? "  CÓ    " : "  THIẾU  ") + p));
+              } catch (e) { console.log("Không kiểm tra được quyền:", (e.response && JSON.stringify(e.response.data)) || e.message); }
+            })();
+          '
       - name: Deploy Firestore
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
