@@ -15791,6 +15791,17 @@ const VN_BANKS = [
   { bin: '963388', code: 'TIMO', name: 'Timo' },
 ];
 const bankOf = (bin) => VN_BANKS.find(b => b.bin === bin) || VN_BANKS[0];
+/* Ô chọn ngân hàng cho hồ sơ nhân sự — lưu đúng tên chuẩn trong VN_BANKS để dựng được mã VietQR
+   trả lương. Hồ sơ cũ gõ tay ("vietcom", "MB"…) vẫn tự hiện đúng ngân hàng nhờ bankBinOf. */
+function BankSelect({ value, onChange }) {
+  const bin = bankBinOf(value);
+  const cur = bin ? (VN_BANKS.find(b => b.bin === bin) || {}).name : '';
+  return (
+    <SearchSelect value={cur || ''} onChange={onChange} style={{ width: '100%' }} placeholder={value ? value + ' (chọn lại)' : '— chọn ngân hàng —'}
+      ariaLabel="Chọn ngân hàng"
+      groups={[{ label: '', options: VN_BANKS.map(b => ({ value: b.name, label: b.name, sub: b.code })) }]} />
+  );
+}
 /* Đơn vị tính viết hoa chữ đầu KHI HIỂN THỊ ("kg" → "Kg", "hộp" → "Hộp"). Dữ liệu gốc giữ nguyên —
    quy đổi đơn vị so theo chữ thường bỏ dấu nên không bị ảnh hưởng. Rỗng/undefined trả nguyên để "|| '—'" vẫn chạy. */
 const uCap = (u) => { if (!u) return u; const s = String(u); return s.charAt(0).toLocaleUpperCase('vi') + s.slice(1); };
@@ -35650,7 +35661,9 @@ function StaffModal({ emp, onClose }) {
             )}
             <Field label="Mã số thuế cá nhân"><input className="inp mono" value={f.taxNo} onChange={e => set('taxNo', e.target.value)} /></Field>
             <Field label="Số sổ BHXH"><input className="inp mono" value={f.bhxh} onChange={e => set('bhxh', e.target.value)} /></Field>
-            <Field label="Ngân hàng"><input className="inp" value={f.bankName} onChange={e => set('bankName', e.target.value)} placeholder="Vietcombank / Techcombank…" /></Field>
+            <Field label="Ngân hàng" hint={f.bankName && !bankBinOf(f.bankName) ? 'Tên cũ "' + f.bankName + '" không khớp ngân hàng nào — chọn lại để tạo được mã VietQR trả lương' : ''}>
+              <BankSelect value={f.bankName} onChange={v => set('bankName', v)} />
+            </Field>
             <Field label="Số tài khoản"><input className="inp mono" value={f.bankNo} onChange={e => set('bankNo', e.target.value)} /></Field>
             <Field label="Chủ tài khoản"><input className="inp" value={f.bankOwner} onChange={e => set('bankOwner', e.target.value)} placeholder={f.name} /></Field>
             <Field label="Chi nhánh ngân hàng"><input className="inp" value={f.bankBranch} onChange={e => set('bankBranch', e.target.value)} /></Field>
