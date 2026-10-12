@@ -3587,7 +3587,7 @@ em.zero,.sk-d.zero{color:var(--green)}
 
 /* ---- ĐẾM TỒN DẠNG MA TRẬN NGÀY × MÃ (10/2026) — điện thoại là chính: cột tên dính trái, hàng ngày dính trên ---- */
 .skm-page{display:flex;flex-direction:column;gap:10px;min-width:0}
-.skm{--nmw:230px;--dw:86px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.skm{--nmw:230px;--htw:76px;--dw:86px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .skm-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .skm-pk{position:relative}
 .skm-pb{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:5px 11px;font:inherit;cursor:pointer;color:var(--txt);min-height:42px;text-align:left}
@@ -3630,14 +3630,16 @@ em.zero,.sk-d.zero{color:var(--green)}
 .skm-leg i.st-lock{background:var(--brand)}.skm-leg i.st-today{background:var(--blue)}
 .skm-close{margin-left:auto;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:11px;border:0;background:var(--brand);color:#fff;font:inherit;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
 .skm-own{display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap;font-size:12px;line-height:1.4;padding:6px 10px;border-radius:10px;background:var(--canvas);color:var(--txt-2)}
-.skm-own.me{background:#E9F5EE;color:#0E6B37}
 .skm-own.ro{background:#FFF3DC;color:#7A5200}
-.skm-own.free{background:var(--brand-wash);color:var(--brand-dark)}
-.skm-own-t{flex:1 1 220px;min-width:0}
-.skm-peers{color:var(--txt-2)}
-.skm-own-b{height:28px;padding:0 11px;border-radius:8px;border:0;background:var(--brand);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.skm-own.err{background:#FDECEC}
+.skm-hn .sk-sync{font-size:10.5px;font-weight:700}
+.skm-mb{display:none !important}
+.skm-more{position:fixed;left:auto;min-width:220px;max-width:calc(100vw - 16px)}
+.skm-more button span{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.skm-more button span i{font-style:normal;width:18px;display:inline-flex;justify-content:center;color:var(--brand);flex:0 0 auto}
+.skm-more button b{color:var(--brand)}
 .skm-own .sk-sync{font-size:11px;max-width:100%}
-.skm-tools{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;align-items:center;padding:1px 0}
+.skm-tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:1px 0}
 .skm-q{flex:1 0 150px;min-width:130px;max-width:260px;height:32px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:var(--txt)}
 .skm-t{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:#fff;font:inherit;font-size:12.5px;font-weight:700;color:var(--txt-2);cursor:pointer;white-space:nowrap}
 .skm-t b{color:var(--brand)}
@@ -3652,9 +3654,12 @@ em.zero,.sk-d.zero{color:var(--green)}
 .skm-vlog{margin:0}
 .skm-mx{background:#fff;border:1px solid var(--line);border-radius:16px;min-width:0}
 .skm-hd{position:sticky;top:var(--skm-top,max(var(--top-h),env(safe-area-inset-top)));z-index:6;overflow:hidden;background:#fff;border-bottom:1px solid var(--line);border-radius:16px 16px 0 0}
-.skm-hrow{display:flex;width:calc(var(--nmw) + 13 * var(--dw))}
+.skm-hrow{display:flex;width:calc(var(--nmw) + var(--htw) + 13 * var(--dw))}
 .skm-hn{flex:0 0 var(--nmw);position:sticky;left:0;z-index:2;background:#fff;border-right:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;justify-content:flex-end;font-size:12px;font-weight:800;color:var(--txt);min-width:0}
 .skm-hn small{font-size:10.5px;font-weight:600;color:var(--txt-3)}
+.skm-hs{flex:0 0 var(--htw);position:sticky;left:var(--nmw);z-index:2;background:#FBF8F4;border:0;border-right:1px solid var(--line);padding:8px 4px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:1px;font:inherit;font-size:12px;font-weight:800;color:var(--txt);cursor:pointer;min-width:0;line-height:1.15;text-align:center}
+.skm-hs small{font-size:10px;font-weight:700;color:var(--brand);white-space:nowrap}
+.skm-hs.off{cursor:default}.skm-hs.off small{color:var(--txt-3)}
 .skm-hc{flex:0 0 var(--dw);padding:7px 3px;display:flex;justify-content:center}
 .skm-db{position:relative;width:100%;min-height:68px;border-radius:13px;border:1px solid #E3DAD0;background:#fff;box-shadow:0 1px 2px rgba(46,32,25,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:5px 2px;cursor:pointer;color:var(--txt);font:inherit;transition:transform .12s,box-shadow .12s,border-color .12s}
 .skm-db .w{font-size:10px;font-weight:700;color:var(--txt-3);letter-spacing:.02em}
@@ -3685,15 +3690,20 @@ em.zero,.sk-d.zero{color:var(--green)}
 }
 @media(hover:none){.skm-db:not(:disabled):not(.on) .e{opacity:.6}}
 .skm-sc{overflow-x:auto;border-radius:0 0 16px 16px;-webkit-overflow-scrolling:touch}
-.skm-tb{table-layout:fixed;border-collapse:separate;border-spacing:0;width:calc(var(--nmw) + 13 * var(--dw))}
+.skm-tb{table-layout:fixed;border-collapse:separate;border-spacing:0;width:calc(var(--nmw) + var(--htw) + 13 * var(--dw))}
 .skm-tb col.skm-cn{width:var(--nmw)}
+.skm-tb col.skm-cs{width:var(--htw)}
 .skm-tb col.skm-cd{width:var(--dw)}
-.skm-tb td{border-bottom:1px solid var(--line-soft);text-align:center;height:46px;padding:0;font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:700;color:var(--txt-2);background:#fff}
-.skm-tb td.skm-nm{position:sticky;left:0;z-index:2;text-align:left;padding:5px 10px;border-right:1px solid var(--line);font-weight:400;color:var(--txt)}
-.skm-nm b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.2;font-weight:700;word-break:break-word}
-.skm-nm small{display:flex;align-items:center;gap:6px;margin-top:2px;font-size:11px;color:var(--txt-3);white-space:nowrap;overflow:hidden}
+.skm-tb td{border-bottom:1px solid var(--line-soft);text-align:center;height:36px;padding:0;font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:700;color:var(--txt-2);background:#fff}
+/* Một dòng / mã: tên cắt "…" (rê/chạm giữ xem đủ), ĐVT nằm cuối dòng — nhìn được nhiều mã hơn */
+.skm-tb td.skm-nm{position:sticky;left:0;z-index:2;text-align:left;padding:0 6px 0 10px;border-right:1px solid var(--line);font-weight:400;color:var(--txt)}
+.skm-nr{display:flex;align-items:center;gap:6px;min-width:0}
+.skm-nm b{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:1.2;font-weight:700}
+.skm-nr>.skm-u{flex:0 0 auto;font-size:11px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Cột tồn HT dính ngay sau cột tên — so thẳng với cột đang đếm */
+.skm-tb td.skm-sy{position:sticky;left:var(--nmw);z-index:2;background:#FBF8F4;border-right:1px solid var(--line);font-size:13px;font-weight:800;color:var(--txt);padding:0 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.skm-tb td.skm-sy.btp{font-size:11.5px;font-weight:700;color:var(--txt-2)}
 .skm-u{font-weight:800;color:var(--brand)}
-.skm-ht{font-weight:600;overflow:hidden;text-overflow:ellipsis}
 .skm-us{font:inherit;font-size:11px;font-weight:800;color:var(--brand);background:var(--brand-wash) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 0l3.5 4 3.5-4z' fill='%239D112C'/%3E%3C/svg%3E") no-repeat right 4px center;border:0;border-radius:6px;height:20px;padding:0 13px 0 5px;max-width:74px;-webkit-appearance:none;appearance:none;cursor:pointer;text-overflow:ellipsis;flex:0 0 auto}
 .skm-tb td.y{background:#FAF6F0}
 .skm-tb td.fu{background:#FCFBF9}
@@ -3704,7 +3714,7 @@ em.zero,.sk-d.zero{color:var(--green)}
 .skm-tb td.on.sum em{display:block;font-size:10px;font-style:normal;font-weight:800;line-height:1.1}
 .skm-tb td.on.sum em.neg{color:var(--red)}.skm-tb td.on.sum em.pos{color:var(--green)}
 .skm-cell{position:relative;padding:0 5px}
-.skm-in{width:100%;height:34px;border:1px solid #CFE0DE;border-radius:9px;background:#fff;text-align:center;font:inherit;font-size:15px;font-weight:800;color:var(--txt);padding:0 2px;outline:none;-webkit-appearance:none;appearance:none}
+.skm-in{width:100%;height:28px;border:1px solid #CFE0DE;border-radius:9px;background:#fff;text-align:center;font:inherit;font-size:14px;font-weight:800;color:var(--txt);padding:0 2px;outline:none;-webkit-appearance:none;appearance:none}
 .skm-in:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(24,72,74,.16)}
 .skm-in[readonly]:not(:disabled){border-style:dashed}
 .skm-in:disabled{background:#F7F3EF;color:var(--txt-2);border-color:var(--line-soft);-webkit-text-fill-color:var(--txt-2);opacity:1}
@@ -3715,7 +3725,7 @@ em.zero,.sk-d.zero{color:var(--green)}
 .skm-tb tr.flash td:not(.skm-nm){background:#FFF3C4 !important}
 .skm-tb tr.rmt td.on{box-shadow:inset 0 0 0 2px #5BC489}
 .skm-tb tfoot td{background:#FBF8F4;border-top:1px solid var(--line);border-bottom:0;height:34px;font-size:12px;font-weight:800;color:var(--txt-2)}
-.skm-tb tfoot td.skm-nm{background:#FBF8F4;font-size:11.5px;font-weight:700;color:var(--txt-2)}
+.skm-tb tfoot td.skm-nm,.skm-tb tfoot td.skm-sy{background:#FBF8F4;font-size:11.5px;font-weight:700;color:var(--txt-2)}
 .skm-tb tfoot td.on{color:var(--brand)}
 .skm-empty{margin:10px}
 .skm-edit{gap:6px}
@@ -3723,17 +3733,20 @@ em.zero,.sk-d.zero{color:var(--green)}
 .skm-hist summary{font-size:12.5px;font-weight:700;color:var(--txt-2);cursor:pointer}
 .skm-hist .bk-log{margin-top:8px}
 @media(max-width:960px){
-  .skm{--nmw:160px;--dw:66px}
+  .skm{--nmw:170px;--htw:62px;--dw:64px}
   .skm-leg{display:none}
 }
 @media(max-width:640px){
   .skm-page,.skm{gap:8px}
-  .skm{--nmw:112px;--dw:54px}
+  .skm{--nmw:124px;--htw:48px;--dw:50px}
   .skm-top{gap:6px}
   .skm-pb{min-height:38px;padding:4px 9px;border-radius:11px}
   .skm-pb b,.skm-br select{font-size:12.5px}
   .skm-br select{max-width:150px}
-  .skm-adm{margin-left:0;width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .skm-adm{display:none}
+  .skm-dk{display:none !important}
+  .skm-mb{display:inline-flex !important;flex:0 0 auto;width:36px;justify-content:center;font-size:18px;letter-spacing:-1px;padding:0}
+  .skm-hn .sk-sync{font-size:9.5px}
   .skm-ab{height:30px;font-size:11.5px;padding:0 9px}
   .skm-card{padding:8px 9px;gap:7px;border-radius:14px}
   .skm-chip{height:30px;padding:0 10px;font-size:12px}
@@ -3745,8 +3758,9 @@ em.zero,.sk-d.zero{color:var(--green)}
   .skm-leg{display:none}
   .skm-close{height:32px;padding:0 11px;font-size:12px;border-radius:10px}
   .skm-own{font-size:11.5px;padding:5px 8px}
-  .skm-own-b{height:26px;font-size:11.5px}
   .skm-q{flex-basis:118px;min-width:110px;height:30px;font-size:12.5px}
+  .skm-tools{flex-wrap:nowrap}
+  .skm-q{max-width:none}
   .skm-t{height:30px;font-size:11.5px;padding:0 8px}
   .skm-mx{margin:0 -14px;border-radius:0;border-left:0;border-right:0}
   .skm-hd,.skm-sc{border-radius:0}
@@ -3759,13 +3773,18 @@ em.zero,.sk-d.zero{color:var(--green)}
   .skm-db .s,.skm-db .e{display:none}
   .skm-db .ss{display:block}
   .skm-db.today::after{top:4px;right:4px;width:6px;height:6px}
-  .skm-tb td{height:40px;font-size:12.5px}
-  .skm-tb td.skm-nm{padding:4px 6px 4px 8px}
+  .skm-tb td{height:34px;font-size:12.5px}
+  .skm-tb td.skm-nm{padding:0 4px 0 8px}
+  .skm-nr{gap:4px}
   .skm-nm b{font-size:12px;line-height:1.15}
-  .skm-nm small{font-size:10px;gap:4px;margin-top:1px}
-  .skm-us{font-size:10.5px;height:18px;max-width:60px;padding:0 12px 0 4px}
+  .skm-nr>.skm-u{font-size:10px;max-width:44px}
+  .skm-us{font-size:10px;height:18px;max-width:46px;padding:0 11px 0 4px;background-position:right 3px center}
+  .skm-hs{padding:5px 2px;font-size:10.5px}
+  .skm-hs small{font-size:9.5px}
+  .skm-tb td.skm-sy{font-size:12px}
+  .skm-tb td.skm-sy.btp{font-size:10.5px}
   .skm-cell{padding:0 3px}
-  .skm-in{height:32px;font-size:16px;border-radius:8px}
+  .skm-in{height:28px;font-size:14px;border-radius:8px}
   .skm-hq{width:16px;height:16px;font-size:10px;top:-6px;left:-1px}
   .skm-tb td.on.sum b{font-size:13px}
   .skm-tb tfoot td{height:30px;font-size:11px}
@@ -6420,6 +6439,7 @@ const seedDemoStock = (mats) => {
   const stocks = {};
   const t = new Date(); t.setHours(0, 0, 0, 0);
   const plan = { 6: 'close', 5: 'close', 4: 'close', 2: 'close', 1: 'live' };
+  plan[t.getDate()] = 'close';   /* chốt cuối tháng trước = mốc đầu kỳ, để cột Tồn HT có số */
   Object.keys(plan).forEach(back => {
     const d = new Date(t); d.setDate(d.getDate() - back);
     const dk = dKey(d), at = dk + 'T21:30:00.000Z';
@@ -24391,7 +24411,7 @@ const voiceParse = (text, cands) => {
   return { add, hits, errs };
 };
 
-function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZone }) {
+function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZone, adm }) {
   /* Tồn hệ thống cần thêm ba nguồn: phiếu mua (nhập), doanh số (xuất bán), phiếu huỷ/điều chuyển.
      Nạp ở đây chứ không nạp sẵn toàn app — chỉ người đang mở màn hình đếm mới cần tới. */
   useNeed('po', 'sales', 'mv', 'rcp');
@@ -24496,7 +24516,6 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
   });
   /* 'zone': đang xem / giữ một khu (chỉ người giữ mới sửa được); 'sum': xem tổng hợp mọi khu */
   const [mode, setMode] = useState(() => (zonePref && zonePref.id === 'sum' ? 'sum' : 'zone'));
-  const [myZone, setMyZone] = useState(null);
   const lastAct = useRef(Date.now());
   const [q, setQ] = useState('');
   const [note, setNote] = useState(() => ('note' in out0 ? out0.note : (live && live.note)) || '');
@@ -24569,25 +24588,12 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
     .map(([id, w]) => ({ id, ...w })), [liveDoc, tick]);
   const [rmt, setRmt] = useState({});
   /* Ô đang bị người khác giữ (đang gõ) — trả về người đó, không thì null */
-  /* Như Google Sheet: không khoá ô nào — ai cũng gõ, sửa được mọi ô, số mới nhất được giữ.
-     (Trước đây ô có người đang gõ bị khoá ~20 giây; bỏ theo yêu cầu.) */
+  /* Như Google Sheet: không khoá ô nào — ai cũng gõ, sửa được mọi ô, số mới nhất được giữ. */
   const lockedBy = () => null;
-  /* ---- KHÔNG GIỮ KHU ----
-     Ai vào khu nào cũng điền được, nhiều người cùng một khu cũng được. Mỗi ô ghi GỘP riêng vào ops_stklive
-     (xem putDoc ở hộp chờ gửi) nên không lệnh ghi nào xoá được số người khác đã gõ ở ô khác.
-     Bản ghi `claim` cũ còn trên máy chủ (từ lúc có tính năng nhận khu) bị bỏ qua hoàn toàn. */
-  const claimOf = () => null;
+  /* Không còn "nhận khu": ai có quyền đếm thì vào khu nào cũng gõ được, đếm tới đâu lưu tới đó.
+     Mỗi ô ghi GỘP riêng vào ops_stklive nên không ai xoá được số người khác đã gõ ở ô khác. */
   const zoneName = (zid) => zid === 'btp' ? 'BTP' : ((zones.find(z => z.id === zid) || {}).name || '');
-  const enterZone = (zid) => {
-    lastAct.current = Date.now();
-    setMyZone(canCountBase ? zid : null); setTab(zid); setMode('zone');
-  };
-  const freeZone = () => {};
-  const leaveZone = () => {
-    clearTimeout(flushT.current); if (flushFn.current) flushFn.current();
-    freeZone(myZone);
-    setMyZone(null); setMode('pick'); setTodo(false); setQ(''); stopMic && micOn.current && stopMic();
-  };
+  const enterZone = (zid) => { lastAct.current = Date.now(); setTab(zid); setMode('zone'); };
   /* Đóng màn hình giữa chừng thì ghi nốt phần còn chờ */
   useEffect(() => () => { clearTimeout(flushT.current); if (flushFn.current) flushFn.current(); }, []);
   const liveSig = (legacyLive ? legacyLive.at : '') + '|' + (freshLive ? freshLive.at : '');
@@ -24646,7 +24652,6 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
      ca sau phát hiện đếm sai mà phải đi xin mở lại thì số cuối ngày còn sai lâu hơn. */
   const lockedD = stkLocked(cfg, date);
   const canCountBase = canStockCount(user) && !lockedD;
-  /* Trong một khu chỉ người ĐANG GIỮ khu mới sửa được; người khác vào xem thì chỉ đọc */
   const canCount = canCountBase;
   const canClose = canStockClose(user) && !lockedD;
   const nameOf = (id) => (employees.find(e => e.id === id) || {}).name || id;
@@ -25027,8 +25032,8 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
     const sc = scRef.current;
     if (!sc) return;
     const i = (days || []).indexOf(date);
-    const td = sc.querySelector('tfoot td[data-i="' + Math.max(0, i - 1) + '"]'), nm = sc.querySelector('tfoot td.skm-nm');
-    sc.scrollLeft = i < 0 || !td || !nm ? 0 : Math.max(0, td.offsetLeft - nm.offsetWidth);
+    const td = sc.querySelector('tfoot td[data-i="' + Math.max(0, i - 1) + '"]'), nm = sc.querySelector('tfoot td.skm-nm'), sy = sc.querySelector('tfoot td.skm-sy');
+    sc.scrollLeft = i < 0 || !td || !nm ? 0 : Math.max(0, td.offsetLeft - nm.offsetWidth - (sy ? sy.offsetWidth : 0));
     syncHd();
   }, [(days || []).join(','), editZ, mode, tab]);
   /* Rê chuột lên ô ngày → tô cả cột (đặt thẳng thuộc tính, không vẽ lại cả bảng) */
@@ -25058,20 +25063,16 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
   const [whyOn, setWhyOn] = useState(false);
   const [hint] = useState(() => { try { return !localStorage.getItem('vn-skm-hint'); } catch (_) { return false; } });
   const pickDate = (d) => { try { localStorage.setItem('vn-skm-hint', '1'); } catch (_) {} if (onDate) onDate(d); };
-  /* Bấm chip: rời khu đang giữ, khu mới trống thì nhận luôn */
+  /* Bấm chip: chuyển khu (gửi nốt số đang chờ của khu cũ trước) */
   const pickZone = (zid) => {
-    if (zid === tab && (zid === 'sum' || myZone === zid)) return;
+    if (zid === tab) return;
     clearTimeout(flushT.current); if (flushFn.current) flushFn.current();
-    if (myZone && myZone !== zid) { freeZone(myZone); setMyZone(null); }
     setTodo(false); setEdit(null); setEditZ(false);
     if (micOn.current) stopMic();
-    if (zid === 'sum') { setTab('sum'); setMode('sum'); if (onZone) onZone({ id: 'sum', hold: false }); return; }
-    if (onZone) onZone({ id: zid, hold: true });
+    if (zid === 'sum') { setTab('sum'); setMode('sum'); if (onZone) onZone({ id: 'sum' }); return; }
+    if (onZone) onZone({ id: zid });
     enterZone(zid);
   };
-  const claimHere = () => { if (onZone) onZone({ id: tab, hold: true }); enterZone(tab); };
-  /* Đổi ngày (bảng dựng lại) mà trước đó đang giữ khu thì nhận lại đúng khu đó cho ngày mới */
-  useEffect(() => { if (zonePref && zonePref.hold && mode === 'zone' && canCountBase) enterZone(tab); }, []);
 
   /* Gán lại mỗi lần render để luôn ghi số MỚI NHẤT. Kèm tổng từng mã (items) để màn khác — tồn toàn hệ
      thống, lịch — đọc được số đang đếm mà không phải đợi ai chốt. */
@@ -25138,6 +25139,9 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
     /* Chốt chặn cuối: nút đã ẩn khi khoá, nhưng chặn ở đây nữa để không có đường vòng nào ghi được */
     if (lockedD) return toast('Ngày ' + dShort(date) + ' đã bị khoá sổ — nhờ quản trị mở khoá trước');
     if (!list.length) return toast('Chi nhánh chưa khai mã hàng nào — vào Thiết lập kho để thêm');
+    /* Còn người đang gõ dở thì hỏi lại — chốt rồi họ vẫn gõ tiếp được, chỉ cần bấm Chốt lại */
+    const act = others.filter(w => w.c);
+    if (act.length && !(await zsAsk(act.map(w => w.n + (w.z ? ' (' + zoneName(w.z) + ')' : '')).join(', ') + ' đang gõ dở.\n\nVẫn chốt bây giờ? Số họ gõ thêm sau đó vẫn được lưu — bấm Chốt lại là cập nhật.'))) return;
     /* Trước khi chốt: gửi nốt số của máy này, rồi hỏi MÁY CHỦ số mới nhất. Máy chốt có thể chậm vài giây so với
        người khác đang đếm — chốt theo số cũ là đè mất số họ vừa gõ. Có ô nào khác thì lấy về, bắt xem lại rồi chốt. */
     if (cloud && db) {
@@ -25247,11 +25251,6 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
   const curZ = zones.find(z => z.id === tab);
 
   const isSum = mode === 'sum', isB = mode === 'zone' && tab === 'btp';
-  const cl = mode === 'zone' ? claimOf(tab) : null;
-  const heldBy = cl && cl.uid !== user.id ? cl : null;
-  const mineZ = mode === 'zone' && myZone === tab;
-  /* Khu đang trống mà mình có quyền đếm: chạm vào ô là nhận khu */
-  const canClaim = mode === 'zone' && canCountBase && !canCount && !heldBy;
   const cellsTot = zones.reduce((s, z) => s + zItems(z.id).length, 0) + btps.length;
   const openN = zones.reduce((s, z) => s + zFilled(z.id), 0) + bFilled;
   const yest = dAdd(date, -1);
@@ -25279,10 +25278,10 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
         {g != null && <button type="button" className="skm-hq" tabIndex={-1} aria-label={'Giữ số ngày ' + dShort(ghost.date) + ': ' + numTxt(g)}
           title={'Giữ số ngày ' + dShort(ghost.date) + ': ' + numTxt(g)} onClick={() => keepGhost(code, tab)}>↺</button>}
         <input className="skm-in mono" inputMode="decimal" enterKeyHint="next" autoComplete="off"
-          disabled={!(canCount || canClaim) || !!lk} readOnly={!canCount}
+          disabled={!canCount || !!lk}
           placeholder={lk ? initials(lk.n) + '…' : '—'} title={lk ? lk.n + ' đang gõ ô này' : ''}
           value={stkFmtIn(txt)}
-          onFocus={() => { if (!canCount) { if (canClaim) claimHere(); return; } markSeen(tab, code); pingWho(code, tab); }}
+          onFocus={() => { if (!canCount) return; markSeen(tab, code); pingWho(code, tab); }}
           onBlur={() => { setEdit(e => (e && e.k === k ? null : e)); releaseWho(code, tab); }}
           onChange={e => { if (!canCount) return; pingWho(code, tab); typeCell(code, tab, stkParseIn(e.target.value, stkFmtIn(txt))); }}
           onKeyDown={keyNav} />
@@ -25297,8 +25296,7 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
         {g != null && <button type="button" className="skm-hq" tabIndex={-1} title={'Giữ số ngày ' + dShort(ghost.date) + ': ' + stkFmtIn(g)}
           onClick={() => { setFb(p => ({ ...p, [key]: String(g) })); queue('b|' + key); }}>↺</button>}
         <input className="skm-in mono" inputMode="decimal" enterKeyHint="next" autoComplete="off"
-          disabled={!(canCount || canClaim)} readOnly={!canCount} placeholder="—" value={stkFmtIn(txt)}
-          onFocus={() => { if (!canCount && canClaim) claimHere(); }}
+          disabled={!canCount} placeholder="—" value={stkFmtIn(txt)}
           onBlur={() => setEdit(e => (e && e.k === k ? null : e))}
           onChange={e => {
             if (!canCount) return;
@@ -25310,12 +25308,12 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
     );
   };
   const nameTd = (it) => {
-    const u = rowU(it.code), book = sysOf(it.code);
+    const u = rowU(it.code);
     const pe = others.filter(w => w.c === it.code && w.z === tab);
     return (
       <td className="skm-nm">
-        <b title={it.name + ' · ' + it.code}>{pe.map(w => <span key={w.id} className="sk-who" title={w.n + ' đang gõ ô này'}>{initials(w.n)}</span>)}{it.name}</b>
-        <small>
+        <div className="skm-nr">
+          <b title={it.name + ' · ' + it.code}>{pe.map(w => <span key={w.id} className="sk-who" title={w.n + ' đang gõ ô này'}>{initials(w.n)}</span>)}{it.name}</b>
           {!isSum && canCfg && !lockedD
             ? <select className="skm-us" value={u} title="Đơn vị đếm của khu này — đổi là áp từ giờ trở đi"
                 onChange={e => { if (e.target.value === '__new') setNewU({ code: it.code, zid: tab, u: '', k: '' }); else saveZoneU(it.code, tab, e.target.value); }}>
@@ -25323,27 +25321,49 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
                 <option value="__new">＋ Đơn vị khác…</option>
               </select>
             : <span className="skm-u">{uCap(u) || '—'}</span>}
-          {book != null && <span className="skm-ht" title={sysTitle(it.code)}>HT {numTxt(inU(it.code, book, u))}</span>}
-        </small>
+        </div>
       </td>
     );
+  };
+  /* Tồn HT tính từ đầu kỳ tới ĐÚNG ngày đang mở (đổi ngày là tính lại), quy theo ĐVT đếm của dòng */
+  const syTd = (it) => {
+    const book = sysOf(it.code);
+    return <td className="skm-sy mono" title={book != null ? sysTitle(it.code) : ''}>{book == null ? <span className="nil">—</span> : numTxt(inU(it.code, book, rowU(it.code)))}</td>;
   };
   const vTd = (d, i, v, txt) => (
     <td key={d} data-i={i} className={'v-' + DI[i].s + (d === yest ? ' y' : '')}>{v == null ? <span className="nil">·</span> : txt}</td>
   );
-  const ownCls = mineZ ? ' me' : (heldBy || isSum || lockedD || !canCountBase) ? ' ro' : canClaim ? ' free' : '';
+  /* Mọi nút phụ: máy tính hiện thẳng, điện thoại gom vào một nút ⋯ (kèm nút quản trị của trang) */
+  const acts = [
+    hasGhostEmpty && { k: 'hq', ic: '↺', l: 'Như hôm qua', t: 'Chép số ngày ' + dShort(ghost.date) + ' cho mọi mã chưa có số ở khu này', go: () => takeGhostAll(tab) },
+    list.length > 0 && canCount && !isSum && { k: 'mic', ic: <Ic.mic size={14} />, l: mic ? 'Tắt mic' : 'Giọng nói', on: mic, cls: mic ? 'mic' : '',
+      t: 'Bấm rồi đọc: "sữa đặc ba hộp", "đường hai ký rưỡi". Nói "thêm …" để cộng dồn.', go: mic ? stopMic : startMic },
+    list.length > 0 && (canCount || note) && { k: 'note', ic: '📝', l: 'Ghi chú' + (note ? ' •' : ''), on: noteOn, go: () => setNoteOn(!noteOn) },
+    list.length > 0 && canCfg && mode === 'zone' && !isB && !lockedD && { k: 'ez', ic: editZ ? '✓' : '±', l: editZ ? 'Xong' : 'Thêm/bớt mã', on: editZ, go: () => setEditZ(!editZ) },
+    list.length > 0 && { k: 'why', ic: 'ⓘ', l: 'Tồn HT tính thế nào', mo: true, on: whyOn, go: () => setWhyOn(!whyOn) },
+    ...(adm || []).map(a => ({ ...a, mo: true })),
+  ].filter(Boolean);
+  const [more, setMore] = useState(null);
+  useEffect(() => {
+    if (!more) return undefined;
+    const off = () => setMore(null);
+    window.addEventListener('scroll', off, true); window.addEventListener('resize', off);
+    return () => { window.removeEventListener('scroll', off, true); window.removeEventListener('resize', off); };
+  }, [more]);
+  const syncShort = sync.st === 'saving' ? 'Đang gửi…' : (sync.st === 'slow' || sync.st === 'err') ? '⚠ Chưa lên máy chủ'
+    : sync.at ? '✓ Đã lưu ' + fmtTime(new Date(sync.at)) : 'Gõ là tự lưu';
 
   return (
     <div className="skm" ref={rootRef}>
       <div className="skm-card">
         <div className="skm-chips">
           {chips.map(z => {
-            const c = z.id === 'sum' ? null : claimOf(z.id), mine = !!(c && c.uid === user.id);
+            const pe = z.id === 'sum' ? [] : others.filter(w => w.z === z.id);
             return (
               <button key={z.id} type="button" className={'skm-chip' + (tab === z.id ? ' on' : '') + (z.id === 'sum' ? ' sum' : '')}
-                onClick={() => pickZone(z.id)}>
-                {mine && <i className="me" />}{z.name} <small className="mono">{z.n}/{z.t}</small>
-                {c && !mine && <span className="lk">🔒 {lastNm(c.n)}</span>}
+                onClick={() => pickZone(z.id)} title={pe.length ? 'Đang đếm: ' + pe.map(w => w.n).join(', ') : ''}>
+                {z.name} <small className="mono">{z.n}/{z.t}</small>
+                {pe.slice(0, 2).map(w => <span key={w.id} className="sk-who">{initials(w.n)}</span>)}
               </button>
             );
           })}
@@ -25360,38 +25380,40 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
           </span>
           {canClose && list.length > 0 && (
             <button type="button" className="skm-close" onClick={() => write('close')}>
-              <Ic.check size={14} /> {closed ? 'Chốt lại' : 'Chốt ngày'} {dShort(date)}
+              <Ic.check size={14} /> {closed ? 'Chốt lại' : <>Chốt<span className="skm-dk"> ngày</span></>} {dShort(date)}
             </button>
           )}
         </div>
-        <div className={'skm-own' + ownCls}>
-          <span className="skm-own-t">
-            {isSum ? <>Tổng mọi khu theo từng mã — chỉ xem, muốn sửa thì vào đúng khu.</>
-              : lockedD ? <>🔒 Ngày {dShort(date)} đã khoá sổ — chỉ xem.</>
-              : !canCountBase ? <>Bạn chỉ xem được số đếm.</>
-              : !cloud ? <>Đang đếm <b>{zoneName(tab)}</b> · ngày {dShort(date)}</>
-              : <>Đang đếm <b>{zoneName(tab)}</b> · ngày {dShort(date)} — ai cũng điền được, số của mọi người đều được lưu.</>}
-            {others.length > 0 && <span className="skm-peers"> · Cùng đếm: {others.map(w => w.n + (w.z ? ' (' + zoneName(w.z) + ')' : '')).join(', ')}</span>}
-          </span>
-          <span className={'sk-sync ' + sync.st}>{syncTxt}{live && live.lastName && live.lastBy !== user.id ? <small> · {live.lastName} vừa sửa</small> : null}</span>
-        </div>
-        {list.length > 0 && (
+        {(list.length > 0 || acts.length > 0) && (
           <div className="skm-tools">
-            {!isB && <input className="skm-q" type="search" placeholder="Tìm mã, tên…" value={q} onChange={e => setQ(e.target.value)} />}
-            {hasGhostEmpty && <button type="button" className="skm-t" onClick={() => takeGhostAll(tab)}
-              title={'Chép số ngày ' + dShort(ghost.date) + ' cho mọi mã chưa có số ở khu này'}>↺ Như hôm qua</button>}
-            {mode === 'zone' && !isB && !editZ && <button type="button" className={'skm-t' + (todo ? ' on' : '')} onClick={() => setTodo(!todo)}>
+            {list.length > 0 && !isB && <input className="skm-q" type="search" placeholder="Tìm mã, tên…" value={q} onChange={e => setQ(e.target.value)} />}
+            {list.length > 0 && mode === 'zone' && !isB && !editZ && <button type="button" className={'skm-t' + (todo ? ' on' : '')} onClick={() => setTodo(!todo)}>
               Chưa đếm <b>{Math.max(0, zItems(tab).length - zSeen(tab))}</b></button>}
-            {canCount && !isSum && <button type="button" className={'skm-t' + (mic ? ' on mic' : '')} onClick={mic ? stopMic : startMic}
-              title='Bấm rồi đọc: "sữa đặc ba hộp", "đường hai ký rưỡi". Nói "thêm …" để cộng dồn.'>
-              <Ic.mic size={14} /> {mic ? 'Tắt mic' : 'Giọng nói'}</button>}
-            {(canCount || note) && <button type="button" className={'skm-t' + (noteOn ? ' on' : '')} onClick={() => setNoteOn(!noteOn)}>
-              📝 Ghi chú{note ? ' •' : ''}</button>}
-            {canCfg && mode === 'zone' && !isB && !lockedD && <button type="button" className={'skm-t' + (editZ ? ' on' : '')} onClick={() => setEditZ(!editZ)}>
-              {editZ ? '✓ Xong' : 'Thêm/bớt mã'}</button>}
-            <button type="button" className={'skm-t' + (whyOn ? ' on' : '')} onClick={() => setWhyOn(!whyOn)}>ⓘ Tồn HT</button>
+            {acts.filter(a => !a.mo).map(a => (
+              <button key={a.k} type="button" className={'skm-t skm-dk' + (a.on ? ' on' : '') + (a.cls ? ' ' + a.cls : '')} title={a.t || ''} onClick={a.go}>
+                {a.ic} {a.l}</button>
+            ))}
+            {acts.length > 0 && (
+              <button type="button" className={'skm-t skm-mb' + (more ? ' on' : '')} aria-label="Thêm thao tác"
+                onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setMore(more ? null : { top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) }); }}>
+                ⋯</button>
+            )}
           </div>
         )}
+        {more && <>
+          <div className="skm-scrim" onClick={() => setMore(null)} />
+          <div className="skm-menu skm-more" style={{ top: more.top, right: more.right }}>
+            {acts.map(a => (
+              <button key={a.k} type="button" className={a.on ? 'cur' : ''} onClick={() => { setMore(null); a.go(); }}>
+                <span><i>{a.ic}</i>{a.l}</span>{a.on ? <b>✓</b> : null}
+              </button>
+            ))}
+          </div>
+        </>}
+        {(lockedD || !canCountBase) && (
+          <div className="skm-own ro">{lockedD ? <>🔒 Ngày {dShort(date)} đã khoá sổ — chỉ xem.</> : <>Bạn chỉ xem được số đếm.</>}</div>
+        )}
+        {(sync.st === 'slow' || sync.st === 'err') && <div className="skm-own err"><span className={'sk-sync ' + sync.st}>{syncTxt}</span></div>}
         {noteOn && (
           <div className="skm-pan">
             <input className="inp" placeholder="Ghi chú bàn giao: thiếu 2 lon do khách trả lại, đã báo quản lý…" value={note} disabled={!canCount}
@@ -25431,7 +25453,7 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
           </div>
         )}
         {closed && (
-          <div className="skm-ban">✓ Đã chốt {fmtDT(rec.closedAt)} · {rec.closedName || nameOf(rec.closedBy)} — sai thì sửa số rồi bấm <b>Chốt lại</b>.</div>
+          <div className="skm-ban">✓ Đã chốt {fmtDT(rec.closedAt)} · {rec.closedName || nameOf(rec.closedBy)} — sai thì sửa rồi bấm <b>Chốt lại</b>.</div>
         )}
       </div>
 
@@ -25466,7 +25488,11 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
         <div className="skm-mx">
           <div className="skm-hd" ref={hdRef}>
             <div className="skm-hrow">
-              <div className="skm-hn">{isSum ? 'Tổng mọi khu' : isB ? 'Bán thành phẩm' : zoneName(tab)}<small>{isB ? 'ĐVT mẻ' : 'ĐVT · tồn HT'}</small></div>
+              <div className="skm-hn">{isSum ? 'Tổng mọi khu' : isB ? 'Bán thành phẩm' : zoneName(tab)}<small className={'sk-sync ' + sync.st} title={syncTxt}>{syncShort}</small></div>
+              {isB ? <div className="skm-hs off">Mẻ<small>sản lượng</small></div>
+                : <button type="button" className={'skm-hs' + (sys.ok ? '' : ' off')} onClick={() => setWhyOn(!whyOn)}
+                    title={sys.ok ? 'Tồn hệ thống từ đầu kỳ (chốt ' + dShort(sys.baseDate) + ') tới hết ngày ' + dShort(date) : 'Chưa có bản chốt đầu kỳ ' + dShort(sys.baseDate)}>
+                    Tồn HT<small>{sys.ok ? '→ ' + dShort(date) : 'chưa đầu kỳ'}</small></button>}
               {days.map((d, i) => {
                 const I = DI[i], fut = d > today, on = d === date;
                 return (
@@ -25486,13 +25512,14 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
           </div>
           <div className="skm-sc" ref={scRef} onScroll={syncHd}>
             <table className="skm-tb">
-              <colgroup><col className="skm-cn" />{days.map(d => <col key={d} className="skm-cd" />)}</colgroup>
+              <colgroup><col className="skm-cn" /><col className="skm-cs" />{days.map(d => <col key={d} className="skm-cd" />)}</colgroup>
               <tbody>
                 {!isB && shown.map(it => {
                   const u = rowU(it.code);
                   return (
                     <tr key={it.code} data-sk={it.code} className={(flash === it.code ? 'flash' : '') + (rmt[it.code] ? ' rmt' : '')}>
                       {nameTd(it)}
+                      {syTd(it)}
                       {days.map((d, i) => {
                         if (d > today) return <td key={d} data-i={i} className="fu" />;
                         if (d === date) {
@@ -25519,9 +25546,12 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
                   return (
                     <tr key={r.id} data-sk={key} className={flash === key ? 'flash' : ''}>
                       <td className="skm-nm">
-                        <b title={conv.length ? r.name + ' = ' + conv.map(u => (u.name || u.sku) + ' ' + numTxt(stkRound(u.qty)) + (u.unit || '')).join(' · ') : r.name}>{r.name}</b>
-                        <small><span className="skm-u">{uCap(r.batch.unit) || '—'}</span><span className="skm-ht">mẻ {numFmt(r.batch.qty)}</span></small>
+                        <div className="skm-nr">
+                          <b title={conv.length ? r.name + ' = ' + conv.map(u => (u.name || u.sku) + ' ' + numTxt(stkRound(u.qty)) + (u.unit || '')).join(' · ') : r.name}>{r.name}</b>
+                          <span className="skm-u">{uCap(r.batch.unit) || '—'}</span>
+                        </div>
                       </td>
+                      <td className="skm-sy btp mono">{numFmt(r.batch.qty)}</td>
                       {days.map((d, i) => {
                         if (d > today) return <td key={d} data-i={i} className="fu" />;
                         if (d === date) return <td key={d} data-i={i} className="on">{inB(key)}</td>;
@@ -25535,6 +25565,7 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
               <tfoot>
                 <tr>
                   <td className="skm-nm">Đã đếm / {cellsTot} ô</td>
+                  <td className="skm-sy" />
                   {days.map((d, i) => {
                     const n = d > today ? '' : d === date ? openN : snapN(daySnap[i]);
                     return <td key={d} data-i={i} className={d === date ? 'on' : ''}>{n == null ? '·' : n}</td>;
@@ -25920,6 +25951,12 @@ function StkCalendar() {
     setOpen(last); setStart(dAdd(last, -12));
   };
   const pickDay = (d) => { if (d <= today) setOpen(d); };
+  /* Nạp Excel ghi đè bản chốt của NHIỀU cơ sở một lượt nên giữ ở cấp quản lý kho */
+  const adm = [
+    canStockCfg(user) && { k: 'setup', ic: <Ic.settings size={14} />, l: 'Thiết lập kho', go: () => setSetup(true) },
+    canStockCfg(user) && { k: 'up', ic: <Ic.upload size={14} />, l: 'Nạp Excel', go: () => setUp(true) },
+    canStkLock(user) && { k: 'lock', ic: '🔒', l: 'Khoá ngày', t: 'Khoá ngày lại thì không ai sửa được số tồn của ngày đó nữa', go: () => setLock(true) },
+  ].filter(Boolean);
 
   return (
     <div className="skm-page">
@@ -25953,19 +25990,16 @@ function StkCalendar() {
           </label>
         )}
         <div className="skm-adm">
-          {canStockCfg(user) && <button type="button" className="skm-ab" onClick={() => setSetup(true)}><Ic.settings size={14} /> Thiết lập kho</button>}
-          {/* Nạp Excel ghi đè bản chốt của NHIỀU cơ sở một lượt nên giữ ở cấp quản lý kho */}
-          {canStockCfg(user) && <button type="button" className="skm-ab" onClick={() => setUp(true)}><Ic.upload size={14} /> Nạp Excel</button>}
-          {canStkLock(user) && <button type="button" className="skm-ab" onClick={() => setLock(true)} title="Khoá ngày lại thì không ai sửa được số tồn của ngày đó nữa">🔒 Khoá ngày</button>}
+          {adm.map(a => <button key={a.k} type="button" className="skm-ab" title={a.t || ''} onClick={a.go}>{a.ic} {a.l}</button>)}
         </div>
       </div>
       {!list.length && (
         <div className="pay-calc bad"><span>
-          <b>{branchOf(bid).name}</b> chưa khai mã hàng nào — bấm <b>Thiết lập kho</b> để chọn mã đang bán.
+          <b>{branchOf(bid).name}</b> chưa khai mã hàng nào — bấm <b>Thiết lập kho</b> (điện thoại: nút ⋯) để chọn mã đang bán.
         </span></div>
       )}
       <StkCountPane key={bid + '|' + open} bid={bid} date={open} days={days} today={today}
-        onDate={pickDay} onShift={n => setStart(s => dAdd(s, n))} zonePref={zone} onZone={setZone} />
+        onDate={pickDay} onShift={n => setStart(s => dAdd(s, n))} zonePref={zone} onZone={setZone} adm={adm} />
       {setup && <StockSetupModal bid={bid} onClose={() => setSetup(false)} />}
       {up && <StkUploadModal onClose={() => setUp(false)} />}
       {lock && <StkLockModal onClose={() => setLock(false)} />}
