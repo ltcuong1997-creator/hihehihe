@@ -24570,60 +24570,23 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
   const [rmt, setRmt] = useState({});
   /* Ô đang bị người khác giữ (đang gõ) — trả về người đó, không thì null */
   const lockedBy = (code, zid) => others.find(w => w.c === code && w.z === zid && Date.now() - Date.parse(w.at) < LOCK_MS) || null;
-  /* ---- NHẬN KHU ----
-     Ai vào khu trước thì giữ khu (ghi bằng transaction: hai người bấm cùng lúc chỉ một người được). Còn thao
-     tác thì 30 giây gia hạn một lần; 2 phút không thao tác (hay tắt app) là khu tự mở. Quản lý giành được. */
-  const CLAIM_MS = 120000;
-  const claimOf = (zid) => {
-    const c = ((liveDoc && liveDoc.claim) || {})[zid];
-    return c && c.uid && Date.now() - Date.parse(c.at) < CLAIM_MS ? c : null;
-  };
+  /* ---- KHÔNG GIỮ KHU ----
+     Ai vào khu nào cũng điền được, nhiều người cùng một khu cũng được. Mỗi ô ghi GỘP riêng vào ops_stklive
+     (xem putDoc ở hộp chờ gửi) nên không lệnh ghi nào xoá được số người khác đã gõ; chỉ ô đang có người gõ
+     mới tạm khoá ~20 giây (lockedBy) để hai người không gõ đè cùng một ô.
+     Bản ghi `claim` cũ còn trên máy chủ (từ lúc có tính năng nhận khu) bị bỏ qua hoàn toàn. */
+  const claimOf = () => null;
   const zoneName = (zid) => zid === 'btp' ? 'BTP' : ((zones.find(z => z.id === zid) || {}).name || '');
-  const enterZone = async (zid, force) => {
-    const c = claimOf(zid);
-    if (!canCountBase || (c && c.uid !== user.id && !force)) { setMyZone(null); setTab(zid); setMode('zone'); return; }
-    if (cloud && db) {
-      const ref = db.collection(COL_STKLIVE).doc(liveId);
-      try {
-        await db.runTransaction(async tx => {
-          const s = await tx.get(ref);
-          const cc = ((s.exists ? s.data() : {}).claim || {})[zid];
-          if (!force && cc && cc.uid && cc.uid !== user.id && Date.now() - Date.parse(cc.at) < CLAIM_MS) throw new Error('busy:' + (cc.n || 'Người khác'));
-          tx.set(ref, { id: liveId, branchId: bid, date, claim: { [zid]: { uid: user.id, n: user.name || user.id, at: new Date().toISOString() } } }, { merge: true });
-        });
-      } catch (e) {
-        const m = String((e && e.message) || '');
-        if (m.indexOf('busy:') === 0) { toast(m.slice(5) + ' vừa nhận khu này — bạn chỉ xem được'); setMyZone(null); setTab(zid); setMode('zone'); return; }
-        toast('Mất mạng nên chưa kiểm tra được ai đang đếm khu này — vẫn cho đếm, số tự gửi khi có mạng');
-      }
-    }
+  const enterZone = (zid) => {
     lastAct.current = Date.now();
-    setMyZone(zid); setTab(zid); setMode('zone');
+    setMyZone(canCountBase ? zid : null); setTab(zid); setMode('zone');
   };
-  const freeZone = (z) => { if (z && cloud && window.firebase) putDoc(COL_STKLIVE, liveId, { claim: { [z]: firebase.firestore.FieldValue.delete() } }); };
+  const freeZone = () => {};
   const leaveZone = () => {
     clearTimeout(flushT.current); if (flushFn.current) flushFn.current();
     freeZone(myZone);
     setMyZone(null); setMode('pick'); setTodo(false); setQ(''); stopMic && micOn.current && stopMic();
   };
-  /* Gia hạn giữ khu khi còn thao tác trong 2 phút gần nhất */
-  useEffect(() => {
-    if (!myZone || !cloud) return undefined;
-    const t = setInterval(() => {
-      if (Date.now() - lastAct.current < CLAIM_MS)
-        putDoc(COL_STKLIVE, liveId, { claim: { [myZone]: { uid: user.id, n: user.name || user.id, at: new Date().toISOString() } } });
-    }, 30000);
-    return () => clearInterval(t);
-  }, [myZone]);
-  /* Đóng màn đếm thì nhả khu đang giữ */
-  const myZoneRef = useRef(null); myZoneRef.current = myZone;
-  useEffect(() => () => freeZone(myZoneRef.current), []);
-  /* Bị quản lý giành quyền / hết hạn rồi người khác nhận → chuyển sang chỉ xem */
-  useEffect(() => {
-    if (!myZone || !cloud || !liveDoc) return;
-    const c = ((liveDoc.claim) || {})[myZone];
-    if (c && c.uid && c.uid !== user.id) { setMyZone(null); toast(c.n + ' đã nhận khu ' + zoneName(myZone) + ' — bạn chuyển sang chỉ xem'); }
-  }, [liveDoc]);
   /* Đóng màn hình giữa chừng thì ghi nốt phần còn chờ */
   useEffect(() => () => { clearTimeout(flushT.current); if (flushFn.current) flushFn.current(); }, []);
   const liveSig = (legacyLive ? legacyLive.at : '') + '|' + (freshLive ? freshLive.at : '');
@@ -24683,7 +24646,7 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
   const lockedD = stkLocked(cfg, date);
   const canCountBase = canStockCount(user) && !lockedD;
   /* Trong một khu chỉ người ĐANG GIỮ khu mới sửa được; người khác vào xem thì chỉ đọc */
-  const canCount = canCountBase && (mode !== 'zone' || !cloud || myZone === tab);
+  const canCount = canCountBase;
   const canClose = canStockClose(user) && !lockedD;
   const nameOf = (id) => (employees.find(e => e.id === id) || {}).name || id;
   /* Tồn hệ thống — tính lại mỗi khi doanh số / phiếu nhập / phiếu huỷ đổi. Doanh số từ KiotViet
@@ -25174,9 +25137,6 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
     /* Chốt chặn cuối: nút đã ẩn khi khoá, nhưng chặn ở đây nữa để không có đường vòng nào ghi được */
     if (lockedD) return toast('Ngày ' + dShort(date) + ' đã bị khoá sổ — nhờ quản trị mở khoá trước');
     if (!list.length) return toast('Chi nhánh chưa khai mã hàng nào — vào Thiết lập kho để thêm');
-    /* Còn người đang giữ khu thì chưa cho chốt — chốt giữa chừng là mất phần họ đang đếm */
-    const busy = [...zones.map(z => z.id), 'btp'].map(id => [id, claimOf(id)]).filter(([, c]) => c && c.uid !== user.id);
-    if (busy.length) return toast(busy.map(([id, c]) => c.n + ' đang đếm ' + zoneName(id)).join(', ') + ' — chờ họ thoát khu rồi chốt');
     /* Trước khi chốt: gửi nốt số của máy này, rồi hỏi MÁY CHỦ số mới nhất. Máy chốt có thể chậm vài giây so với
        người khác đang đếm — chốt theo số cũ là đè mất số họ vừa gõ. Có ô nào khác thì lấy về, bắt xem lại rồi chốt. */
     if (cloud && db) {
@@ -25409,17 +25369,9 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
               : lockedD ? <>🔒 Ngày {dShort(date)} đã khoá sổ — chỉ xem.</>
               : !canCountBase ? <>Bạn chỉ xem được số đếm.</>
               : !cloud ? <>Đang đếm <b>{zoneName(tab)}</b> · ngày {dShort(date)}</>
-              : mineZ ? <>● Bạn đang giữ <b>{zoneName(tab)}</b> — người khác chỉ xem. 2 phút không thao tác thì khu tự mở.</>
-              : heldBy ? <>👁 <b>{heldBy.n}</b> đang đếm {zoneName(tab)} — bạn chỉ xem.</>
-              : <>Khu <b>{zoneName(tab)}</b> đang trống — chạm vào ô là nhận khu.</>}
+              : <>Đang đếm <b>{zoneName(tab)}</b> · ngày {dShort(date)} — ai cũng điền được, số của mọi người đều được lưu.</>}
             {others.length > 0 && <span className="skm-peers"> · Cùng đếm: {others.map(w => w.n + (w.z ? ' (' + zoneName(w.z) + ')' : '')).join(', ')}</span>}
           </span>
-          {canClaim && <button type="button" className="skm-own-b" onClick={claimHere}>Nhận khu</button>}
-          {heldBy && canCfg && !lockedD && (
-            <button type="button" className="skm-own-b" onClick={async () => {
-              if (await zsAsk('Giành quyền khu ' + zoneName(tab) + ' từ ' + heldBy.n + '?\n\nHọ sẽ chuyển sang chỉ xem, số họ đã gõ vẫn giữ nguyên.')) { if (onZone) onZone({ id: tab, hold: true }); enterZone(tab, true); }
-            }}>Giành quyền</button>
-          )}
           <span className={'sk-sync ' + sync.st}>{syncTxt}{live && live.lastName && live.lastBy !== user.id ? <small> · {live.lastName} vừa sửa</small> : null}</span>
         </div>
         {list.length > 0 && (
