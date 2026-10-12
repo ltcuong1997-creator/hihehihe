@@ -1501,6 +1501,8 @@ table.tb.bk-heat td{padding:5px 4px;font-size:11.5px;white-space:nowrap}
 .sch-mv button:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
 .sch-mv button:disabled{opacity:.3;cursor:default}
 .sch-grip{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:18px;height:34px;margin-left:-4px;color:var(--txt-3);font-size:13px;letter-spacing:-3px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:6px}
+.sch-rm{margin-left:6px;border:0;background:none;color:var(--txt-3);font-size:14px;line-height:1;cursor:pointer;padding:0 3px;border-radius:5px}
+.sch-rm:hover{color:var(--red);background:#FDECEA}
 .sch-grip:hover{color:var(--brand);background:var(--brand-wash,#EEF5F4)}
 body.sch-dragging,body.sch-dragging *{cursor:grabbing !important;user-select:none !important;-webkit-user-select:none !important}
 tr.sch-drag td{opacity:.45}
@@ -15067,8 +15069,13 @@ function ScheduleView() {
   /* ---- Hàng của bảng xếp lịch ----
      NV đứng quầy của chi nhánh + ai đã được xếp vào chi nhánh này trong tuần (kể cả người hỗ trợ)
      + người quản lý vừa thêm tay. Người của chi nhánh lên trước, người hỗ trợ xuống cuối. */
-  const [extra, setExtra] = useState([]);
-  useEffect(() => { setExtra([]); }, [bid]);
+  /* Người quản lý thêm tay vào bảng — LƯU vào cấu hình theo chi nhánh (trước đây chỉ giữ tạm trên màn hình
+     nên chuyển tab là mất). Bỏ khỏi bảng bằng nút × ở dòng của họ. */
+  const extra = ((cfg.schedExtra || {})[bid]) || EMPTY_ARR;
+  const setExtra = (fn) => {
+    const nx = typeof fn === 'function' ? fn(extra) : fn;
+    saveCfg({ schedExtra: { ...(cfg.schedExtra || {}), [bid]: nx } });
+  };
   const rowEmps = useMemo(() => {
     const ids = new Set();
     employees.filter(e => e.status !== 'off' && isFloor(e) && (e.branches || []).includes(bid)).forEach(e => ids.add(e.id));
@@ -15217,7 +15224,12 @@ function ScheduleView() {
                           )}
                           <Avatar name={e.name} src={e.avatar} size="sm" />
                           <div style={{ minWidth: 0 }}>
-                            <div className="sch-name">{e.name}</div>
+                            <div className="sch-name">{e.name}
+                              {canEditSched && extra.includes(e.id) && (
+                                <button type="button" className="sch-rm" title="Bỏ khỏi bảng (chỉ bỏ dòng, ca đã xếp vẫn giữ)"
+                                  onClick={() => setExtra(x => x.filter(id => id !== e.id))}>×</button>
+                              )}
+                            </div>
                             <div className="sch-sub">{away
                               ? <span style={{ color: 'var(--violet)', fontWeight: 700 }}>Hỗ trợ · {branchOf((e.branches || [])[0]).code}</span>
                               : (posOf(e.posId).name + (e.type ? ' · ' + e.type : ''))}</div>
