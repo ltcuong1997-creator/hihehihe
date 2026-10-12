@@ -24569,11 +24569,12 @@ function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZon
     .map(([id, w]) => ({ id, ...w })), [liveDoc, tick]);
   const [rmt, setRmt] = useState({});
   /* Ô đang bị người khác giữ (đang gõ) — trả về người đó, không thì null */
-  const lockedBy = (code, zid) => others.find(w => w.c === code && w.z === zid && Date.now() - Date.parse(w.at) < LOCK_MS) || null;
+  /* Như Google Sheet: không khoá ô nào — ai cũng gõ, sửa được mọi ô, số mới nhất được giữ.
+     (Trước đây ô có người đang gõ bị khoá ~20 giây; bỏ theo yêu cầu.) */
+  const lockedBy = () => null;
   /* ---- KHÔNG GIỮ KHU ----
      Ai vào khu nào cũng điền được, nhiều người cùng một khu cũng được. Mỗi ô ghi GỘP riêng vào ops_stklive
-     (xem putDoc ở hộp chờ gửi) nên không lệnh ghi nào xoá được số người khác đã gõ; chỉ ô đang có người gõ
-     mới tạm khoá ~20 giây (lockedBy) để hai người không gõ đè cùng một ô.
+     (xem putDoc ở hộp chờ gửi) nên không lệnh ghi nào xoá được số người khác đã gõ ở ô khác.
      Bản ghi `claim` cũ còn trên máy chủ (từ lúc có tính năng nhận khu) bị bỏ qua hoàn toàn. */
   const claimOf = () => null;
   const zoneName = (zid) => zid === 'btp' ? 'BTP' : ((zones.find(z => z.id === zid) || {}).name || '');
