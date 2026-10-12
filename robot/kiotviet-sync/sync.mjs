@@ -92,27 +92,65 @@ async function readKiot(page, dates, branchIds) {
     const cm = {}; (cats.Data || cats || []).forEach(c => { cm[c.Id] = c.Name; });
     const pr = await get('/api/products?format=json&$top=1000&$inlinecount=allpages');
     const prod = {}; (pr.Data || []).forEach(p => { prod[p.Id] = { code: p.Code, name: p.Name, unit: p.Unit || '', group: cm[p.CategoryId] || '' }; });
+    /* ---- KÊNH BÁN (nguồn doanh thu) ----
+       Thu ngân chọn Kênh bán cho đơn Grab / ShopeeFood…; đơn thường để kênh mặc định, có bàn = tại chỗ,
+       không bàn (tab Mang về) = mang về. Không rõ đường dẫn danh sách kênh của bản F&B nên thử lần lượt,
+       đường nào trả được thì dùng; không được thì vẫn đọc tên kênh đính kèm trong hoá đơn nếu có. */
+    const chName = {};
+    for (const u of ['/api/salechannel?format=json&$top=200', '/api/salechannels?format=json&$top=200', '/api/SaleChannel/GetAll?format=json']) {
+      try {
+        const j = await get(u);
+        const arr = Array.isArray(j) ? j : (j.Data || j.data || []);
+        arr.forEach(c => { const id = c.Id != null ? c.Id : c.id; if (id != null) chName[id] = c.Name || c.name || ''; });
+        if (arr.length) break;
+      } catch (e) { /* thử đường kế tiếp */ }
+    }
+    const noAcc = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
+    /* Phải khớp revChKey trong index.html */
+    const chKey = (name, hasTable) => {
+      const n = noAcc(name);
+      if (/grab/.test(n)) return 'grab';
+      if (/shopee|now ?food/.test(n)) return 'shopee';
+      if (/be ?food|^be$/.test(n)) return 'be';
+      if (/mang ve|mang di|take ?away/.test(n)) return 'take';
+      if (/tai cho|tai quan|dine/.test(n)) return 'dine';
+      if (n && !/truc tiep|ban le|mac dinh|^khac$/.test(n)) return 'o_' + n.replace(/[^a-z0-9]+/g, '').slice(0, 20);
+      return hasTable ? 'dine' : 'take';
+    };
+    const invChannel = (v) => {
+      const sc = v.SaleChannel || {};
+      const id = v.SaleChannelId != null ? v.SaleChannelId : sc.Id;
+      const name = sc.Name || v.SaleChannelName || (id != null ? chName[id] : '') || '';
+      const tb = v.Table || v.Room || {};
+      const hasTable = !!(v.TableId || v.RoomId || tb.Id || tb.Name || v.TableName || v.RoomName);
+      const k = chKey(name, hasTable);
+      return { k, name: name || (id ? 'Kênh #' + id : ''), hasTable, id };
+    };
+    const diag = { keys: null, ch: {}, chApi: Object.keys(chName).length };
     const out = [];
     /* Một dòng sổ quỹ cho mỗi lần thanh toán: khách trả nửa tiền mặt nửa chuyển khoản thành 2 dòng.
        Mã dòng ưu tiên mã QR KOV… trong nội dung thanh toán — sao kê ngân hàng ghi đúng mã này nên
        tab Đối soát ráp được; không có thì lấy mã hóa đơn, trùng mã trong hóa đơn thì thêm hậu tố. */
-    const payLines = (v) => {
+    /* m: 'c' tiền mặt · 'b' chuyển khoản/thẻ (đi đối soát sao kê) · 'w' ví điện tử (không về sao kê ngân hàng,
+       trước đây gộp vào 'b' nên đối soát luôn lệch đúng bằng phần ví) · s: nguồn (kênh bán) */
+    const payM = (x) => x === 'Cash' ? 'c' : (/wallet/i.test(String(x || '')) ? 'w' : 'b');
+    const payLines = (v, s) => {
       const t = String(v.PurchaseDate || '').slice(11, 16).split(':').map(Number);
       const mins = (t[0] || 0) * 60 + (t[1] || 0);
       const pays = (v.Payments || []).filter(p => +p.Amount);
-      if (!pays.length) return [{ c: v.Code || '', t: mins, a: +v.Total || 0, m: '' }];
+      if (!pays.length) return [{ c: v.Code || '', t: mins, a: +v.Total || 0, m: '', s }];
       const seen = {};
       return pays.map(p => {
         /* Mã QR đầu kỳ có dấu cách ("KOVQR Q3ALSM"), về sau viết liền ("KOVQR071TL9K2M V") */
         const kov = (String(p.Description || '').match(/KOVQR\s+[A-Z0-9]+|KOV[A-Z0-9]+/i) || [])[0];
         let c = kov || v.Code || '';
         seen[c] = (seen[c] || 0) + 1; if (seen[c] > 1) c += '-' + seen[c];
-        return { c, t: mins, a: +p.Amount || 0, m: p.Method === 'Cash' ? 'c' : 'b', pm: p.Method };
+        return { c, t: mins, a: +p.Amount || 0, m: payM(p.Method), pm: p.Method, s };
       });
     };
     for (const bid of branchIds) {
       for (const d of dates) {
-        const agg = {}; const book = []; let skip = 0, total = 0, inv = 0, sum = 0;
+        const agg = {}; const book = []; const ch = {}, chN = {}, chL = {}; let skip = 0, total = 0, inv = 0, sum = 0;
         do {
           const flt = `((BranchId eq ${bid}) and PurchaseDate ge datetime'${d}T00:00:00+07:00' and PurchaseDate lt datetime'${nd(d)}T00:00:00+07:00' and (Status eq 1 or Status eq 3))`;
           const u = '/api/invoices?format=json&Includes=' + encodeURIComponent('["InvoiceDetails","Payments"]') + '&$top=100&$skip=' + skip
@@ -121,7 +159,13 @@ async function readKiot(page, dates, branchIds) {
           total = j.Total || 0;
           (j.Data || []).forEach(v => {
             inv++; sum += +v.Total || 0;
-            book.push(...payLines(v));
+            if (!diag.keys) diag.keys = Object.keys(v).sort().join(',');
+            const c = invChannel(v);
+            ch[c.k] = (ch[c.k] || 0) + (+v.Total || 0); chN[c.k] = (chN[c.k] || 0) + 1;
+            if (c.k.startsWith('o_')) chL[c.k] = c.name;
+            const dk = (c.name || '(mặc định)') + (c.hasTable ? ' · có bàn' : ' · không bàn') + ' → ' + c.k;
+            diag.ch[dk] = (diag.ch[dk] || 0) + 1;
+            book.push(...payLines(v, c.k));
             (v.InvoiceDetails || []).forEach(x => {
               const p = prod[x.ProductId] || { code: 'ID' + x.ProductId, name: x.ProductName || ('Món #' + x.ProductId), unit: '', group: '' };
               const o = agg[p.code] || (agg[p.code] = { ...p, qty: 0, amount: 0 });
@@ -131,10 +175,10 @@ async function readKiot(page, dates, branchIds) {
           skip += 100;
           await new Promise(r => setTimeout(r, 400));
         } while (skip < total);
-        out.push({ kvBranch: String(bid), date: d, invoices: inv, total, sum, book, items: Object.values(agg) });
+        out.push({ kvBranch: String(bid), date: d, invoices: inv, total, sum, book, ch, chN, chL, items: Object.values(agg) });
       }
     }
-    return out;
+    return { out, diag };
   }, { dates, branchIds });
 }
 
@@ -167,10 +211,13 @@ function revenueDoc(r, now) {
   const bid = BRANCH_MAP[r.kvBranch];
   const cash = r.book.filter(l => l.m === 'c').reduce((a, l) => a + l.a, 0);
   const bank = r.book.filter(l => l.m === 'b').reduce((a, l) => a + l.a, 0);
+  const wallet = r.book.filter(l => l.m === 'w').reduce((a, l) => a + l.a, 0);
   return {
-    branchId: bid, date: r.date, amount: r.sum, invoices: r.invoices, cash, bank,
+    branchId: bid, date: r.date, amount: r.sum, invoices: r.invoices, cash, bank, wallet,
+    /* Nguồn doanh thu cả ngày (tính trên MỌI hoá đơn, không bị chặn 900 dòng như lines) */
+    ch: r.ch, chN: r.chN, chL: r.chL,
     /* chặn 900 dòng/ngày như RevImport để doc không chạm giới hạn 1MB */
-    lines: r.book.slice(0, 900).map(({ c, t, a, m }) => ({ c, t, a, m })),
+    lines: r.book.slice(0, 900).map(({ c, t, a, m, s }) => ({ c, t, a, m, s })),
     src: 'kv', at: now, by: 'robot-kiotviet',
   };
 }
@@ -207,7 +254,12 @@ async function main() {
   let raw;
   try {
     await login(page);
-    raw = await readKiot(page, dates, kvBranches);
+    const rk = await readKiot(page, dates, kvBranches);
+    raw = rk.out;
+    /* Chẩn đoán nguồn đơn — chỉ in tên trường và SỐ hoá đơn mỗi kênh, không in tiền (repo công khai) */
+    log('Trường của hoá đơn KiotViet:', rk.diag.keys || '(không có hoá đơn)');
+    log('Danh sách kênh bán đọc được:', rk.diag.chApi, 'kênh');
+    Object.entries(rk.diag.ch).forEach(([k, n]) => log('  nguồn:', k, '·', n, 'hoá đơn'));
   } catch (e) {
     await page.screenshot({ path: 'loi-kiotviet.png', fullPage: true }).catch(() => {});
     throw e;

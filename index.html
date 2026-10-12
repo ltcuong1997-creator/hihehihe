@@ -671,6 +671,64 @@ table.tb.sg-tb tbody tr:not(.sg-brh):hover td:nth-child(-n+2){background:#FCFBFA
   .rv-read-v{font-size:16px}
   .rv-stack{height:110px}
 }
+/* ---- Form công thức gọn (RcpEditor) ---- */
+.rce-top{display:grid;grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr));gap:8px 10px}
+.rce-f{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.rce-f>span{font-size:11px;font-weight:700;color:var(--txt-3)}
+.rce-full{grid-column:1/-1}
+.rce-warn{font-size:11.5px;color:#9A6200;margin-top:6px}
+.rce-more{background:none;border:0;padding:6px 0 0;font-size:12.5px;font-weight:700;color:var(--brand);cursor:pointer}
+.rce-more em{font-style:normal;font-weight:500;color:var(--txt-3);margin-left:4px}
+.rce-list{border-top:1px solid var(--line-soft)}
+.rce-row{border-bottom:1px solid var(--line-soft);padding:5px 2px}
+.rce-row.on{box-shadow:inset 3px 0 0 #8E2C3A;background:#FDFBFA;padding-left:7px}
+.rce-ing,.rce-step{display:flex;align-items:center;gap:6px;min-width:0}
+.rce-ing .inp,.rce-step .inp,.rce-add .inp,.rce-sub .inp{min-height:0 !important;height:34px;padding:5px 8px;font-size:14px}
+.rce-dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;border:1px solid rgba(0,0,0,.12)}
+.rce-nm{flex:1;min-width:0;display:flex;flex-direction:column}
+.rce-nm small{font-size:10.5px;color:var(--txt-3);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:1px 2px 0}
+.rce-q{flex:0 0 62px;width:62px;text-align:right}
+.rce-u{flex:0 0 52px;width:52px}
+.rce-x{flex:0 0 auto;min-height:0 !important;height:30px;padding:0 9px}
+.rce-n{flex:0 0 22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+.rce-act{flex:0 0 140px;width:140px}
+.rce-lb{flex:1;min-width:0}
+.rce-uses{font-size:10.5px;color:var(--txt-3);margin:2px 0 0 28px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rce-sub{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:8px 0 4px}
+.rce-color{width:100%;height:34px;border:none;background:none;padding:0}
+.rce-add{display:flex;align-items:center;gap:8px;color:var(--txt-3)}
+.rce-add .inp{flex:1;min-width:0}
+.rce-sum{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12.5px;margin-top:8px}
+.rce-acts{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:10px}
+.rce-acts .tag{padding:4px 9px;border:1px solid var(--line);cursor:pointer}
+@media(max-width:640px){
+  .rce-top{grid-template-columns:1fr 1fr}
+  .rce-name{grid-column:1/-1}
+  .rce-q{flex-basis:54px;width:54px}
+  .rce-u{flex-basis:44px;width:44px}
+  .rce-act{flex-basis:108px;width:108px}
+}
+/* ---- Doanh thu theo nguồn (RevSource) ---- */
+.rs-share{display:flex;height:14px;border-radius:7px;overflow:hidden;background:#F2F0EF;gap:2px}
+.rs-share>i{display:block;min-width:3px}
+.rs-list{margin-top:10px;border-top:1px solid var(--line-soft)}
+.rs-row{display:grid;grid-template-columns:minmax(0,1fr) auto 52px;gap:10px;align-items:center;
+  padding:8px 2px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.rs-row.on{background:rgba(24,72,74,.06)}
+.rs-row>div{min-width:0}
+.rs-nm{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rs-nm i{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.rs-sb{font-size:11px;color:var(--txt-3);margin:1px 0 0 17px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rs-v{font-size:13.5px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.rs-p{font-size:12px;font-weight:700;text-align:right;color:var(--txt-2);font-variant-numeric:tabular-nums}
+.rs-days{display:flex;align-items:flex-end;gap:2px;height:96px;margin-top:6px}
+.rs-days>div{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;border-radius:3px 3px 0 0}
+.rs-days>div>i{display:block;min-height:1px}
+.rs-days>div.on{background:rgba(24,72,74,.09)}
+.rs-dl{display:flex;gap:2px;font-size:9.5px;color:var(--txt-3);margin-top:3px;font-variant-numeric:tabular-nums}
+.rs-dl>span{flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:visible}
+.rs-pay{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--txt-2);margin-top:10px}
+.rs-pay b{color:var(--ink);font-variant-numeric:tabular-nums}
 /* ---- Bảng dữ liệu thô ----
    KHÔNG dùng lại .sg-tb của bảng định biên: class đó ghim cứng hai cột đầu ở 190px và 52px cho
    cột "Ca" và "Cả kỳ", áp vào đây thì _id bị bóp còn 52px và cột kế tiếp trượt xuống dưới nó.
@@ -6416,6 +6474,28 @@ const printHtml = (html) => {
 /* ===================== DỮ LIỆU MẪU ===================== */
 /* Chấm công mẫu cho chế độ demo (?demo=1): tháng trước + tháng này tới hôm qua, ca sáng 10:00–18:00,
    nghỉ ngẫu nhiên vài ngày — chỉ để xem bảng lương / phiếu lương có số, không bao giờ ghi lên Firestore. */
+/* Doanh thu mẫu cho ?demo=1: B1, đầu tháng tới hôm nay, chia nguồn như robot KiotViet ghi (ch/chN/lines.s) */
+const seedDemoRev = () => {
+  const o = {}, t = todayKey(), mo = t.slice(0, 7);
+  const mix = [['dine', .46, 62000], ['take', .24, 48000], ['grab', .18, 95000], ['shopee', .12, 88000]];
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let d = 1; d <= +t.slice(8, 10); d++) {
+    const date = mo + '-' + pad(d), we = [0, 6].includes(new Date(date + 'T00:00:00').getDay());
+    const r = { branchId: 'B1', date, amount: 0, invoices: 0, cash: 0, bank: 0, wallet: 0, ch: {}, chN: {}, chL: {}, lines: [], src: 'kv' };
+    const n = Math.round((we ? 95 : 65) * (.85 + rnd() * .3));
+    for (let i = 0; i < n; i++) {
+      let x = rnd(), k = mix[0]; for (const m of mix) { if (x < m[1]) { k = m; break; } x -= m[1]; }
+      const a = Math.round(k[2] * (.6 + rnd() * .9) / 1000) * 1000;
+      const m = k[0] === 'grab' || k[0] === 'shopee' ? 'w' : (rnd() < .45 ? 'c' : 'b');
+      r.amount += a; r.invoices++; r[m === 'c' ? 'cash' : m === 'w' ? 'wallet' : 'bank'] += a;
+      r.ch[k[0]] = (r.ch[k[0]] || 0) + a; r.chN[k[0]] = (r.chN[k[0]] || 0) + 1;
+      r.lines.push({ c: 'HD' + d + '-' + i, t: 420 + Math.floor(rnd() * 900), a, m, s: k[0] });
+    }
+    if (d <= 2) { delete r.ch; delete r.chN; }       /* 2 ngày đầu giả làm dữ liệu cũ chưa có nguồn */
+    o['B1_' + date] = r;
+  }
+  return o;
+};
 const seedDemoAtt = (emps) => {
   const out = {};
   const t = new Date(); t.setHours(0, 0, 0, 0);
@@ -16394,7 +16474,32 @@ const KV_FIELDS = [
   { k: 'amount', l: 'Tổng tiền', alias: ['tong tien', 'khach can tra', 'thanh tien', 'tong cong', 'amount'] },
   { k: 'method', l: 'Phương thức thanh toán', alias: ['phuong thuc', 'hinh thuc', 'thanh toan', 'method'] },
   { k: 'branch', l: 'Chi nhánh', alias: ['chi nhanh', 'cua hang', 'branch'] },
+  /* Nguồn doanh thu: Kênh bán (Grab, ShopeeFood…) + Phòng/bàn (có bàn = tại chỗ, trống = mang về) */
+  { k: 'channel', l: 'Kênh bán', alias: ['kenh ban', 'sale channel', 'kenh'], opt: true },
+  { k: 'table', l: 'Phòng/bàn', alias: ['phong/ban', 'phong ban', 'ten ban', 'so ban', 'table'], opt: true },
 ];
+/* ---- NGUỒN DOANH THU ----
+   Mỗi hoá đơn xếp vào một nguồn: kênh bán thu ngân chọn trên KiotViet (Grab, ShopeeFood…) thắng trước;
+   kênh mặc định thì có bàn = Tại chỗ, không bàn (tab Mang về) = Mang về. Kênh lạ (Facebook, Zalo…) giữ
+   nguyên tên dưới khoá o_… Robot (robot/kiotviet-sync/sync.mjs, hàm chKey) dùng ĐÚNG luật này. */
+const REV_CH = [
+  { k: 'dine', l: 'Tại chỗ', c: '#18484A' },
+  { k: 'take', l: 'Mang về', c: '#E8930C' },
+  { k: 'grab', l: 'GrabFood', c: '#0E9F6E' },
+  { k: 'shopee', l: 'ShopeeFood', c: '#E0453F' },
+  { k: 'be', l: 'beFood', c: '#2D7FF9' },
+];
+const REV_CH_X = ['#8B5CF6', '#DB2777', '#65A30D', '#0891B2'];
+const revChKey = (name, hasTable) => {
+  const n = noAccent(String(name || '')).toLowerCase().trim();
+  if (/grab/.test(n)) return 'grab';
+  if (/shopee|now ?food/.test(n)) return 'shopee';
+  if (/be ?food|^be$/.test(n)) return 'be';
+  if (/mang ve|mang di|take ?away/.test(n)) return 'take';
+  if (/tai cho|tai quan|dine/.test(n)) return 'dine';
+  if (n && !/truc tiep|ban le|mac dinh|^khac$/.test(n)) return 'o_' + n.replace(/[^a-z0-9]+/g, '').slice(0, 20);
+  return hasTable ? 'dine' : 'take';
+};
 const SP_FIELDS = [
   { k: 'time', l: 'Thời gian', alias: ['thoi gian', 'ngay', 'time', 'transaction date'] },
   { k: 'amount', l: 'Số tiền vào', alias: ['tien vao', 'so tien', 'ghi co', 'credit', 'amount'] },
@@ -22282,7 +22387,9 @@ const findBranch = (cfg, txt) => {
 
 function RevImport({ onClose }) {
   const { cfg, revenue, saveRevenue, toast, user } = useApp();
-  const FLD = formFields(cfg, 'kiotviet');
+  /* Cột Kênh bán / Phòng-bàn thêm sau: cấu hình cột cũ đã lưu không có thì vẫn nối vào cuối */
+  const FLD0 = formFields(cfg, 'kiotviet');
+  const FLD = [...FLD0, ...KV_FIELDS.filter(f => f.opt && !FLD0.some(x => x.k === f.k))];
   const [head, setHead] = useState([]); const [rows, setRows] = useState(null);
   const [map, setMap] = useState({}); const [err, setErr] = useState('');
   const [defB, setDefB] = useState(user.branches[0]);
@@ -22317,17 +22424,24 @@ function RevImport({ onClose }) {
         if (!b) return;
         const k = revKey(b.id, dt.date);
         const m = noAccent(String(val(r, 'method') || '')).toLowerCase();
-        const t = o[k] || { branchId: b.id, date: dt.date, amount: 0, invoices: 0, cash: 0, bank: 0, lines: [] };
+        const t = o[k] || { branchId: b.id, date: dt.date, amount: 0, invoices: 0, cash: 0, bank: 0, wallet: 0, lines: [], ch: {}, chN: {}, chL: {} };
         t.amount += amt; t.invoices++;
         const isCash = /tien mat|cash/.test(m);
-        if (isCash) t.cash += amt; else if (m) t.bank += amt;
+        /* Ví điện tử không về sao kê ngân hàng — tách riêng, không đem đi đối soát chuyển khoản */
+        const isWal = !isCash && /vi dien tu|e ?wallet|momo|zalo ?pay|shopee ?pay|vnpay/.test(m);
+        if (isCash) t.cash += amt; else if (isWal) t.wallet += amt; else if (m) t.bank += amt;
+        /* Nguồn: file không có cả cột kênh lẫn cột bàn thì không đoán — để "chưa phân loại" */
+        const sk = map.channel == null && map.table == null ? 'na'
+          : revChKey(val(r, 'channel'), String(val(r, 'table') || '').trim() !== '');
+        t.ch[sk] = (t.ch[sk] || 0) + amt; t.chN[sk] = (t.chN[sk] || 0) + 1;
+        if (sk.startsWith('o_')) t.chL[sk] = String(val(r, 'channel')).trim();
         /* ---- Giữ lại TỪNG DÒNG hóa đơn để tab Đối soát dùng làm sổ quỹ ----
            Bản ghi doanh thu vốn chỉ là số tổng theo ngày; đối soát chuyển khoản lại cần đúng mã KOV
            của từng hóa đơn để ráp với sao kê. Lưu thẳng vào chính doc doanh thu ngày đó (không đẻ
            thêm document nào) với khoá viết tắt cho nhẹ: c=mã, t=phút trong ngày, a=số tiền,
            m='c' tiền mặt / 'b' chuyển khoản. Chặn trần 900 dòng/ngày để doc không chạm giới hạn 1MB. */
         if (t.lines.length < 900) {
-          t.lines.push({ c: String(val(r, 'code') || '').trim(), t: dt.mins, a: amt, m: isCash ? 'c' : (m ? 'b' : '') });
+          t.lines.push({ c: String(val(r, 'code') || '').trim(), t: dt.mins, a: amt, m: isCash ? 'c' : isWal ? 'w' : (m ? 'b' : ''), s: sk });
         }
         o[k] = t;
       } catch (e) { /* bỏ qua dòng lỗi, không để văng cả bảng */ }
@@ -22341,7 +22455,7 @@ function RevImport({ onClose }) {
     try {
       /* src 'file': ngày đã nạp tay thì máy chủ KiotViet không được tự đè lên (bản ghi lưu kiểu
          merge, không ghi rõ thì dấu 'kv' cũ còn nguyên và cron sẽ đè số vừa nạp) */
-      good.forEach(d => saveRevenue({ ...d, src: 'file', at: new Date().toISOString(), by: user.id }));
+      good.forEach(d => saveRevenue({ ...d, src: 'file', at: new Date().toISOString(), by: user.id }, true));
       toast(`Đã cập nhật doanh thu ${good.length} ngày`);
       onClose();
     } catch (e) {
@@ -22867,6 +22981,116 @@ function RevTrend({ mo, brs, revenue, targets }) {
   );
 }
 
+/* ===================== DOANH THU THEO NGUỒN =====================
+   Tại chỗ · Mang về · GrabFood · ShopeeFood… Số lấy từ `ch` (tiền theo nguồn) / `chN` (số hoá đơn) mà
+   robot KiotViet hoặc file nạp tay ghi sẵn trong từng doc doanh thu ngày — tính trên MỌI hoá đơn chứ
+   không từ lines[] (lines bị chặn 900 dòng/ngày). Doc cũ chưa có `ch` thì cả ngày rơi vào "Chưa phân loại". */
+const revChMeta = (k, lbl, i) => REV_CH.find(x => x.k === k)
+  || (k === 'na' ? { k, l: 'Chưa phân loại', c: '#B8B2AE' } : { k, l: lbl || 'Kênh khác', c: REV_CH_X[i % REV_CH_X.length] });
+function RevSource({ mo, brs, revenue }) {
+  const [bf, setBf] = useState('all');
+  const [pick, setPick] = useState(null);    /* nguồn đang chọn — tô đậm ở biểu đồ ngày */
+  const [pd, setPd] = useState(null);        /* ngày đang chạm */
+  const sids = (bf === 'all' ? brs : brs.filter(b => b.id === bf)).map(b => b.id);
+  const dim = new Date(+mo.slice(0, 4), +mo.slice(5), 0).getDate();
+  const R = useMemo(() => {
+    const tot = {}, cnt = {}, lbl = {}, day = {}, naDays = {};
+    let all = 0, inv = 0, cash = 0, bank = 0, wal = 0;
+    Object.values(revenue || {}).forEach(r => {
+      if (!r || !sids.includes(r.branchId) || (r.date || '').slice(0, 7) !== mo) return;
+      const has = r.ch && Object.keys(r.ch).length;
+      const ch = has ? r.ch : { na: r.amount || 0 };
+      const cn = has ? (r.chN || {}) : { na: r.invoices || 0 };
+      if (!has && (r.amount || 0) > 0) naDays[r.date] = 1;
+      Object.keys(ch).forEach(k => {
+        const a = +ch[k] || 0;
+        tot[k] = (tot[k] || 0) + a; cnt[k] = (cnt[k] || 0) + (+cn[k] || 0);
+        const d = day[r.date] || (day[r.date] = {}); d[k] = (d[k] || 0) + a;
+      });
+      Object.assign(lbl, r.chL || {});
+      all += r.amount || 0; inv += r.invoices || 0;
+      cash += r.cash || 0; bank += r.bank || 0; wal += r.wallet || 0;
+    });
+    let xi = 0;
+    const list = Object.keys(tot).filter(k => tot[k] > 0)
+      .sort((a, b) => (a === 'na') - (b === 'na') || tot[b] - tot[a])
+      .map(k => ({ ...revChMeta(k, lbl[k], k.startsWith('o_') ? xi++ : 0), a: tot[k], n: cnt[k] }));
+    const sum = list.reduce((s2, x) => s2 + x.a, 0) || 1;
+    const days = Array.from({ length: dim }, (_, i) => { const d = mo + '-' + pad(i + 1); const o = day[d] || {}; return { d, o, v: Object.values(o).reduce((s2, x) => s2 + x, 0) }; });
+    return { list, sum, all, inv, cash, bank, wal, days, dMax: Math.max(1, ...days.map(x => x.v)), naDays: Object.keys(naDays).sort() };
+  }, [revenue, sids.join(','), mo]);
+  const P = pd != null ? R.days[pd] : null;
+  return (
+    <div className="card">
+      <div className="card-h" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ minWidth: 0 }}><h3>Doanh thu theo nguồn</h3>
+          <p>Tại chỗ · Mang về · Grab · Shopee — theo kênh bán và bàn trên KiotViet</p></div>
+        {brs.length > 1 && (
+          <select className="inp" style={{ width: 'auto', marginLeft: 'auto' }} value={bf} onChange={e => setBf(e.target.value)}>
+            <option value="all">Tất cả cơ sở</option>
+            {brs.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        )}
+      </div>
+      <div className="card-b">
+        {!R.list.length ? <Empty title="Chưa có doanh thu trong kỳ" desc="Robot KiotViet kéo mỗi giờ, hoặc nạp file ở nút Nhập doanh thu." /> : (<>
+          <div className="rs-share">
+            {R.list.map(x => <i key={x.k} title={x.l + ' ' + Math.round(x.a / R.sum * 100) + '%'}
+              style={{ width: (x.a / R.sum * 100) + '%', background: x.c, opacity: pick && pick !== x.k ? .3 : 1 }} />)}
+          </div>
+          <div className="rs-list">
+            {R.list.map(x => (
+              <div key={x.k} className={'rs-row' + (pick === x.k ? ' on' : '')} onClick={() => setPick(pick === x.k ? null : x.k)}>
+                <div>
+                  <div className="rs-nm"><i style={{ background: x.c }} />{x.l}</div>
+                  <div className="rs-sb">{x.n ? x.n.toLocaleString('vi-VN') + ' HĐ · TB ' + shortMoney(Math.round(x.a / x.n)) + '/HĐ' : '—'}</div>
+                </div>
+                <div className="rs-v">{shortMoney(x.a)}</div>
+                <div className="rs-p">{(x.a / R.sum * 100).toFixed(1)}%</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="eyebrow" style={{ margin: '14px 0 2px' }}>
+            {P ? <>Ngày {dShort(P.d)} · {shortMoney(P.v)}{P.v ? ' — ' + R.list.filter(x => P.o[x.k]).map(x => x.l + ' ' + Math.round(P.o[x.k] / P.v * 100) + '%').join(' · ') : ''}</>
+              : <>Theo ngày{pick ? ' — đang tô ' + (R.list.find(x => x.k === pick) || {}).l : ''} · chạm cột để xem</>}
+          </div>
+          <div className="rs-days" onMouseLeave={() => setPd(null)}>
+            {R.days.map((x, i) => (
+              <div key={x.d} className={pd === i ? 'on' : ''} onMouseEnter={() => setPd(i)} onClick={() => setPd(pd === i ? null : i)}>
+                {R.list.slice().reverse().map(c => x.o[c.k] > 0 && (
+                  <i key={c.k} style={{ height: (x.o[c.k] / R.dMax * 100) + '%', background: c.c, opacity: pick && pick !== c.k ? .22 : 1 }} />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="rs-dl">{R.days.map((x, i) => <span key={x.d}>{i % 5 === 0 || i === dim - 1 ? i + 1 : ''}</span>)}</div>
+
+          <div className="rs-pay">
+            <span>Thanh toán:</span>
+            <span>Tiền mặt <b>{shortMoney(R.cash)}</b></span>
+            <span>Chuyển khoản <b>{shortMoney(R.bank)}</b></span>
+            {R.wal > 0 && <span>Ví điện tử <b>{shortMoney(R.wal)}</b></span>}
+            {R.all - R.cash - R.bank - R.wal > 1000 && <span>Chưa thu/khác <b>{shortMoney(R.all - R.cash - R.bank - R.wal)}</b></span>}
+          </div>
+          {R.naDays.length > 0 && (
+            <p className="hint" style={{ marginTop: 8 }}>
+              <b>{R.naDays.length} ngày</b> ({R.naDays.slice(0, 4).map(dShort).join(', ')}{R.naDays.length > 4 ? '…' : ''}) chưa tách được nguồn vì
+              nạp trước khi robot đọc kênh bán. Chạy lại robot cho các ngày đó (GitHub → Actions → Robot KiotViet → Run workflow,
+              ô ngày ghi <span className="mono">{R.naDays[0]}..{R.naDays[R.naDays.length - 1]}</span>{' '}
+              và tick “Ghi đè” nếu ngày đó từng nạp file tay), hoặc nạp lại file KiotViet có cột <b>Kênh bán</b> và <b>Phòng/bàn</b>.
+            </p>
+          )}
+          <p className="hint" style={{ marginTop: 6 }}>
+            Đơn chọn Kênh bán Grab/Shopee trên KiotViet tính vào kênh đó; đơn thường có bàn là <b>Tại chỗ</b>, không bàn (tab Mang về) là <b>Mang về</b>.
+            Ví điện tử để riêng — tiền không về sao kê ngân hàng nên không đem đi đối soát chuyển khoản.
+          </p>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
 function RevenueView() {
   useNeed('rev');
   const { cfg, user, revenue, targets, saveTarget, fetchRevMonth } = useApp();
@@ -22888,6 +23112,7 @@ function RevenueView() {
     const amount = days.reduce((a, r) => a + (r.amount || 0), 0);
     const cash = days.reduce((a, r) => a + (r.cash || 0), 0);
     const bank = days.reduce((a, r) => a + (r.bank || 0), 0);
+    const wallet = days.reduce((a, r) => a + (r.wallet || 0), 0);
     const inv = days.reduce((a, r) => a + (r.invoices || 0), 0);
     const tg = ((targets || {})[b.id + '_' + mo] || {}).amount || 0;
     const pct = tg ? Math.round(amount / tg * 100) : 0;
@@ -22898,8 +23123,8 @@ function RevenueView() {
     const we = open.filter(r => isWe2(r.date)), wd = open.filter(r => !isWe2(r.date));
     const avg = (arr) => arr.length ? Math.round(arr.reduce((a, r) => a + (r.amount || 0), 0) / arr.length) : 0;
     return {
-      b, days, amount, cash, bank, inv, tg, pct, run,
-      total: (cash + bank) || amount, openN: open.length,
+      b, days, amount, cash, bank, wallet, inv, tg, pct, run,
+      total: (cash + bank + wallet) || amount, openN: open.length,
       ads: avg(open), adsWe: avg(we), adsWd: avg(wd), weN: we.length, wdN: wd.length,
       need: Math.max(0, tg - amount), left: Math.max(0, dim - elapsed),
     };
@@ -22982,7 +23207,7 @@ function RevenueView() {
                     </div>
                   </td>
                   <td className="mono">{shortMoney(r.cash)}</td>
-                  <td className="mono">{shortMoney(r.bank)}</td>
+                  <td className="mono">{shortMoney(r.bank)}{r.wallet > 0 && <div style={{ fontSize: 11, color: 'var(--txt-3)' }}>+ ví {shortMoney(r.wallet)}</div>}</td>
                   <td className="mono" style={{ color: r.need ? 'var(--red)' : 'var(--green)' }}>{r.tg ? money(r.need) : '—'}</td>
                   <td className="mono">{r.tg && r.left ? money(Math.round(r.need / r.left)) : '—'}</td>
                   <td className="mono" style={{ color: r.tg && r.run < r.tg ? 'var(--amber)' : 'var(--green)' }}>{shortMoney(r.run)}</td>
@@ -23007,6 +23232,8 @@ function RevenueView() {
           </div>
         </div>
       </div>
+
+      <RevSource mo={mo} brs={brs} revenue={revenue} />
 
       <RevTrend mo={mo} brs={brs} revenue={revenue} targets={targets} />
 
@@ -41203,6 +41430,46 @@ function RcpAiBtn({ recipe, step, onDone }) {
 /* ---------------------------------------------------------------
    TRÌNH SOẠN CÔNG THỨC — admin khai nguyên liệu rồi khai bước.
 --------------------------------------------------------------- */
+/* ---- FORM CÔNG THỨC GỌN (12/10/2026) ----
+   Bản cũ mỗi nguyên liệu là một thẻ 6 ô (mã kho, tên, lượng, đơn vị, loại, màu), mỗi bước một thẻ 4 ô +
+   ghi chú + chip — khai một ly 6 nguyên liệu 5 bước phải cuộn cả chục màn hình. Nay:
+     · Nguyên liệu: MỘT dòng/nguyên liệu — gõ tên hoặc mã kho (tự điền đơn vị + giá vốn), lượng, đơn vị.
+       "Loại" (quyết định cách vẽ trong ly) tự đoán theo tên; màu theo loại. Muốn chỉnh thì bấm ⋯.
+     · Bước: MỘT dòng/bước — hành động, tiêu đề, giây. Ghi chú, nguyên liệu dùng, đồ nóng, ảnh AI nằm trong ⋯.
+       Chưa có bước nào thì có nút tự dựng bước từ nguyên liệu.
+     · Mô tả, ảnh, kiểu ly, size gập vào "Thêm chi tiết".
+   Dữ liệu lưu y như cũ (items/steps cùng khoá), các trường khác của món (code, status, btp…) giữ nguyên. */
+const rcpGuessKind = (name, unit) => {
+  const n = noAccent(String(name || '')).toLowerCase();
+  if (/\bda\b|da vien|nuoc da/.test(n)) return 'ice';
+  if (/espresso|ca phe|cafe|coffee|phe\b/.test(n)) return 'espresso';
+  if (/kem cheese|kem muoi|foam|whipping|kem beo|cream/.test(n)) return 'foam';
+  if (/tran chau|thach|pudding|topping|hat|boba|flan|nha dam/.test(n)) return 'topping';
+  if (/syrup|siro|duong|mat ong|sot|sauce/.test(n)) return 'syrup';
+  if (/sua|milk|creamer/.test(n)) return 'milk';
+  if (/bot|matcha|cacao|kem nen|base/.test(n)) return 'powder';
+  if (/tra|tea/.test(n)) return 'tea';
+  if (/soda|nuoc loc|nuoc suoi|sprite|tonic|nuoc$/.test(n)) return 'water';
+  if (/ep|cam|chanh|dao|vai|xoai|dau|thom|dua|tac|buoi|trai|qua|mut|puree/.test(n)) return 'juice';
+  if (/la |bac ha|que|vo |trang tri|hung/.test(n + ' ')) return 'garnish';
+  return /g|kg/.test(String(unit || '')) ? 'powder' : 'water';
+};
+/* Dựng bước nháp từ nguyên liệu: chuẩn bị → (ủ trà / chiết cà phê) → định lượng → đá → rót → khuấy → phủ mặt → hoàn thiện */
+const rcpAutoSteps = (items) => {
+  const by = (k) => items.filter(x => x.kind === k).map(x => x.id);
+  const mk = (act, use) => ({ id: uid('S'), act, label: '', note: '', sec: rcpAct(act).sec, use: use || [], hot: false });
+  const out = [mk('prep')];
+  if (by('espresso').length) out.push(mk('brew', by('espresso')));
+  if (by('tea').length) out.push(mk('pour', by('tea')));
+  const sc = [...by('syrup'), ...by('powder')]; if (sc.length) out.push(mk('scoop', sc));
+  const lq = [...by('milk'), ...by('juice'), ...by('water')]; if (lq.length) out.push(mk('pour', lq));
+  if (by('ice').length) out.push(mk('ice', by('ice')));
+  out.push(mk('stir'));
+  const tp = [...by('topping'), ...by('foam')]; if (tp.length) out.push(mk('top', tp));
+  if (by('garnish').length) out.push(mk('garnish', by('garnish')));
+  out.push(mk('serve'));
+  return out;
+};
 function RcpEditor({ item, onClose }) {
   const { cfg, saveRecipe, delRecipe, toast, user } = useApp();
   const [f, setF] = useState(() => ({
@@ -41210,27 +41477,53 @@ function RcpEditor({ item, onClose }) {
     desc: '', items: [], steps: [], ai: {}, ...(item || {}),
   }));
   const [tab, setTab] = useState('ing');
+  const [more, setMore] = useState(false);       /* "Thêm chi tiết": mô tả, ảnh, kiểu ly, size */
+  const [openI, setOpenI] = useState(null);      /* nguyên liệu đang mở ⋯ */
+  const [openS, setOpenS] = useState(null);      /* bước đang mở ⋯ */
+  const [askDel, setAskDel] = useState(false);
   const set = (p) => setF(x => ({ ...x, ...p }));
   const cat = cfg.items || [];
+  /* Gõ "VT001", "VT001 · Sữa đặc" hay đúng tên "Sữa đặc" đều nhận ra mã kho */
+  const findCat = (txt) => {
+    const t = String(txt || '').trim(); if (!t) return null;
+    const code = t.split(' · ')[0].trim().toUpperCase();
+    const nm = noAccent(t).toLowerCase();
+    return cat.find(c => String(c.code).toUpperCase() === code) || cat.find(c => noAccent(c.name || '').toLowerCase() === nm) || null;
+  };
+  const fromCat = (c, x) => ({ sku: c.code, name: c.name, unit: (x && x.unit) || c.unit || 'ml', cost: c.price || 0, kind: rcpGuessKind(c.name, c.unit), color: '' });
 
-  const addIng = () => set({ items: [...f.items, { id: uid('I'), sku: '', name: '', qty: 30, unit: 'ml', kind: 'liquid', color: '', cost: 0 }] });
   const updIng = (i, p) => set({ items: f.items.map((x, k) => k === i ? { ...x, ...p } : x) });
   const delIng = (i) => {
     const gone = f.items[i].id;
     set({ items: f.items.filter((_, k) => k !== i), steps: f.steps.map(s => ({ ...s, use: (s.use || []).filter(u => u !== gone) })) });
+    setOpenI(null);
   };
-  const addStep = (act) => {
-    const A = rcpAct(act);
-    set({ steps: [...f.steps, { id: uid('S'), act, label: '', note: '', sec: A.sec, use: [], hot: false }] });
+  /* Ô "thêm nguyên liệu" ở cuối: chọn trong danh mục là thêm dòng ngay, gõ tên tự do thì Enter */
+  const [add, setAdd] = useState('');
+  const [focusId, setFocusId] = useState(null);  /* dòng vừa thêm: con trỏ nhảy vào ô lượng */
+  const addIng = (txt) => {
+    const t = String(txt || '').trim(); if (!t) return;
+    const c = findCat(t);
+    const nid = uid('I'); setFocusId(nid);
+    const base = { id: nid, sku: '', name: t, qty: 0, unit: 'ml', kind: rcpGuessKind(t), color: '', cost: 0 };
+    set({ items: [...f.items, c ? { ...base, ...fromCat(c) } : base] });
+    setAdd('');
   };
+  const onAddInput = (v) => { setAdd(v); if (v.includes(' · ') && findCat(v)) addIng(v); };
+
   const updStep = (i, p) => set({ steps: f.steps.map((x, k) => k === i ? { ...x, ...p } : x) });
+  const addStep = (act) => set({ steps: [...f.steps, { id: uid('S'), act, label: '', note: '', sec: rcpAct(act).sec, use: [], hot: false }] });
   const moveStep = (i, d) => {
     const a = f.steps.slice(), k = i + d;
     if (k < 0 || k >= a.length) return;
-    [a[i], a[k]] = [a[k], a[i]]; set({ steps: a });
+    [a[i], a[k]] = [a[k], a[i]]; set({ steps: a }); setOpenS(k);
   };
+  const cost = f.items.reduce((a, x) => a + (x.noStock ? 0 : (+x.qty || 0) * (+x.cost || 0)), 0);
+  const pct = f.price ? Math.round(cost / f.price * 100) : null;
+  const secs = f.steps.reduce((a, s) => a + (+s.sec || 0), 0);
   const save = () => {
     if (!f.name.trim()) return toast('Đặt tên món đã');
+    if (f.items.some(x => !String(x.name || '').trim())) return toast('Có nguyên liệu chưa đặt tên');
     /* Quản lý đã mở ra sửa và lưu = đã duyệt quy trình nháp -> gỡ nhãn "cần duyệt" */
     saveRecipe({ ...f, name: f.name.trim(), draft: '', at: new Date().toISOString(), by: user.id });
     toast('Đã lưu công thức');
@@ -41238,31 +41531,45 @@ function RcpEditor({ item, onClose }) {
   };
 
   return (
-    <Modal wide title={item ? 'Sửa công thức' : 'Món mới'} onClose={onClose}>
-      <div className="grid g2" style={{ gap: 12 }}>
-        <Field label="Tên món"><input className="inp" value={f.name} onChange={e => set({ name: e.target.value })} placeholder="Cà phê sữa đá" /></Field>
-        <Field label="Nhóm">
+    <Modal wide title={item ? 'Sửa công thức' : 'Món mới'} onClose={onClose}
+      footer={<>
+        <button className="btn btn-o" onClick={onClose}>Đóng</button>
+        <button className="btn btn-p" onClick={save}><Ic.check size={15} /> Lưu</button>
+      </>}>
+      <div className="rce-top">
+        <label className="rce-f rce-name"><span>Tên món</span>
+          <input className="inp" value={f.name} onChange={e => set({ name: e.target.value })} placeholder="Cà phê sữa đá" /></label>
+        <label className="rce-f"><span>Nhóm</span>
           <select className="inp" value={f.cat} onChange={e => set({ cat: e.target.value })}>
             {(RCP_CATS.includes(f.cat) || !f.cat ? RCP_CATS : [f.cat, ...RCP_CATS]).map(c => <option key={c}>{c}</option>)}
-          </select>
-        </Field>
-        <Field label="Kiểu ly" hint="Quyết định dáng ly trong hoạt hình">
-          <select className="inp" value={f.glass} onChange={e => set({ glass: e.target.value })}>
-            {RCP_GLASS.map(g => <option key={g.id} value={g.id}>{g.l}</option>)}
-          </select>
-        </Field>
-        <Field label="Size"><input className="inp" value={f.size} onChange={e => set({ size: e.target.value })} placeholder="M" /></Field>
-        <Field label="Giá bán"><input className="inp mono" type="number" value={f.price} onChange={e => set({ price: +e.target.value })} /></Field>
-        <Field label="Mã món trên KiotViet" hint="Số bán nạp từ KiotViet khớp theo mã này để trừ nguyên liệu theo định mức">
-          <input className="inp mono" value={f.kvCode || ''} onChange={e => set({ kvCode: e.target.value.trim().toUpperCase() })} placeholder="SP000003" />
-        </Field>
+          </select></label>
+        <label className="rce-f"><span>Giá bán</span>
+          <MoneyInput value={f.price || ''} onChange={v => set({ price: v })} placeholder="0" /></label>
+        <label className="rce-f"><span>Mã KiotViet</span>
+          <input className="inp mono" value={f.kvCode || ''} onChange={e => set({ kvCode: e.target.value.trim().toUpperCase() })} placeholder="SP000003" /></label>
       </div>
-      <Field label="Mô tả ngắn"><input className="inp" value={f.desc} onChange={e => set({ desc: e.target.value })} placeholder="Đậm, ngọt vừa, uống lạnh" /></Field>
-      <Field label="Ảnh món thật" hint="Hiện trên thẻ thực đơn và đầu popup quy trình thay cho ly hoạt hình">
-        <DishPhotoPicker name={f.name} value={f.img} onChange={(d) => set({ img: d })} />
-      </Field>
+      {!f.kvCode && <div className="rce-warn">Chưa gắn mã KiotViet — số bán món này sẽ không trừ được kho.</div>}
+      <button className="rce-more" onClick={() => setMore(!more)}>{more ? '▾' : '▸'} Thêm chi tiết <em>mô tả, ảnh, kiểu ly, size</em></button>
+      {more && (
+        <div className="rce-top" style={{ marginTop: 6 }}>
+          <label className="rce-f rce-name"><span>Mô tả ngắn</span>
+            <input className="inp" value={f.desc} onChange={e => set({ desc: e.target.value })} placeholder="Đậm, ngọt vừa, uống lạnh" /></label>
+          <label className="rce-f"><span>Kiểu ly</span>
+            <select className="inp" value={f.glass} onChange={e => set({ glass: e.target.value })}>
+              {RCP_GLASS.map(g => <option key={g.id} value={g.id}>{g.l}</option>)}
+            </select></label>
+          <label className="rce-f"><span>Size</span>
+            <input className="inp" value={f.size} onChange={e => set({ size: e.target.value })} placeholder="M" /></label>
+          <div className="rce-f rce-full"><span>Ảnh món thật</span>
+            <DishPhotoPicker name={f.name} value={f.img} onChange={(d) => set({ img: d })} /></div>
+          {item && <div className="rce-full">
+            <button className="btn btn-o btn-sm" style={{ color: 'var(--red)' }}
+              onClick={() => { if (!askDel) return setAskDel(true); delRecipe(item.id); toast('Đã xoá món'); onClose(); }}>
+              <Ic.trash size={13} /> {askDel ? 'Bấm lần nữa để xoá hẳn món này' : 'Xoá món'}</button></div>}
+        </div>
+      )}
 
-      <div style={{ margin: '14px 0 10px' }}>
+      <div style={{ margin: '12px 0 8px' }}>
         <Seg value={tab} onChange={setTab} options={[
           { v: 'ing', l: 'Nguyên liệu', n: f.items.length || undefined },
           { v: 'step', l: 'Các bước', n: f.steps.length || undefined },
@@ -41270,121 +41577,120 @@ function RcpEditor({ item, onClose }) {
         ]} />
       </div>
 
-      {tab === 'ing' && (
-        <div className="grid" style={{ gap: 8 }}>
-          <div className="hint">Định mức khai ở đây dùng chung cho tab <b>Định mức</b> — sửa một chỗ, cả hai nơi cùng đổi.</div>
+      {tab === 'ing' && (<>
+        <div className="rce-list">
           {f.items.map((x, i) => {
-            const K = rcpKind(x.kind);
+            const K = rcpKind(x.kind), on = openI === i;
             return (
-              <div key={x.id} className="card" style={{ boxShadow: 'none' }}>
-                <div className="card-b grid" style={{ gridTemplateColumns: 'repeat(6,minmax(88px,1fr))', gap: 0, columnGap: 10 }}>
-                  <Field label="Mã kho" hint="Nối với danh mục mã hàng để trừ tồn">
-                    <input className="inp mono" list="rcpSku" value={x.sku}
-                      onChange={e => {
-                        const c = cat.find(y => y.code === e.target.value);
-                        updIng(i, c ? { sku: c.code, name: x.name || c.name, unit: x.unit || c.unit, cost: c.price || 0 } : { sku: e.target.value });
-                      }} placeholder="VT001" />
-                  </Field>
-                  <Field label="Tên hiển thị"><input className="inp" value={x.name} onChange={e => updIng(i, { name: e.target.value })} placeholder="Sữa đặc" /></Field>
-                  <Field label="Lượng"><input className="inp mono" type="number" value={x.qty} onChange={e => updIng(i, { qty: +e.target.value })} /></Field>
-                  <Field label="Đơn vị"><input className="inp mono" value={x.unit} onChange={e => updIng(i, { unit: e.target.value })} placeholder="ml" /></Field>
-                  <Field label="Loại" hint="Chọn loại là app tự biết vẽ nó thế nào">
-                    <select className="inp" value={x.kind} onChange={e => updIng(i, { kind: e.target.value, color: '' })}>
-                      {RCP_KINDS.map(k => <option key={k.id} value={k.id}>{k.l}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Màu trong ly">
-                    <input type="color" value={x.color || K.c} style={{ width: '100%', height: 40, border: 'none', background: 'none' }}
-                      onChange={e => updIng(i, { color: e.target.value })} />
-                  </Field>
-                </div>
-                <div className="card-b" style={{ paddingTop: 0, display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span className="hint">Giá vốn/đơn vị: <b className="mono">{money(x.cost || 0)}</b></span>
-                  <button className="btn btn-o btn-sm" style={{ marginLeft: 'auto' }} onClick={() => delIng(i)}><Ic.trash size={13} /></button>
-                </div>
-              </div>
-            );
-          })}
-          <datalist id="rcpSku">{cat.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</datalist>
-          <button className="btn btn-p" onClick={addIng}><Ic.plus size={15} /> Thêm nguyên liệu</button>
-        </div>
-      )}
-
-      {tab === 'step' && (
-        <div className="grid" style={{ gap: 8 }}>
-          {f.steps.map((s, i) => {
-            const A = rcpAct(s.act);
-            return (
-              <div key={s.id} className="card" style={{ boxShadow: 'none' }}>
-                <div style={{ display: 'flex', gap: 6, padding: '10px 14px 0', alignItems: 'center' }}>
-                  <span className="st-n">{i + 1}</span>
-                  <button className="btn btn-o btn-sm" disabled={i === 0} onClick={() => moveStep(i, -1)}>↑</button>
-                  <button className="btn btn-o btn-sm" disabled={i === f.steps.length - 1} onClick={() => moveStep(i, 1)}>↓</button>
-                  <RcpAiBtn recipe={f} step={s} onDone={(d) => set({ ai: { ...(f.ai || {}), [s.id]: d } })} />
-                  <button className="btn btn-o btn-sm" style={{ marginLeft: 'auto' }}
-                    onClick={() => set({ steps: f.steps.filter((_, k) => k !== i) })}><Ic.trash size={13} /></button>
-                </div>
-                <div className="card-b grid" style={{ gridTemplateColumns: 'repeat(4,minmax(110px,1fr))', gap: 0, columnGap: 10 }}>
-                  <Field label="Hành động" hint="Cái này quyết định hoạt hình">
-                    <select className="inp" value={s.act} onChange={e => updStep(i, { act: e.target.value, sec: rcpAct(e.target.value).sec })}>
-                      {RCP_ACTS.map(a => <option key={a.id} value={a.id}>{a.l}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Tiêu đề bước" hint={'Bỏ trống thì lấy "' + A.l + '"'}>
-                    <input className="inp" value={s.label} onChange={e => updStep(i, { label: e.target.value })} placeholder={A.l} />
-                  </Field>
-                  <Field label="Thời lượng (giây)"><input className="inp mono" type="number" value={s.sec} onChange={e => updStep(i, { sec: +e.target.value })} /></Field>
-                  <Field label="Đồ nóng" hint="Bật thì có khói bốc lên">
-                    <label className="chk" style={{ height: 40, display: 'flex', alignItems: 'center' }}>
-                      <input type="checkbox" checked={!!s.hot} onChange={e => updStep(i, { hot: e.target.checked })} /> Có khói
-                    </label>
-                  </Field>
-                </div>
-                <div className="card-b" style={{ paddingTop: 0 }}>
-                  <Field label="Ghi chú thao tác" hint={A.d}>
-                    <input className="inp" value={s.note} onChange={e => updStep(i, { note: e.target.value })} placeholder={A.d} />
-                  </Field>
-                  <div className="eyebrow" style={{ margin: '8px 0 6px' }}>Nguyên liệu dùng ở bước này</div>
-                  <div className="st-ings">
-                    {f.items.map(x => {
-                      const on = (s.use || []).includes(x.id);
-                      return (
-                        <button key={x.id} className={'tag ' + (on ? 't-brand' : 't-gray')}
-                          style={{ padding: '5px 10px', border: '1px solid ' + (on ? 'var(--brand)' : 'var(--line)') }}
-                          onClick={() => updStep(i, { use: on ? s.use.filter(u => u !== x.id) : [...(s.use || []), x.id] })}>
-                          {x.name || 'chưa đặt tên'} {x.qty} {uCap(x.unit)}
-                        </button>
-                      );
-                    })}
-                    {!f.items.length && <span className="hint">Khai nguyên liệu ở tab bên cạnh trước đã.</span>}
+              <div key={x.id} className={'rce-row' + (on ? ' on' : '')}>
+                <div className="rce-ing">
+                  <i className="rce-dot" style={{ background: x.color || K.c }} title={K.l} />
+                  <div className="rce-nm">
+                    <input className="inp" list="rcpSku" value={x.name} placeholder="Tên hoặc mã kho"
+                      onChange={e => { const v = e.target.value; const c = v.includes(' · ') ? findCat(v) : null; updIng(i, c ? fromCat(c, null) : { name: v }); }} />
+                    <small className="mono">{x.sku ? x.sku + ' · vốn ' + money(Math.round((+x.qty || 0) * (+x.cost || 0))) : 'chưa nối mã kho'}</small>
                   </div>
+                  <input className="inp mono rce-q" inputMode="decimal" value={x.qty || ''} placeholder="0" autoFocus={x.id === focusId}
+                    onChange={e => updIng(i, { qty: +String(e.target.value).replace(',', '.') || 0 })} />
+                  <input className="inp rce-u" value={x.unit} onChange={e => updIng(i, { unit: e.target.value })} placeholder="ml" />
+                  <button className="btn btn-o btn-sm rce-x" title="Tuỳ chỉnh" onClick={() => setOpenI(on ? null : i)}>⋯</button>
                 </div>
+                {on && (
+                  <div className="rce-sub">
+                    <label className="rce-f"><span>Mã kho</span>
+                      <input className="inp mono" list="rcpSkuC" value={x.sku} placeholder="VT001"
+                        onChange={e => { const c = cat.find(y => y.code === e.target.value); updIng(i, c ? { sku: c.code, cost: c.price || 0, unit: x.unit || c.unit } : { sku: e.target.value }); }} /></label>
+                    <label className="rce-f"><span>Vẽ trong ly như</span>
+                      <select className="inp" value={x.kind} onChange={e => updIng(i, { kind: e.target.value, color: '' })}>
+                        {RCP_KINDS.map(k => <option key={k.id} value={k.id}>{k.l}</option>)}
+                      </select></label>
+                    <label className="rce-f" style={{ flex: '0 0 64px' }}><span>Màu</span>
+                      <input type="color" className="rce-color" value={x.color || K.c} onChange={e => updIng(i, { color: e.target.value })} /></label>
+                    <button className="btn btn-o btn-sm" style={{ color: 'var(--red)', alignSelf: 'flex-end' }} onClick={() => delIng(i)}><Ic.trash size={13} /> Bỏ</button>
+                  </div>
+                )}
               </div>
             );
           })}
-          <div className="card" style={{ boxShadow: 'none' }}>
-            <div className="card-b">
-              <div className="eyebrow" style={{ marginBottom: 7 }}>Thêm bước</div>
-              <div className="st-ings">
-                {RCP_ACTS.map(a => (
-                  <button key={a.id} className="tag t-gray" style={{ padding: '6px 11px', border: '1px solid var(--line)' }}
-                    title={a.d} onClick={() => addStep(a.id)}>+ {a.l}</button>
-                ))}
-              </div>
-            </div>
+          <div className="rce-row rce-add">
+            <Ic.plus size={15} />
+            <input className="inp" list="rcpSku" value={add} placeholder="Thêm nguyên liệu — gõ tên hoặc mã kho rồi chọn"
+              onChange={e => onAddInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addIng(add); }} />
+            {add && <button className="btn btn-p btn-sm" onClick={() => addIng(add)}>Thêm</button>}
           </div>
         </div>
-      )}
+        <datalist id="rcpSku">{cat.map(c => <option key={c.code} value={c.code + ' · ' + c.name} />)}</datalist>
+        <datalist id="rcpSkuC">{cat.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</datalist>
+        <div className="rce-sum">
+          <span>Giá vốn <b className="mono">{money(Math.round(cost))}</b>{pct != null && <> · <b style={{ color: pct > 35 ? 'var(--red)' : 'var(--green)' }}>{pct}%</b> giá bán</>}</span>
+          <span className="hint">Dùng chung với tab Định mức</span>
+        </div>
+      </>)}
+
+      {tab === 'step' && (<>
+        <div className="rce-list">
+          {f.steps.map((s, i) => {
+            const A = rcpAct(s.act), on = openS === i;
+            return (
+              <div key={s.id} className={'rce-row' + (on ? ' on' : '')}>
+                <div className="rce-step">
+                  <span className="rce-n">{i + 1}</span>
+                  <select className="inp rce-act" value={s.act} onChange={e => updStep(i, { act: e.target.value, sec: rcpAct(e.target.value).sec })}>
+                    {RCP_ACTS.map(a => <option key={a.id} value={a.id}>{a.l}</option>)}
+                  </select>
+                  <input className="inp rce-lb" value={s.label} onChange={e => updStep(i, { label: e.target.value })} placeholder={A.l} />
+                  <input className="inp mono rce-q" inputMode="numeric" value={s.sec || ''} title="Giây" placeholder="giây"
+                    onChange={e => updStep(i, { sec: +e.target.value || 0 })} />
+                  <button className="btn btn-o btn-sm rce-x" title="Chi tiết bước" onClick={() => setOpenS(on ? null : i)}>⋯</button>
+                </div>
+                {!on && (s.use || []).length > 0 && (
+                  <div className="rce-uses">{f.items.filter(x => s.use.includes(x.id)).map(x => x.name).join(' · ')}</div>
+                )}
+                {on && (
+                  <div className="rce-sub" style={{ display: 'block' }}>
+                    <input className="inp" value={s.note} onChange={e => updStep(i, { note: e.target.value })} placeholder={'Ghi chú thao tác — ' + A.d} />
+                    <div className="st-ings" style={{ marginTop: 8 }}>
+                      {f.items.map(x => {
+                        const u = (s.use || []).includes(x.id);
+                        return (
+                          <button key={x.id} className={'tag ' + (u ? 't-brand' : 't-gray')}
+                            style={{ padding: '5px 10px', border: '1px solid ' + (u ? 'var(--brand)' : 'var(--line)') }}
+                            onClick={() => updStep(i, { use: u ? s.use.filter(v => v !== x.id) : [...(s.use || []), x.id] })}>
+                            {x.name || 'chưa đặt tên'} {x.qty} {uCap(x.unit)}
+                          </button>
+                        );
+                      })}
+                      {!f.items.length && <span className="hint">Khai nguyên liệu trước để gắn vào bước.</span>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+                      <label className="chk"><input type="checkbox" checked={!!s.hot} onChange={e => updStep(i, { hot: e.target.checked })} /> Đồ nóng (có khói)</label>
+                      <span style={{ flex: 1 }} />
+                      <button className="btn btn-o btn-sm" disabled={i === 0} onClick={() => moveStep(i, -1)}>↑</button>
+                      <button className="btn btn-o btn-sm" disabled={i === f.steps.length - 1} onClick={() => moveStep(i, 1)}>↓</button>
+                      <RcpAiBtn recipe={f} step={s} onDone={(d) => set({ ai: { ...(f.ai || {}), [s.id]: d } })} />
+                      <button className="btn btn-o btn-sm" style={{ color: 'var(--red)' }}
+                        onClick={() => { set({ steps: f.steps.filter((_, k) => k !== i) }); setOpenS(null); }}><Ic.trash size={13} /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {!f.steps.length && (
+            <div className="rce-row" style={{ padding: '12px 4px' }}>
+              <span className="hint">Chưa có bước nào. </span>
+              {f.items.length > 0 && <button className="btn btn-p btn-sm" onClick={() => set({ steps: rcpAutoSteps(f.items) })}>Tự dựng bước từ nguyên liệu</button>}
+            </div>
+          )}
+        </div>
+        <div className="rce-acts">
+          <span className="hint">Thêm bước:</span>
+          {RCP_ACTS.map(a => <button key={a.id} className="tag t-gray" title={a.d} onClick={() => addStep(a.id)}>+ {a.l}</button>)}
+        </div>
+        {f.steps.length > 0 && <div className="rce-sum"><span>{f.steps.length} bước · khoảng <b>{hhmmss(secs)}</b></span></div>}
+      </>)}
 
       {tab === 'prev' && <RcpPlayer recipe={f} />}
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-        <button className="btn btn-p" onClick={save}><Ic.check size={15} /> Lưu công thức</button>
-        <button className="btn btn-o" onClick={onClose}>Đóng</button>
-        {item && <button className="btn btn-o" style={{ marginLeft: 'auto', color: 'var(--red)' }}
-          onClick={() => { delRecipe(item.id); toast('Đã xoá món'); onClose(); }}>
-          <Ic.trash size={14} /> Xoá món</button>}
-      </div>
     </Modal>
   );
 }
@@ -41794,7 +42100,8 @@ function RecipeView() {
         <Modal wide title={cur.name || 'Chưa đặt tên'}
           sub={[cur.cat, !!cur.price && money(cur.price)].filter(Boolean).join(' · ')}
           onClose={() => setOpen(null)}>
-          <RcpPlayer recipe={cur} onEdit={admin ? () => setEdit({ item: cur }) : null} />
+          {/* Đóng popup trước rồi mới mở form sửa — không thì form nằm DƯỚI popup, bấm không tới */}
+          <RcpPlayer recipe={cur} onEdit={admin ? () => { setOpen(null); setEdit({ item: cur }); } : null} />
         </Modal>
       )}
     </div>
@@ -53025,6 +53332,8 @@ function App() {
   useEffect(() => { window.__toast = toast; }, []);
   const go = (k) => { setPage(k); if (window.scrollTo) try { window.scrollTo({ top: 0 }); } catch (e) {}
     const m = document.querySelector('.shell > .main'); if (m) m.scrollTop = 0; };
+  /* Chỉ ở ?demo=1: cho script kiểm tra giao diện mở thẳng một trang */
+  if (DEMO) window.__go = go;
   const logout = () => {
     /* Ở demo không có phiên đăng nhập thật để huỷ — thoát demo luôn, không thì bấm Đăng xuất
        xong nó tự đăng nhập lại ngay lập tức, nhìn như nút hỏng. */
@@ -53778,6 +54087,7 @@ function App() {
        để xem/chỉnh giao diện trang trong mà không cần mật khẩu. */
     if (DEMO) setUser(emps.find(e => e.role === 'ADMIN') || emps[0]);
     if (DEMO) setAtt(seedDemoAtt(emps));
+    if (DEMO) setRevenue(seedDemoRev());
     /* Phải bật cờ này, không thì màn hình nhân viên báo đỏ "Chưa tải được lịch xếp ca".
        Chạy dữ liệu mẫu thì đúng là KHÔNG có lịch, chứ không phải đang chờ mạng — hai chuyện
        khác nhau, mà cờ tắt là app hiểu nhầm thành cái thứ hai. */
@@ -54026,7 +54336,8 @@ function App() {
     });
     (list || []).forEach(t => putDoc(COL.inc, t.id, t));
   };
-  const saveRevenue = (r) => { const id = r.branchId + '_' + r.date; setRevenue(p => ({ ...p, [id]: r })); putDoc(COL.rev, id, r); };
+  /* whole = ghi đè cả doc (nạp file): doc ghi kiểu merge thì map `ch` cũ của robot còn sót khoá, cộng trùng nguồn */
+  const saveRevenue = (r, whole) => { const id = r.branchId + '_' + r.date; setRevenue(p => ({ ...p, [id]: r })); (whole ? setDocAll : putDoc)(COL.rev, id, r); };
   const saveTarget = (t) => { const id = t.branchId + '_' + t.period; setTargets(p => ({ ...p, [id]: t })); putDoc(COL.tgt, id, t); };
   /* fn nhận bản hiện tại, trả bản mới; trả lại đúng bản cũ là không ghi gì. whole = ghi đè cả document (đặt lại tiến độ) */
   const saveElearn = (id, fn, whole) => {
