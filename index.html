@@ -3331,6 +3331,28 @@ em.zero,.sk-d.zero{color:var(--green)}
 .sk-sum td,.sk-sum th{vertical-align:middle}
 .sk-foot-n{margin-right:auto;font-size:12.5px;color:var(--txt-3)}
 .sk-meta{display:contents}
+/* ---- Chia khu: màn chọn khu + thanh khu đang mở ---- */
+.sk-zp{display:flex;flex-direction:column;gap:8px}
+.sk-zp-h{font-size:12px;color:var(--txt-3);margin-bottom:2px}
+.sk-zc{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:14px;background:#fff;padding:2px 10px 2px 2px}
+.sk-zc.mine{border-color:var(--green);background:#F6FCF8}
+.sk-zc.busy{border-color:#C9CEF7;background:#F7F8FE}
+.sk-zc.done .sk-zc-n{color:var(--green)}
+.sk-zc-main{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px;text-align:left;border:0;background:none;padding:10px 6px 10px 10px;cursor:pointer;font-family:inherit}
+.sk-zc-t{min-width:0;display:flex;flex-direction:column;gap:2px}
+.sk-zc-t b{font-size:15px}
+.sk-zc-t small{font-size:11.5px;color:var(--txt-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-zc.busy .sk-zc-t small{color:#5B6CF0;font-weight:700}
+.sk-zc.mine .sk-zc-t small{color:var(--green);font-weight:700}
+.sk-zc-n{font-size:15px;font-weight:800}
+.sk-zc-main .sk-prog{grid-column:1/-1}
+.sk-zc-take{flex:0 0 auto}
+.sk-zc-sum{border:1.5px dashed var(--line);border-radius:14px;background:var(--canvas);padding:11px 12px;text-align:left;font-size:13px;font-weight:700;color:var(--txt-2);cursor:pointer;font-family:inherit}
+.sk-zbar{display:flex;align-items:center;gap:10px;padding:2px 0 4px;min-width:0}
+.sk-zbar>b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-back{flex:0 0 auto;border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:6px 11px;font-size:13px;font-weight:800;color:var(--brand-dark);cursor:pointer;font-family:inherit}
+.sk-own{margin-left:auto;font-size:11px;font-weight:800;color:var(--green);white-space:nowrap}
+.sk-view{margin-left:auto;font-size:11px;font-weight:800;color:#5B6CF0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Kiểu Google Sheet: ai đang đếm cùng, ô người khác đang gõ, ô vừa được người khác sửa */
 .sk-peers{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--txt-2);padding:2px 0 6px;overflow:hidden;white-space:nowrap}
 .sk-peers>span{overflow:hidden;text-overflow:ellipsis}
@@ -3561,6 +3583,193 @@ em.zero,.sk-d.zero{color:var(--green)}
   .sk-todo,.sk-mic{height:34px}
   .sk-ft .btn{height:40px;font-size:13px;border-radius:11px}
   .sk-tabs button.sum{margin-left:0}
+}
+
+/* ---- ĐẾM TỒN DẠNG MA TRẬN NGÀY × MÃ (10/2026) — điện thoại là chính: cột tên dính trái, hàng ngày dính trên ---- */
+.skm-page{display:flex;flex-direction:column;gap:10px;min-width:0}
+.skm{--nmw:230px;--dw:86px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.skm-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.skm-pk{position:relative}
+.skm-pb{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:5px 11px;font:inherit;cursor:pointer;color:var(--txt);min-height:42px;text-align:left}
+.skm-pb svg{color:var(--brand);flex:0 0 auto}
+.skm-pb small{display:block;font-size:10px;color:var(--txt-3);font-weight:700;line-height:1.15}
+.skm-pb b{display:block;font-size:13px;font-weight:800;white-space:nowrap;line-height:1.2}
+.skm-pb i{font-style:normal;font-size:10px;color:var(--txt-3)}
+.skm-br select{display:block;border:0;background:none;font:inherit;font-size:13px;font-weight:800;padding:0;color:var(--txt);max-width:190px;outline:none;cursor:pointer}
+.skm-scrim{position:fixed;inset:0;z-index:40}
+.skm-menu{position:absolute;left:0;top:calc(100% + 6px);z-index:41;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh-3);padding:5px;min-width:250px}
+.skm-menu button{display:flex;width:100%;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:0;background:none;border-radius:9px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--txt)}
+.skm-menu button:hover:not(:disabled),.skm-menu button.cur{background:var(--brand-wash)}
+.skm-menu button.cur{font-weight:800}
+.skm-menu button.fut{color:var(--txt-3);cursor:not-allowed}
+.skm-adm{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.skm-ab{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 11px;border-radius:10px;border:1px solid var(--line);background:#fff;font:inherit;font-size:12.5px;font-weight:700;color:var(--txt-2);cursor:pointer;white-space:nowrap;flex:0 0 auto}
+.skm-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.skm-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -2px;padding:1px 2px}
+.skm-chips::-webkit-scrollbar,.skm-tools::-webkit-scrollbar,.skm-adm::-webkit-scrollbar{display:none}
+.skm-chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--txt);cursor:pointer;white-space:nowrap}
+.skm-chip small{font-size:11.5px;font-weight:700;color:var(--txt-3)}
+.skm-chip.on{background:var(--txt);border-color:var(--txt);color:#fff}
+.skm-chip.on small{color:#D9CFC8}
+.skm-chip .me{width:7px;height:7px;border-radius:50%;background:var(--green);flex:0 0 auto}
+.skm-chip .lk{font-size:11px;color:#A86A00}
+.skm-chip.on .lk{color:#F5D9A0}
+.skm-chip.sum{border-style:dashed}
+.skm-chip.sum.on{border-style:solid}
+.skm-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.skm-nav{display:flex;align-items:center;gap:4px}
+.skm-nav button{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:17px;line-height:1;cursor:pointer;color:var(--txt);padding:0}
+.skm-nav b{font-size:13px;min-width:96px;text-align:center;font-weight:800}
+.skm-hint .s{display:none}
+@media(max-width:640px){.skm-hint .s{display:inline}}
+.skm-hint{font-size:11.5px;font-weight:600;color:#7A5200;background:#FFF6E3;border:1px solid #F1DDB0;border-radius:99px;padding:3px 9px;white-space:nowrap}
+.skm-leg{flex:1;display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;font-size:11.5px;color:var(--txt-2)}
+.skm-leg span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.skm-leg i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.skm-leg i.st-ok{background:var(--green)}.skm-leg i.st-doing{background:var(--amber)}.skm-leg i.st-miss{background:var(--red)}
+.skm-leg i.st-lock{background:var(--brand)}.skm-leg i.st-today{background:var(--blue)}
+.skm-close{margin-left:auto;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:11px;border:0;background:var(--brand);color:#fff;font:inherit;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
+.skm-own{display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap;font-size:12px;line-height:1.4;padding:6px 10px;border-radius:10px;background:var(--canvas);color:var(--txt-2)}
+.skm-own.me{background:#E9F5EE;color:#0E6B37}
+.skm-own.ro{background:#FFF3DC;color:#7A5200}
+.skm-own.free{background:var(--brand-wash);color:var(--brand-dark)}
+.skm-own-t{flex:1 1 220px;min-width:0}
+.skm-peers{color:var(--txt-2)}
+.skm-own-b{height:28px;padding:0 11px;border-radius:8px;border:0;background:var(--brand);color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.skm-own .sk-sync{font-size:11px;max-width:100%}
+.skm-tools{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;align-items:center;padding:1px 0}
+.skm-q{flex:1 0 150px;min-width:130px;max-width:260px;height:32px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font:inherit;font-size:13px;background:#fff;color:var(--txt)}
+.skm-t{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:#fff;font:inherit;font-size:12.5px;font-weight:700;color:var(--txt-2);cursor:pointer;white-space:nowrap}
+.skm-t b{color:var(--brand)}
+.skm-t.on{border-color:var(--brand);color:var(--brand);background:var(--brand-wash)}
+.skm-t.mic{background:var(--red);color:#fff;border-color:var(--red)}
+.skm-pan{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.skm-pan>.inp{flex:1 1 200px;min-width:0;height:36px}
+.skm-pan.hint{display:block;font-size:12px;background:var(--canvas);border-radius:10px;padding:8px 10px;margin:0}
+.skm-pan.sk-newu .inp{flex:0 1 100px;min-width:60px;height:34px}
+.skm-pan-t{font-size:12.5px;font-weight:700}
+.skm-ban{font-size:12px;color:#0E6B37;background:#E9F5EE;border-radius:10px;padding:6px 10px}
+.skm-vlog{margin:0}
+.skm-mx{background:#fff;border:1px solid var(--line);border-radius:16px;min-width:0}
+.skm-hd{position:sticky;top:var(--skm-top,max(var(--top-h),env(safe-area-inset-top)));z-index:6;overflow:hidden;background:#fff;border-bottom:1px solid var(--line);border-radius:16px 16px 0 0}
+.skm-hrow{display:flex;width:calc(var(--nmw) + 13 * var(--dw))}
+.skm-hn{flex:0 0 var(--nmw);position:sticky;left:0;z-index:2;background:#fff;border-right:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;justify-content:flex-end;font-size:12px;font-weight:800;color:var(--txt);min-width:0}
+.skm-hn small{font-size:10.5px;font-weight:600;color:var(--txt-3)}
+.skm-hc{flex:0 0 var(--dw);padding:7px 3px;display:flex;justify-content:center}
+.skm-db{position:relative;width:100%;min-height:68px;border-radius:13px;border:1px solid #E3DAD0;background:#fff;box-shadow:0 1px 2px rgba(46,32,25,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:5px 2px;cursor:pointer;color:var(--txt);font:inherit;transition:transform .12s,box-shadow .12s,border-color .12s}
+.skm-db .w{font-size:10px;font-weight:700;color:var(--txt-3);letter-spacing:.02em}
+.skm-db .n{font-size:17px;font-weight:800;line-height:1.05}
+.skm-db .s{display:flex;align-items:center;gap:3px;font-size:10px;font-weight:700;white-space:nowrap}
+.skm-db .s i{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+.skm-db .ss{display:none;font-size:9.5px;font-weight:800;line-height:1.1}
+.skm-db .e{font-size:9.5px;font-weight:700;color:var(--brand);opacity:0;height:12px;white-space:nowrap}
+.skm-db.st-ok .s,.skm-db.st-ok .ss{color:#0E7D3F}.skm-db.st-ok .s i{background:var(--green)}
+.skm-db.st-doing .s,.skm-db.st-doing .ss{color:#A86A00}.skm-db.st-doing .s i{background:var(--amber)}
+.skm-db.st-miss .s,.skm-db.st-miss .ss{color:#C2362F}.skm-db.st-miss .s i{background:var(--red)}
+.skm-db.st-lock .s,.skm-db.st-lock .ss{color:var(--brand-dark)}.skm-db.st-lock .s i{background:var(--brand)}
+.skm-db.st-today .s,.skm-db.st-today .ss{color:var(--blue)}.skm-db.st-today .s i{background:var(--blue)}
+.skm-db.today{border:2px solid var(--brand)}
+.skm-db.today .e{opacity:1}
+.skm-db.today::after{content:'';position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--brand);animation:skmPulse 1.4s infinite}
+@keyframes skmPulse{0%{box-shadow:0 0 0 0 rgba(24,72,74,.5)}70%{box-shadow:0 0 0 7px rgba(24,72,74,0)}100%{box-shadow:0 0 0 0 rgba(24,72,74,0)}}
+.skm-db.on{background:var(--brand);border-color:var(--brand);color:#fff;cursor:default}
+.skm-db.on .w,.skm-db.on .s,.skm-db.on .ss{color:#fff !important}
+.skm-db.on .s i{background:#fff !important}
+.skm-db.on::after{background:#fff}
+.skm-db:disabled{border:1px dashed #D8CCC2;background:transparent;box-shadow:none;cursor:not-allowed;color:#B9ADA4}
+.skm-db:disabled .w,.skm-db:disabled .s{color:#C8BCB3}
+@media(hover:hover){
+  .skm-db:not(:disabled):not(.on):hover{border-color:var(--brand);transform:translateY(-2px);box-shadow:0 6px 14px rgba(24,72,74,.16)}
+  .skm-db:not(:disabled):not(.on):hover .e{opacity:1}
+  .skm[data-hc="0"] td[data-i="0"],.skm[data-hc="1"] td[data-i="1"],.skm[data-hc="2"] td[data-i="2"],.skm[data-hc="3"] td[data-i="3"],.skm[data-hc="4"] td[data-i="4"],.skm[data-hc="5"] td[data-i="5"],.skm[data-hc="6"] td[data-i="6"],.skm[data-hc="7"] td[data-i="7"],.skm[data-hc="8"] td[data-i="8"],.skm[data-hc="9"] td[data-i="9"],.skm[data-hc="10"] td[data-i="10"],.skm[data-hc="11"] td[data-i="11"],.skm[data-hc="12"] td[data-i="12"]{background:#EEF5F4 !important}
+}
+@media(hover:none){.skm-db:not(:disabled):not(.on) .e{opacity:.6}}
+.skm-sc{overflow-x:auto;border-radius:0 0 16px 16px;-webkit-overflow-scrolling:touch}
+.skm-tb{table-layout:fixed;border-collapse:separate;border-spacing:0;width:calc(var(--nmw) + 13 * var(--dw))}
+.skm-tb col.skm-cn{width:var(--nmw)}
+.skm-tb col.skm-cd{width:var(--dw)}
+.skm-tb td{border-bottom:1px solid var(--line-soft);text-align:center;height:46px;padding:0;font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:700;color:var(--txt-2);background:#fff}
+.skm-tb td.skm-nm{position:sticky;left:0;z-index:2;text-align:left;padding:5px 10px;border-right:1px solid var(--line);font-weight:400;color:var(--txt)}
+.skm-nm b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.2;font-weight:700;word-break:break-word}
+.skm-nm small{display:flex;align-items:center;gap:6px;margin-top:2px;font-size:11px;color:var(--txt-3);white-space:nowrap;overflow:hidden}
+.skm-u{font-weight:800;color:var(--brand)}
+.skm-ht{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.skm-us{font:inherit;font-size:11px;font-weight:800;color:var(--brand);background:var(--brand-wash) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpath d='M0 0l3.5 4 3.5-4z' fill='%239D112C'/%3E%3C/svg%3E") no-repeat right 4px center;border:0;border-radius:6px;height:20px;padding:0 13px 0 5px;max-width:74px;-webkit-appearance:none;appearance:none;cursor:pointer;text-overflow:ellipsis;flex:0 0 auto}
+.skm-tb td.y{background:#FAF6F0}
+.skm-tb td.fu{background:#FCFBF9}
+.skm-tb td.on{background:var(--brand-wash)}
+.skm-tb td.v-ok{color:#0E7D3F}.skm-tb td.v-doing,.skm-tb td.v-today{color:#A86A00}.skm-tb td.v-lock{color:var(--brand-dark)}
+.skm-tb .nil{color:#CDBFB5;font-weight:400}
+.skm-tb td.on.sum b{display:block;font-size:14px;color:var(--txt)}
+.skm-tb td.on.sum em{display:block;font-size:10px;font-style:normal;font-weight:800;line-height:1.1}
+.skm-tb td.on.sum em.neg{color:var(--red)}.skm-tb td.on.sum em.pos{color:var(--green)}
+.skm-cell{position:relative;padding:0 5px}
+.skm-in{width:100%;height:34px;border:1px solid #CFE0DE;border-radius:9px;background:#fff;text-align:center;font:inherit;font-size:15px;font-weight:800;color:var(--txt);padding:0 2px;outline:none;-webkit-appearance:none;appearance:none}
+.skm-in:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(24,72,74,.16)}
+.skm-in[readonly]:not(:disabled){border-style:dashed}
+.skm-in:disabled{background:#F7F3EF;color:var(--txt-2);border-color:var(--line-soft);-webkit-text-fill-color:var(--txt-2);opacity:1}
+.skm-in::placeholder{color:#A9BDBB;font-weight:600}
+.skm-cell.lk .skm-in{background:#EEF0FE;border-color:#B9C0F7}
+.skm-cell.lk .skm-in::placeholder{color:#5B6CF0;font-size:11px;font-weight:800}
+.skm-hq{position:absolute;left:0;top:-5px;z-index:1;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:11px;line-height:1;color:var(--txt-2);padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.skm-tb tr.flash td:not(.skm-nm){background:#FFF3C4 !important}
+.skm-tb tr.rmt td.on{box-shadow:inset 0 0 0 2px #5BC489}
+.skm-tb tfoot td{background:#FBF8F4;border-top:1px solid var(--line);border-bottom:0;height:34px;font-size:12px;font-weight:800;color:var(--txt-2)}
+.skm-tb tfoot td.skm-nm{background:#FBF8F4;font-size:11.5px;font-weight:700;color:var(--txt-2)}
+.skm-tb tfoot td.on{color:var(--brand)}
+.skm-empty{margin:10px}
+.skm-edit{gap:6px}
+.skm-hist{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 12px}
+.skm-hist summary{font-size:12.5px;font-weight:700;color:var(--txt-2);cursor:pointer}
+.skm-hist .bk-log{margin-top:8px}
+@media(max-width:960px){
+  .skm{--nmw:160px;--dw:66px}
+  .skm-leg{display:none}
+}
+@media(max-width:640px){
+  .skm-page,.skm{gap:8px}
+  .skm{--nmw:112px;--dw:54px}
+  .skm-top{gap:6px}
+  .skm-pb{min-height:38px;padding:4px 9px;border-radius:11px}
+  .skm-pb b,.skm-br select{font-size:12.5px}
+  .skm-br select{max-width:150px}
+  .skm-adm{margin-left:0;width:100%;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .skm-ab{height:30px;font-size:11.5px;padding:0 9px}
+  .skm-card{padding:8px 9px;gap:7px;border-radius:14px}
+  .skm-chip{height:30px;padding:0 10px;font-size:12px}
+  .skm-chip small{font-size:11px}
+  .skm-nav button{width:28px;height:28px}
+  .skm-nav b{min-width:82px;font-size:12px}
+  .skm-hint{font-size:11px;padding:2px 8px}
+  .skm-hint .l{display:none}
+  .skm-leg{display:none}
+  .skm-close{height:32px;padding:0 11px;font-size:12px;border-radius:10px}
+  .skm-own{font-size:11.5px;padding:5px 8px}
+  .skm-own-b{height:26px;font-size:11.5px}
+  .skm-q{flex-basis:118px;min-width:110px;height:30px;font-size:12.5px}
+  .skm-t{height:30px;font-size:11.5px;padding:0 8px}
+  .skm-mx{margin:0 -14px;border-radius:0;border-left:0;border-right:0}
+  .skm-hd,.skm-sc{border-radius:0}
+  .skm-hn{padding:5px 7px;font-size:11px}
+  .skm-hn small{font-size:9.5px}
+  .skm-hc{padding:4px 2px}
+  .skm-db{min-height:48px;border-radius:10px;padding:3px 1px;gap:0}
+  .skm-db .w{font-size:9.5px}
+  .skm-db .n{font-size:15px}
+  .skm-db .s,.skm-db .e{display:none}
+  .skm-db .ss{display:block}
+  .skm-db.today::after{top:4px;right:4px;width:6px;height:6px}
+  .skm-tb td{height:40px;font-size:12.5px}
+  .skm-tb td.skm-nm{padding:4px 6px 4px 8px}
+  .skm-nm b{font-size:12px;line-height:1.15}
+  .skm-nm small{font-size:10px;gap:4px;margin-top:1px}
+  .skm-us{font-size:10.5px;height:18px;max-width:60px;padding:0 12px 0 4px}
+  .skm-cell{padding:0 3px}
+  .skm-in{height:32px;font-size:16px;border-radius:8px}
+  .skm-hq{width:16px;height:16px;font-size:10px;top:-6px;left:-1px}
+  .skm-tb td.on.sum b{font-size:13px}
+  .skm-tb tfoot td{height:30px;font-size:11px}
+  .skm-tb tfoot td.skm-nm{font-size:10.5px}
 }
 
 /* ==SOP-CSS-BEGIN== */
@@ -6203,6 +6412,34 @@ const seedDemoAtt = (emps) => {
     }
   });
   return out;
+};
+/* Kho mẫu cho chế độ demo: chi nhánh B1 chia 3 khu, 6 ngày gần nhất có chốt / đang đếm / bỏ sót — chỉ để xem màn đếm */
+const seedDemoStock = (mats) => {
+  const codes = mats.map(m => m.code);
+  const zones = [{ id: 'z1', name: 'Kho Voi' }, { id: 'z2', name: 'Sơ Chế', items: codes.filter((_, i) => i % 3 === 0) }, { id: 'z3', name: 'Pha Chế', items: codes.filter((_, i) => i % 2 === 1) }];
+  const stocks = {};
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const plan = { 6: 'close', 5: 'close', 4: 'close', 2: 'close', 1: 'live' };
+  Object.keys(plan).forEach(back => {
+    const d = new Date(t); d.setDate(d.getDate() - back);
+    const dk = dKey(d), at = dk + 'T21:30:00.000Z';
+    const parts = {}, items = {};
+    codes.forEach((c, i) => {
+      if (plan[back] === 'live' && i % 2) return;
+      const o = {};
+      zones.forEach((z, zi) => { if (!z.items || z.items.includes(c)) o[z.id] = Math.max(0, ((i * 7 + zi * 5) % 23) + 3 - +back); });
+      parts[c] = o; items[c] = Object.values(o).reduce((a, b) => a + b, 0);
+    });
+    const id = 'B1_' + dk;
+    if (plan[back] === 'close') {
+      const snap = { at, by: 'E001', byName: 'Trần Quốc Bảo', kind: 'close', items, parts, raw: {}, btp: {}, btpNvl: {}, zones, note: '', n: Object.keys(items).length };
+      stocks[id] = { id, branchId: 'B1', date: dk, snaps: [snap], closed: true, closedBy: 'E001', closedName: 'Trần Quốc Bảo', closedAt: at, at2359: dk + 'T23:59:59', items };
+    } else {
+      const f = {}; Object.keys(parts).forEach(c => { f[c] = {}; Object.keys(parts[c]).forEach(z => { f[c][z] = String(parts[c][z]); }); });
+      stocks[id] = { id, branchId: 'B1', date: dk, live: { at, lastBy: 'E009', lastName: 'Hoàng Gia Vĩ', f, fr: {}, fb: {}, by: {}, items, btpNvl: {} } };
+    }
+  });
+  return { cfg: { stockItems: { B1: codes }, stkZones: { B1: zones } }, stocks };
 };
 const seedEmployees = () => ([
   { id:'E001', code:'ZS-0001', name:'Trần Quốc Bảo',   role:'ADMIN', branches:['B1','B2','B3','B4'], posId:'P10', deptId:'D6', type:'Fulltime', phone:'0901 234 001', email:'bao.tq@vinuong.vn', joined:'2023-02-01', pw:'123456', status:'active', contract:'Chính thức', base:22000000, avatar:'' },
@@ -24154,7 +24391,7 @@ const voiceParse = (text, cands) => {
   return { add, hits, errs };
 };
 
-function StockCountModal({ bid, date, onClose }) {
+function StkCountPane({ bid, date, days, today, onDate, onShift, zonePref, onZone }) {
   /* Tồn hệ thống cần thêm ba nguồn: phiếu mua (nhập), doanh số (xuất bán), phiếu huỷ/điều chuyển.
      Nạp ở đây chứ không nạp sẵn toàn app — chỉ người đang mở màn hình đếm mới cần tới. */
   useNeed('po', 'sales', 'mv', 'rcp');
@@ -24253,7 +24490,14 @@ function StockCountModal({ bid, date, onClose }) {
     Object.keys(out0.fr || {}).forEach(c => Object.keys(out0.fr[c] || {}).forEach(z => putRaw(b, c, z, out0.fr[c][z])));
     return b;
   });
-  const [tab, setTab] = useState(() => zones[0].id);
+  const [tab, setTab] = useState(() => {
+    const z = zonePref && zonePref.id;
+    return z === 'sum' || z === 'btp' || zones.some(x => x.id === z) ? z : zones[0].id;
+  });
+  /* 'zone': đang xem / giữ một khu (chỉ người giữ mới sửa được); 'sum': xem tổng hợp mọi khu */
+  const [mode, setMode] = useState(() => (zonePref && zonePref.id === 'sum' ? 'sum' : 'zone'));
+  const [myZone, setMyZone] = useState(null);
+  const lastAct = useRef(Date.now());
   const [q, setQ] = useState('');
   const [note, setNote] = useState(() => ('note' in out0 ? out0.note : (live && live.note)) || '');
   /* Ô đã có người đụng tới trong lần đếm này ('khu|mã') — tính CHUNG cả nhóm: ô nào ai đó đã điền hôm nay
@@ -24326,6 +24570,60 @@ function StockCountModal({ bid, date, onClose }) {
   const [rmt, setRmt] = useState({});
   /* Ô đang bị người khác giữ (đang gõ) — trả về người đó, không thì null */
   const lockedBy = (code, zid) => others.find(w => w.c === code && w.z === zid && Date.now() - Date.parse(w.at) < LOCK_MS) || null;
+  /* ---- NHẬN KHU ----
+     Ai vào khu trước thì giữ khu (ghi bằng transaction: hai người bấm cùng lúc chỉ một người được). Còn thao
+     tác thì 30 giây gia hạn một lần; 2 phút không thao tác (hay tắt app) là khu tự mở. Quản lý giành được. */
+  const CLAIM_MS = 120000;
+  const claimOf = (zid) => {
+    const c = ((liveDoc && liveDoc.claim) || {})[zid];
+    return c && c.uid && Date.now() - Date.parse(c.at) < CLAIM_MS ? c : null;
+  };
+  const zoneName = (zid) => zid === 'btp' ? 'BTP' : ((zones.find(z => z.id === zid) || {}).name || '');
+  const enterZone = async (zid, force) => {
+    const c = claimOf(zid);
+    if (!canCountBase || (c && c.uid !== user.id && !force)) { setMyZone(null); setTab(zid); setMode('zone'); return; }
+    if (cloud && db) {
+      const ref = db.collection(COL_STKLIVE).doc(liveId);
+      try {
+        await db.runTransaction(async tx => {
+          const s = await tx.get(ref);
+          const cc = ((s.exists ? s.data() : {}).claim || {})[zid];
+          if (!force && cc && cc.uid && cc.uid !== user.id && Date.now() - Date.parse(cc.at) < CLAIM_MS) throw new Error('busy:' + (cc.n || 'Người khác'));
+          tx.set(ref, { id: liveId, branchId: bid, date, claim: { [zid]: { uid: user.id, n: user.name || user.id, at: new Date().toISOString() } } }, { merge: true });
+        });
+      } catch (e) {
+        const m = String((e && e.message) || '');
+        if (m.indexOf('busy:') === 0) { toast(m.slice(5) + ' vừa nhận khu này — bạn chỉ xem được'); setMyZone(null); setTab(zid); setMode('zone'); return; }
+        toast('Mất mạng nên chưa kiểm tra được ai đang đếm khu này — vẫn cho đếm, số tự gửi khi có mạng');
+      }
+    }
+    lastAct.current = Date.now();
+    setMyZone(zid); setTab(zid); setMode('zone');
+  };
+  const freeZone = (z) => { if (z && cloud && window.firebase) putDoc(COL_STKLIVE, liveId, { claim: { [z]: firebase.firestore.FieldValue.delete() } }); };
+  const leaveZone = () => {
+    clearTimeout(flushT.current); if (flushFn.current) flushFn.current();
+    freeZone(myZone);
+    setMyZone(null); setMode('pick'); setTodo(false); setQ(''); stopMic && micOn.current && stopMic();
+  };
+  /* Gia hạn giữ khu khi còn thao tác trong 2 phút gần nhất */
+  useEffect(() => {
+    if (!myZone || !cloud) return undefined;
+    const t = setInterval(() => {
+      if (Date.now() - lastAct.current < CLAIM_MS)
+        putDoc(COL_STKLIVE, liveId, { claim: { [myZone]: { uid: user.id, n: user.name || user.id, at: new Date().toISOString() } } });
+    }, 30000);
+    return () => clearInterval(t);
+  }, [myZone]);
+  /* Đóng màn đếm thì nhả khu đang giữ */
+  const myZoneRef = useRef(null); myZoneRef.current = myZone;
+  useEffect(() => () => freeZone(myZoneRef.current), []);
+  /* Bị quản lý giành quyền / hết hạn rồi người khác nhận → chuyển sang chỉ xem */
+  useEffect(() => {
+    if (!myZone || !cloud || !liveDoc) return;
+    const c = ((liveDoc.claim) || {})[myZone];
+    if (c && c.uid && c.uid !== user.id) { setMyZone(null); toast(c.n + ' đã nhận khu ' + zoneName(myZone) + ' — bạn chuyển sang chỉ xem'); }
+  }, [liveDoc]);
   /* Đóng màn hình giữa chừng thì ghi nốt phần còn chờ */
   useEffect(() => () => { clearTimeout(flushT.current); if (flushFn.current) flushFn.current(); }, []);
   const liveSig = (legacyLive ? legacyLive.at : '') + '|' + (freshLive ? freshLive.at : '');
@@ -24383,7 +24681,9 @@ function StockCountModal({ bid, date, onClose }) {
   /* Ngày đã KHOÁ (quản trị) là thứ duy nhất chặn ghi. Đã CHỐT thì vẫn nhập tiếp và chốt lại được:
      ca sau phát hiện đếm sai mà phải đi xin mở lại thì số cuối ngày còn sai lâu hơn. */
   const lockedD = stkLocked(cfg, date);
-  const canCount = canStockCount(user) && !lockedD;
+  const canCountBase = canStockCount(user) && !lockedD;
+  /* Trong một khu chỉ người ĐANG GIỮ khu mới sửa được; người khác vào xem thì chỉ đọc */
+  const canCount = canCountBase && (mode !== 'zone' || !cloud || myZone === tab);
   const canClose = canStockClose(user) && !lockedD;
   const nameOf = (id) => (employees.find(e => e.id === id) || {}).name || id;
   /* Tồn hệ thống — tính lại mỗi khi doanh số / phiếu nhập / phiếu huỷ đổi. Doanh số từ KiotViet
@@ -24445,7 +24745,7 @@ function StockCountModal({ bid, date, onClose }) {
   /* Chép số mờ cho mọi mã CHƯA có số ở khu đang mở — một lần bấm thay vì chạm từng dòng */
   const takeGhostAll = (zid) => {
     let n = 0;
-    zItems(zid).forEach(it => { if (numOf((f[it.code] || {})[zid]) == null && ghostOf(it.code, zid) && !lockedBy(it.code, zid)) { takeGhost(it.code, zid); n++; } });
+    zItems(zid).forEach(it => { if (numOf((f[it.code] || {})[zid]) == null && ghostOf(it.code, zid) && !lockedBy(it.code, zid)) { keepGhost(it.code, zid); n++; } });
     toast(n ? 'Đã chép số ngày ' + dShort(ghost.date) + ' cho ' + n + ' mã' : 'Không còn mã nào trống có số hôm trước');
   };
   /* Ghi một ô theo dạng gốc: tự quy ra ĐVT kho cho f, còn dạng gốc cất ở fr */
@@ -24454,6 +24754,7 @@ function StockCountModal({ bid, date, onClose }) {
     const used = parts.filter(p => numOf(p.q) != null);
     const v = used.length ? String(stkRound(used.reduce((s, p) => s + numOf(p.q) * kk(p.u), 0))) : '';
     markSeen(zid, code);
+    lastAct.current = Date.now();
     const plain = parts.length === 1 && parts[0].u === baseU(code);
     /* Cất vào hộp chờ gửi NGAY từng phím — không đợi nhịp gửi 0,3 giây: máy tắt ngang giữa chừng cũng không mất */
     if (canStockCount(user) && !stkLocked(cfg, date)) {
@@ -24500,10 +24801,9 @@ function StockCountModal({ bid, date, onClose }) {
     const u = String((newU || {}).u || '').trim(), k = numOf(newU && newU.k);
     if (!u || !(k > 0)) return toast('Nhập tên đơn vị và 1 ' + (u || 'đơn vị') + ' bằng bao nhiêu ' + baseU(newU.code));
     if (unitsOf(newU.code).some(x => stkUnitNorm(x.u) === stkUnitNorm(u))) return toast('Mã này đã có đơn vị "' + u + '"');
-    saveCfg({ items: (cfg.items || []).map(x => x.code === newU.code
+    /* Khai xong thì khu đó đếm luôn bằng đơn vị mới */
+    saveZoneU(newU.code, newU.zid, u, { items: (cfg.items || []).map(x => x.code === newU.code
       ? { ...x, units: [...(x.units || []), { u, k }] } : x) });
-    const ps = cellParts(newU.code, newU.zid);
-    setCell(newU.code, newU.zid, [{ ...ps[0], u }, ...ps.slice(1)], { [u]: k });
     toast('Đã thêm đơn vị: 1 ' + uCap(u) + ' = ' + numTxt(k) + ' ' + uCap(baseU(newU.code)));
     setNewU(null);
   };
@@ -24696,17 +24996,118 @@ function StockCountModal({ bid, date, onClose }) {
   };
   useEffect(() => () => { micOn.current = false; try { recRef.current && recRef.current.abort(); } catch (_) {} }, []);
   useEffect(() => { if (tab === 'sum' && micOn.current) stopMic(); setEditZ(false); setNewU(null); }, [tab]);
-  /* Đặt mép dính của hàng tab đúng bằng chiều cao tiêu đề hộp thoại (tiêu đề dài xuống 2 dòng thì cao hơn) */
-  const headRef = useRef(null);
+  /* ---- MA TRẬN NGÀY × MÃ (10/2026) ----
+     Không còn hộp thoại: lịch trải ngang 13 ngày trên đầu bảng, cột đang mở là ô nhập, các cột khác là số đã đếm
+     của khu đang chọn — cột hôm qua luôn nằm sát bên trái để so. Mỗi KHU đếm MỘT đơn vị cho mỗi mã, chọn ở đầu
+     dòng (cfg.stkZoneU[chi nhánh][khu][mã]). Số vẫn lưu theo ĐVT kho như cũ nên đổi đơn vị chỉ đổi cách hiện và
+     cách gõ, không đụng số đã đếm. Phần lưu từng ô / hộp chờ gửi / nhận khu / chốt giữ nguyên như bản hộp thoại. */
+  const zoneUOf = (code, zid) => {
+    const u = ((((cfg.stkZoneU || {})[bid] || {})[zid]) || {})[code];
+    return u && unitsOf(code).some(x => x.u === u) ? u : defU(code);
+  };
+  const rowU = (code) => (tab === 'sum' ? defU(code) : zoneUOf(code, tab));
+  const inU = (code, v, u) => (v == null ? null : stkRound(v / kOf(code, u)));
+  const saveZoneU = (code, zid, u, extra) => {
+    const all = cfg.stkZoneU || {}, b = all[bid] || {};
+    saveCfg({ ...(extra || {}), stkZoneU: { ...all, [bid]: { ...b, [zid]: { ...(b[zid] || {}), [code]: u } } } });
+  };
+  /* Ô đang gõ giữ nguyên chữ người gõ ("2," "0,") — số quy đổi chỉ hiện lại khi rời ô */
+  const [edit, setEdit] = useState(null);
+  const cellTxt = (code, zid) => {
+    const k = zid + '|' + code;
+    if (edit && edit.k === k) return edit.t;
+    const v = inU(code, numOf((f[code] || {})[zid]), zoneUOf(code, zid));
+    return v == null ? '' : String(v);
+  };
+  const typeCell = (code, zid, t) => { setEdit({ k: zid + '|' + code, t }); setCell(code, zid, [{ q: t, u: zoneUOf(code, zid) }]); };
+  /* Số ngày gần nhất có đếm (thường là hôm qua) — theo đơn vị của khu */
+  const ghostV = (code, zid) => {
+    if (!ghost) return null;
+    const v = numOf((ghost.f[code] || {})[zid]);
+    return v == null ? null : inU(code, v, zoneUOf(code, zid));
+  };
+  const keepGhost = (code, zid) => {
+    const lk = lockedBy(code, zid);
+    if (lk) return toast(lk.n + ' đang gõ ô này — chờ chút');
+    const g = ghostV(code, zid);
+    if (g != null) setCell(code, zid, [{ q: String(g), u: zoneUOf(code, zid) }]);
+  };
+  /* Số của các ngày khác trong cửa sổ: bản chốt, hoặc số đang đếm (live) nếu mới hơn */
+  const daySnap = useMemo(() => (days || []).map(d => (d === date || d > today) ? null : stkLatest(stocks[stkKey(bid, d)])),
+    [(days || []).join(','), stocks, bid, date, today]);
+  const snapVal = (s, code, zid) => {
+    if (!s) return null;
+    if (zid === 'sum') return (s.items || {})[code] != null ? s.items[code] : null;
+    const P = s.parts || {};
+    if (Object.keys(P).length) { const pz = P[code]; return pz && pz[zid] != null ? pz[zid] : null; }
+    /* Bản cũ chưa chia khu: dồn hết vào khu đầu */
+    if (zid !== zones[0].id || (s.items || {})[code] == null) return null;
+    return stkRound(s.items[code] - ((s.btpNvl || {})[code] || 0));
+  };
+  const snapN = (s) => {
+    if (!s) return null;
+    const P = s.parts || {};
+    const n = Object.keys(P).length ? Object.keys(P).reduce((a, c) => a + Object.keys(P[c] || {}).length, 0)
+      : Object.keys(s.items || {}).filter(c => s.items[c] != null).length;
+    return n + Object.keys(s.btp || {}).length;
+  };
+  const DI = (days || []).map(d => {
+    const r = stocks[stkKey(bid, d)] || null, k = stkStatus(r, d, today);
+    const s = stkLocked(cfg, d) ? 'lock' : k === 'closed' ? 'ok' : k === 'doing' ? 'doing' : k === 'miss' ? 'miss' : k === 'today' ? 'today' : 'fut';
+    return { s, ...SKM_ST[s] };
+  });
+  const scRef = useRef(null), hdRef = useRef(null), rootRef = useRef(null);
+  const syncHd = () => { if (hdRef.current && scRef.current) hdRef.current.scrollLeft = scRef.current.scrollLeft; };
+  /* Mở ra là cuộn tới cột hôm qua + cột đang mở, ngay sau cột tên hàng */
   useLayoutEffect(() => {
-    const el = headRef.current, mh = el && el.closest('.modal') && el.closest('.modal').querySelector('.modal-h');
-    if (!el || !mh) return;
-    const fit = () => { el.style.top = mh.offsetHeight + 'px'; };
+    const sc = scRef.current;
+    if (!sc) return;
+    const i = (days || []).indexOf(date);
+    const td = sc.querySelector('tfoot td[data-i="' + Math.max(0, i - 1) + '"]'), nm = sc.querySelector('tfoot td.skm-nm');
+    sc.scrollLeft = i < 0 || !td || !nm ? 0 : Math.max(0, td.offsetLeft - nm.offsetWidth);
+    syncHd();
+  }, [(days || []).join(','), editZ, mode, tab]);
+  /* Rê chuột lên ô ngày → tô cả cột (đặt thẳng thuộc tính, không vẽ lại cả bảng) */
+  /* Hàng ngày dính ngay dưới thanh tiêu đề trang (thanh này cũng dính, cao thấp đổi theo lúc cuộn) */
+  useEffect(() => {
+    const tb = document.querySelector('.topbar:not(.topbar-home)'), el = rootRef.current;
+    if (!tb || !el) return undefined;
+    const fit = () => {
+      const cs = getComputedStyle(tb);
+      el.style.setProperty('--skm-top', (cs.position === 'sticky' || cs.position === 'fixed') && cs.display !== 'none' ? tb.offsetHeight + 'px' : '0px');
+    };
     fit();
     const ro = window.ResizeObserver ? new ResizeObserver(fit) : null;
-    if (ro) ro.observe(mh);
-    return () => ro && ro.disconnect();
-  }, [list.length]);
+    if (ro) ro.observe(tb);
+    window.addEventListener('resize', fit);
+    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', fit); };
+  }, []);
+  const hov = (i) => { const el = rootRef.current; if (el) el.setAttribute('data-hc', i == null ? '' : String(i)); };
+  const goNext = (el, dir) => {
+    const sc = scRef.current;
+    if (!sc) return;
+    const ins = [...sc.querySelectorAll('input.skm-in:not(:disabled)')];
+    const n = ins[ins.indexOf(el) + dir];
+    if (n) { n.focus(); if (n.select) n.select(); }
+  };
+  const [noteOn, setNoteOn] = useState(false);
+  const [whyOn, setWhyOn] = useState(false);
+  const [hint] = useState(() => { try { return !localStorage.getItem('vn-skm-hint'); } catch (_) { return false; } });
+  const pickDate = (d) => { try { localStorage.setItem('vn-skm-hint', '1'); } catch (_) {} if (onDate) onDate(d); };
+  /* Bấm chip: rời khu đang giữ, khu mới trống thì nhận luôn */
+  const pickZone = (zid) => {
+    if (zid === tab && (zid === 'sum' || myZone === zid)) return;
+    clearTimeout(flushT.current); if (flushFn.current) flushFn.current();
+    if (myZone && myZone !== zid) { freeZone(myZone); setMyZone(null); }
+    setTodo(false); setEdit(null); setEditZ(false);
+    if (micOn.current) stopMic();
+    if (zid === 'sum') { setTab('sum'); setMode('sum'); if (onZone) onZone({ id: 'sum', hold: false }); return; }
+    if (onZone) onZone({ id: zid, hold: true });
+    enterZone(zid);
+  };
+  const claimHere = () => { if (onZone) onZone({ id: tab, hold: true }); enterZone(tab); };
+  /* Đổi ngày (bảng dựng lại) mà trước đó đang giữ khu thì nhận lại đúng khu đó cho ngày mới */
+  useEffect(() => { if (zonePref && zonePref.hold && mode === 'zone' && canCountBase) enterZone(tab); }, []);
 
   /* Gán lại mỗi lần render để luôn ghi số MỚI NHẤT. Kèm tổng từng mã (items) để màn khác — tồn toàn hệ
      thống, lịch — đọc được số đang đếm mà không phải đợi ai chốt. */
@@ -24773,6 +25174,9 @@ function StockCountModal({ bid, date, onClose }) {
     /* Chốt chặn cuối: nút đã ẩn khi khoá, nhưng chặn ở đây nữa để không có đường vòng nào ghi được */
     if (lockedD) return toast('Ngày ' + dShort(date) + ' đã bị khoá sổ — nhờ quản trị mở khoá trước');
     if (!list.length) return toast('Chi nhánh chưa khai mã hàng nào — vào Thiết lập kho để thêm');
+    /* Còn người đang giữ khu thì chưa cho chốt — chốt giữa chừng là mất phần họ đang đếm */
+    const busy = [...zones.map(z => z.id), 'btp'].map(id => [id, claimOf(id)]).filter(([, c]) => c && c.uid !== user.id);
+    if (busy.length) return toast(busy.map(([id, c]) => c.n + ' đang đếm ' + zoneName(id)).join(', ') + ' — chờ họ thoát khu rồi chốt');
     /* Trước khi chốt: gửi nốt số của máy này, rồi hỏi MÁY CHỦ số mới nhất. Máy chốt có thể chậm vài giây so với
        người khác đang đếm — chốt theo số cũ là đè mất số họ vừa gõ. Có ô nào khác thì lấy về, bắt xem lại rồi chốt. */
     if (cloud && db) {
@@ -24854,7 +25258,6 @@ function StockCountModal({ bid, date, onClose }) {
     closeStock(next.id, patch, snap);
     try { localStorage.removeItem(outKey); } catch (_) {}
     toast('Đã chốt tồn ngày ' + dShort(date));
-    onClose();
   };
 
   const nq = noAccent(q.trim()).toLowerCase();
@@ -24879,321 +25282,330 @@ function StockCountModal({ bid, date, onClose }) {
   };
   const diffCls = (d) => d == null ? '' : d < 0 ? 'neg' : d > 0 ? 'pos' : 'zero';
   const sgn = (d) => d == null ? '—' : (d > 0 ? '+' : '') + numTxt(d);
-  const isZone = zones.some(z => z.id === tab);
+  const isZone = mode === 'zone' && zones.some(z => z.id === tab);
   const curZ = zones.find(z => z.id === tab);
 
+  const isSum = mode === 'sum', isB = mode === 'zone' && tab === 'btp';
+  const cl = mode === 'zone' ? claimOf(tab) : null;
+  const heldBy = cl && cl.uid !== user.id ? cl : null;
+  const mineZ = mode === 'zone' && myZone === tab;
+  /* Khu đang trống mà mình có quyền đếm: chạm vào ô là nhận khu */
+  const canClaim = mode === 'zone' && canCountBase && !canCount && !heldBy;
+  const cellsTot = zones.reduce((s, z) => s + zItems(z.id).length, 0) + btps.length;
+  const openN = zones.reduce((s, z) => s + zFilled(z.id), 0) + bFilled;
+  const yest = dAdd(date, -1);
+  const hasGhostEmpty = mode === 'zone' && !isB && canCount && !!ghost
+    && zItems(tab).some(it => numOf((f[it.code] || {})[tab]) == null && ghostOf(it.code, tab));
+  const chips = [...zones.map(z => ({ id: z.id, name: z.name, n: zFilled(z.id), t: zItems(z.id).length })),
+    ...(btps.length ? [{ id: 'btp', name: 'BTP', n: bFilled, t: btps.length }] : []),
+    { id: 'sum', name: 'Tổng hợp', n: filled, t: list.length }];
+  const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  const lastNm = (n) => String(n || '').trim().split(/\s+/).pop();
+  const syncTxt = sync.st === 'saving' ? 'Đang gửi…'
+    : sync.st === 'slow' ? '⚠ Chưa lên máy chủ — số vẫn giữ trên máy, có mạng tự gửi'
+    : sync.st === 'err' ? '⚠ Gửi lỗi (' + sync.msg + ') — số vẫn giữ trên máy'
+    : sync.at ? '✓ Đã lưu ' + fmtTime(new Date(sync.at)) : '● Gõ là tự lưu';
+  const keyNav = (e) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown') { e.preventDefault(); goNext(e.target, 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); goNext(e.target, -1); }
+  };
+  /* Gọi như hàm thường, KHÔNG dùng <Comp/>: component khai trong render bị dựng lại mỗi lần gõ → mất con trỏ */
+  const inCell = (code) => {
+    const k = tab + '|' + code, lk = lockedBy(code, tab), txt = cellTxt(code, tab);
+    const g = txt === '' && canCount && !lk ? ghostV(code, tab) : null;
+    return (
+      <div className={'skm-cell' + (lk ? ' lk' : '')}>
+        {g != null && <button type="button" className="skm-hq" tabIndex={-1} aria-label={'Giữ số ngày ' + dShort(ghost.date) + ': ' + numTxt(g)}
+          title={'Giữ số ngày ' + dShort(ghost.date) + ': ' + numTxt(g)} onClick={() => keepGhost(code, tab)}>↺</button>}
+        <input className="skm-in mono" inputMode="decimal" enterKeyHint="next" autoComplete="off"
+          disabled={!(canCount || canClaim) || !!lk} readOnly={!canCount}
+          placeholder={lk ? initials(lk.n) + '…' : '—'} title={lk ? lk.n + ' đang gõ ô này' : ''}
+          value={stkFmtIn(txt)}
+          onFocus={() => { if (!canCount) { if (canClaim) claimHere(); return; } markSeen(tab, code); pingWho(code, tab); }}
+          onBlur={() => { setEdit(e => (e && e.k === k ? null : e)); releaseWho(code, tab); }}
+          onChange={e => { if (!canCount) return; pingWho(code, tab); typeCell(code, tab, stkParseIn(e.target.value, stkFmtIn(txt))); }}
+          onKeyDown={keyNav} />
+      </div>
+    );
+  };
+  const inB = (key) => {
+    const k = 'btp|' + key, txt = edit && edit.k === k ? edit.t : (fb[key] == null ? '' : String(fb[key]));
+    const g = txt === '' && canCount && ghost && ghost.fb[key] != null ? ghost.fb[key] : null;
+    return (
+      <div className="skm-cell">
+        {g != null && <button type="button" className="skm-hq" tabIndex={-1} title={'Giữ số ngày ' + dShort(ghost.date) + ': ' + stkFmtIn(g)}
+          onClick={() => { setFb(p => ({ ...p, [key]: String(g) })); queue('b|' + key); }}>↺</button>}
+        <input className="skm-in mono" inputMode="decimal" enterKeyHint="next" autoComplete="off"
+          disabled={!(canCount || canClaim)} readOnly={!canCount} placeholder="—" value={stkFmtIn(txt)}
+          onFocus={() => { if (!canCount && canClaim) claimHere(); }}
+          onBlur={() => setEdit(e => (e && e.k === k ? null : e))}
+          onChange={e => {
+            if (!canCount) return;
+            const t = stkParseIn(e.target.value, stkFmtIn(txt));
+            setEdit({ k, t }); setFb(p => ({ ...p, [key]: t })); queue('b|' + key);
+          }}
+          onKeyDown={keyNav} />
+      </div>
+    );
+  };
+  const nameTd = (it) => {
+    const u = rowU(it.code), book = sysOf(it.code);
+    const pe = others.filter(w => w.c === it.code && w.z === tab);
+    return (
+      <td className="skm-nm">
+        <b title={it.name + ' · ' + it.code}>{pe.map(w => <span key={w.id} className="sk-who" title={w.n + ' đang gõ ô này'}>{initials(w.n)}</span>)}{it.name}</b>
+        <small>
+          {!isSum && canCfg && !lockedD
+            ? <select className="skm-us" value={u} title="Đơn vị đếm của khu này — đổi là áp từ giờ trở đi"
+                onChange={e => { if (e.target.value === '__new') setNewU({ code: it.code, zid: tab, u: '', k: '' }); else saveZoneU(it.code, tab, e.target.value); }}>
+                {unitsOf(it.code).map(x => <option key={x.u} value={x.u}>{uCap(x.u) || '—'}</option>)}
+                <option value="__new">＋ Đơn vị khác…</option>
+              </select>
+            : <span className="skm-u">{uCap(u) || '—'}</span>}
+          {book != null && <span className="skm-ht" title={sysTitle(it.code)}>HT {numTxt(inU(it.code, book, u))}</span>}
+        </small>
+      </td>
+    );
+  };
+  const vTd = (d, i, v, txt) => (
+    <td key={d} data-i={i} className={'v-' + DI[i].s + (d === yest ? ' y' : '')}>{v == null ? <span className="nil">·</span> : txt}</td>
+  );
+  const ownCls = mineZ ? ' me' : (heldBy || isSum || lockedD || !canCountBase) ? ' ro' : canClaim ? ' free' : '';
+
   return (
-    <Modal wide title={'Đếm tồn ' + dShort(date)}
-      sub={branchOf(bid).name + ' · ' + list.length + ' mã · ' + zones.length + ' khu' + (closed ? ' · đã chốt' : '')}
-      onClose={onClose}
-      footer={<div className="sk-ft">
-        <span className="sk-foot-n">
-          <span>Đã đếm <b>{zones.reduce((s, z) => s + zSeen(z.id), 0)}/{zones.reduce((s, z) => s + zItems(z.id).length, 0)}</b> ô · có số <b>{filled}/{list.length}</b> mã</span>
-          <i className="sk-prog"><i style={{ width: Math.round(100 * zones.reduce((s, z) => s + zSeen(z.id), 0) / Math.max(1, zones.reduce((s, z) => s + zItems(z.id).length, 0))) + '%' }} /></i>
-        </span>
-        {/* Không còn nút lưu: gõ là tự lưu và đồng bộ cho mọi máy đang mở. Chỉ còn Chốt — số chính thức cuối ngày */}
-        <span className={'sk-sync ' + sync.st}>
-          {sync.st === 'saving' ? 'Đang gửi lên máy chủ…'
-            : sync.st === 'slow' ? '⚠ Chưa lên máy chủ — mạng yếu? Số vẫn giữ trên máy này, có mạng sẽ tự gửi'
-            : sync.st === 'err' ? '⚠ Gửi lỗi (' + sync.msg + ') — số vẫn giữ trên máy này, thử tải lại app'
-            : sync.at ? '✓ Máy chủ đã nhận ' + fmtTime(new Date(sync.at)) : '● Tự lưu khi gõ'}
-          {live && live.lastName && live.lastBy !== user.id ? <small> · {live.lastName} vừa sửa</small> : null}
-        </span>
-        <button className="btn btn-o sk-ft-x" onClick={onClose}>Đóng</button>
-        {canClose && <button className="btn btn-p" onClick={() => write('close')}>
-          <Ic.check size={15} /> {closed ? 'Chốt lại' : 'Chốt cuối ngày'}
-        </button>}
-      </div>}>
-      {lockedD && (
-        <div className="pay-calc bad" style={{ marginBottom: 12 }}><span>
-          Ngày <b>{dShort(date)}</b> đã bị <b>KHOÁ SỔ</b> — số tồn của ngày này không sửa được nữa,
-          kể cả người có quyền chốt. Bạn vẫn xem được số và lịch sử đếm bên dưới.
-          Cần sửa thì nhờ <b>quản trị mở khoá</b> ở nút <b>🔒 Khoá tồn kho ngày</b> trong tab Lịch đếm tồn.
-        </span></div>
-      )}
-      {closed && (
-        <div className="pay-calc" style={{ marginBottom: 12 }}><span>
-          Ngày này đã <b>chốt</b> lúc {fmtDT(rec.closedAt)} bởi <b>{rec.closedName || nameOf(rec.closedBy)}</b>.
-          Phát hiện sai thì cứ sửa lại số rồi bấm <b>Chốt cuối ngày</b> lần nữa — bản chốt mới đè lên bản cũ.
-        </span></div>
-      )}
-      {ghost && canCount && filled < list.length ? (
-        <div className="sk-note">
-          <span>Ô trống = chưa đếm · <b>HQ</b> = số ngày {dShort(ghost.date)}, chạm <b>↺</b> để giữ nguyên.</span>
+    <div className="skm" ref={rootRef}>
+      <div className="skm-card">
+        <div className="skm-chips">
+          {chips.map(z => {
+            const c = z.id === 'sum' ? null : claimOf(z.id), mine = !!(c && c.uid === user.id);
+            return (
+              <button key={z.id} type="button" className={'skm-chip' + (tab === z.id ? ' on' : '') + (z.id === 'sum' ? ' sum' : '')}
+                onClick={() => pickZone(z.id)}>
+                {mine && <i className="me" />}{z.name} <small className="mono">{z.n}/{z.t}</small>
+                {c && !mine && <span className="lk">🔒 {lastNm(c.n)}</span>}
+              </button>
+            );
+          })}
         </div>
-      ) : null}
+        <div className="skm-bar">
+          <div className="skm-nav">
+            <button type="button" onClick={() => onShift && onShift(-7)} aria-label="Lùi 7 ngày">‹</button>
+            <b className="mono">{dShort(days[0])} – {dShort(days[days.length - 1])}</b>
+            <button type="button" onClick={() => onShift && onShift(7)} aria-label="Tới 7 ngày">›</button>
+          </div>
+          {hint && <span className="skm-hint">👆 <span className="l">Bấm ô ngày để mở cột đếm</span><span className="s">Bấm ngày để đếm</span></span>}
+          <span className="skm-leg">
+            {['ok', 'doing', 'miss', 'lock', 'today'].map(k => <span key={k}><i className={'st-' + k} />{SKM_ST[k].l}</span>)}
+          </span>
+          {canClose && list.length > 0 && (
+            <button type="button" className="skm-close" onClick={() => write('close')}>
+              <Ic.check size={14} /> {closed ? 'Chốt lại' : 'Chốt ngày'} {dShort(date)}
+            </button>
+          )}
+        </div>
+        <div className={'skm-own' + ownCls}>
+          <span className="skm-own-t">
+            {isSum ? <>Tổng mọi khu theo từng mã — chỉ xem, muốn sửa thì vào đúng khu.</>
+              : lockedD ? <>🔒 Ngày {dShort(date)} đã khoá sổ — chỉ xem.</>
+              : !canCountBase ? <>Bạn chỉ xem được số đếm.</>
+              : !cloud ? <>Đang đếm <b>{zoneName(tab)}</b> · ngày {dShort(date)}</>
+              : mineZ ? <>● Bạn đang giữ <b>{zoneName(tab)}</b> — người khác chỉ xem. 2 phút không thao tác thì khu tự mở.</>
+              : heldBy ? <>👁 <b>{heldBy.n}</b> đang đếm {zoneName(tab)} — bạn chỉ xem.</>
+              : <>Khu <b>{zoneName(tab)}</b> đang trống — chạm vào ô là nhận khu.</>}
+            {others.length > 0 && <span className="skm-peers"> · Cùng đếm: {others.map(w => w.n + (w.z ? ' (' + zoneName(w.z) + ')' : '')).join(', ')}</span>}
+          </span>
+          {canClaim && <button type="button" className="skm-own-b" onClick={claimHere}>Nhận khu</button>}
+          {heldBy && canCfg && !lockedD && (
+            <button type="button" className="skm-own-b" onClick={async () => {
+              if (await zsAsk('Giành quyền khu ' + zoneName(tab) + ' từ ' + heldBy.n + '?\n\nHọ sẽ chuyển sang chỉ xem, số họ đã gõ vẫn giữ nguyên.')) { if (onZone) onZone({ id: tab, hold: true }); enterZone(tab, true); }
+            }}>Giành quyền</button>
+          )}
+          <span className={'sk-sync ' + sync.st}>{syncTxt}{live && live.lastName && live.lastBy !== user.id ? <small> · {live.lastName} vừa sửa</small> : null}</span>
+        </div>
+        {list.length > 0 && (
+          <div className="skm-tools">
+            {!isB && <input className="skm-q" type="search" placeholder="Tìm mã, tên…" value={q} onChange={e => setQ(e.target.value)} />}
+            {hasGhostEmpty && <button type="button" className="skm-t" onClick={() => takeGhostAll(tab)}
+              title={'Chép số ngày ' + dShort(ghost.date) + ' cho mọi mã chưa có số ở khu này'}>↺ Như hôm qua</button>}
+            {mode === 'zone' && !isB && !editZ && <button type="button" className={'skm-t' + (todo ? ' on' : '')} onClick={() => setTodo(!todo)}>
+              Chưa đếm <b>{Math.max(0, zItems(tab).length - zSeen(tab))}</b></button>}
+            {canCount && !isSum && <button type="button" className={'skm-t' + (mic ? ' on mic' : '')} onClick={mic ? stopMic : startMic}
+              title='Bấm rồi đọc: "sữa đặc ba hộp", "đường hai ký rưỡi". Nói "thêm …" để cộng dồn.'>
+              <Ic.mic size={14} /> {mic ? 'Tắt mic' : 'Giọng nói'}</button>}
+            {(canCount || note) && <button type="button" className={'skm-t' + (noteOn ? ' on' : '')} onClick={() => setNoteOn(!noteOn)}>
+              📝 Ghi chú{note ? ' •' : ''}</button>}
+            {canCfg && mode === 'zone' && !isB && !lockedD && <button type="button" className={'skm-t' + (editZ ? ' on' : '')} onClick={() => setEditZ(!editZ)}>
+              {editZ ? '✓ Xong' : 'Thêm/bớt mã'}</button>}
+            <button type="button" className={'skm-t' + (whyOn ? ' on' : '')} onClick={() => setWhyOn(!whyOn)}>ⓘ Tồn HT</button>
+          </div>
+        )}
+        {noteOn && (
+          <div className="skm-pan">
+            <input className="inp" placeholder="Ghi chú bàn giao: thiếu 2 lon do khách trả lại, đã báo quản lý…" value={note} disabled={!canCount}
+              onChange={e => { setNote(e.target.value); queue('n'); }} />
+          </div>
+        )}
+        {whyOn && (
+          <div className="skm-pan hint">
+            {sys.ok
+              ? <><b>Tồn hệ thống (HT)</b> = đầu kỳ (chốt {dShort(sys.baseDate)}) + nhập − xuất sử dụng NVL (bán × định mức) − huỷ ± chuyển,
+                cộng dồn tới {dShort(date)}; số bán KiotViet về mỗi giờ nên còn nhúc nhích. <b>Cứ đếm đúng thứ bạn thấy</b> — lệch không phải đếm sai, đó chính là thứ cần tìm ra.</>
+              : <>Cơ sở này chưa có <b>bản chốt ngày {dShort(sys.baseDate)}</b> (mốc đầu kỳ) nên chưa tính được tồn hệ thống. Mốc đầu kỳ đặt ở tab <b>Báo cáo chênh lệch</b>.</>}
+            {sys.ok && sys.soldPartial ? <div>⚠ Có tháng chưa có số bán theo ngày — cột hệ thống có thể trừ dư.</div> : null}
+          </div>
+        )}
+        {newU && (
+          <div className="skm-pan sk-newu">
+            <span className="skm-pan-t">{(list.find(x => x.code === newU.code) || {}).name}: 1</span>
+            <input autoFocus className="inp" placeholder="thùng, két…" value={newU.u} onChange={e => setNewU({ ...newU, u: e.target.value })} />
+            <span>=</span>
+            <input className="inp mono" inputMode="decimal" placeholder="24" value={newU.k}
+              onChange={e => setNewU({ ...newU, k: e.target.value.replace(/[^\d.,]/g, '') })}
+              onKeyDown={e => { if (e.key === 'Enter') saveNewUnit(); }} />
+            <span>{uCap(baseU(newU.code))}</span>
+            <button type="button" className="btn btn-p btn-sm" onClick={saveNewUnit}>Lưu</button>
+            <button type="button" className="sk-x" onClick={() => setNewU(null)} aria-label="Huỷ">✕</button>
+          </div>
+        )}
+        {canCount && !isSum && vlog.length > 0 && (
+          <div className="sk-vlog skm-vlog">
+            {vlog.map(v => (
+              <div key={v.id} className={v.ok ? 'ok' : 'bad'}>
+                <span>{v.ok ? '✓' : '✗'} {v.txt}</span>
+                {v.ok && <button type="button" onClick={() => undoVoice(v)}>Hoàn tác</button>}
+              </div>
+            ))}
+          </div>
+        )}
+        {closed && (
+          <div className="skm-ban">✓ Đã chốt {fmtDT(rec.closedAt)} · {rec.closedName || nameOf(rec.closedBy)} — sai thì sửa số rồi bấm <b>Chốt lại</b>.</div>
+        )}
+      </div>
+
+      {mic && (
+        <div className="sk-vfloat">
+          <button type="button" onClick={stopMic} aria-label="Tắt mic"><Ic.mic size={18} /></button>
+          <div>
+            <b>{heard ? '“' + heard + '”' : 'Đang nghe… đọc "sữa đặc ba hộp"'}</b>
+            {vlog[0] && <small className={vlog[0].ok ? 'ok' : 'bad'}>{vlog[0].ok ? '✓ ' : '✗ '}{vlog[0].txt}</small>}
+          </div>
+          {vlog[0] && vlog[0].ok && <button type="button" className="sk-vundo" onClick={() => undoVoice(vlog[0])}>Hoàn tác</button>}
+        </div>
+      )}
+
       {!list.length ? (
         <Empty title="Chi nhánh chưa khai mã hàng" desc="Vào Thiết lập kho để chọn mã hàng đang bán tại cơ sở này." />
+      ) : editZ ? (
+        <div className="sk-list skm-edit">
+          <div className="sk-hint sk-hint-edit">
+            <span>Tick mã <b>có ở {zoneName(tab)}</b> — bỏ tick thì khu này không hiện mã đó nữa.</span>
+            <button type="button" className="btn btn-p btn-sm" onClick={() => setEditZ(false)}>Xong</button>
+          </div>
+          {shown.map(it => (
+            <label key={it.code} className={'sk-pick' + (inZone(tab, it.code) ? ' on' : '')}>
+              <input type="checkbox" checked={inZone(tab, it.code)} onChange={() => toggleInZone(tab, it.code)} />
+              {img(it)}
+              <span><b>{it.name}</b><small className="mono">{it.code} · {uCap(it.unit) || '—'}</small></span>
+            </label>
+          ))}
+        </div>
       ) : (
-        <>
-          {/* Đây là số người đếm sẽ tin theo, nên phải nói rõ nó lấy từ đâu. Không nói thì nhân viên
-              thấy lệch là sửa số đếm cho khớp sổ — hỏng đúng cái mà việc đếm sinh ra để phát hiện. */}
-          {/* Thu gọn thành 1 dòng bấm mở — để nguyên đoạn dài thì trên điện thoại ăn mất nửa màn hình đếm */}
-          <details className="sk-why">
-            <summary>{sys.ok ? 'Tồn hệ thống tính thế nào?' : 'Chưa tính được tồn hệ thống — vì sao?'}</summary>
-            {sys.ok ? (
-              <div className="hint">
-                <b>Tồn hệ thống</b> = đầu kỳ (chốt {dShort(sys.baseDate)}) + nhập − xuất sử dụng NVL (bán × định mức) − huỷ ± chuyển,
-                cộng dồn tới {dShort(date)}; số bán KiotViet về mỗi giờ nên còn nhúc nhích. <b>Cứ đếm đúng thứ bạn thấy</b> —
-                lệch không phải đếm sai, đó chính là thứ cần tìm ra.
-              </div>
-            ) : (
-              <div className="hint">
-                Cơ sở này chưa có <b>bản chốt ngày {dShort(sys.baseDate)}</b> (mốc đầu kỳ) nên chưa tính được tồn hệ thống.
-                {' '}Mốc đầu kỳ đặt ở tab <b>Báo cáo chênh lệch</b>.
-              </div>
-            )}
-          </details>
-          {sys.ok && sys.soldPartial ? <div className="hint" style={{ marginBottom: 8 }}>⚠ Có tháng chưa có số bán theo ngày — cột hệ thống có thể trừ dư.</div> : null}
-          {/* Tab khu + ô tìm dính ngay dưới tiêu đề hộp thoại: cuộn tới mã thứ 40 vẫn đổi khu / tìm được ngay */}
-          <div className="sk-head" ref={headRef}>
-          {others.length > 0 && (
-            <div className="sk-peers">
-              <i className="sk-live-dot" />
-              <span>Đang đếm cùng: {others.map(w => <b key={w.id} title={w.n}>{w.n}{zones.length > 1 && w.z ? <small> · {(zones.find(z => z.id === w.z) || {}).name || ''}</small> : null}</b>)}</span>
+        <div className="skm-mx">
+          <div className="skm-hd" ref={hdRef}>
+            <div className="skm-hrow">
+              <div className="skm-hn">{isSum ? 'Tổng mọi khu' : isB ? 'Bán thành phẩm' : zoneName(tab)}<small>{isB ? 'ĐVT mẻ' : 'ĐVT · tồn HT'}</small></div>
+              {days.map((d, i) => {
+                const I = DI[i], fut = d > today, on = d === date;
+                return (
+                  <div key={d} className="skm-hc" onMouseEnter={() => !fut && !on && hov(i)} onMouseLeave={() => hov(null)}>
+                    <button type="button" className={'skm-db st-' + I.s + (d === today ? ' today' : '') + (on ? ' on' : '')} disabled={fut}
+                      aria-label={'Mở cột đếm ngày ' + dShort(d) + ', ' + I.l} onClick={() => !on && pickDate(d)}>
+                      <span className="w">{WD[new Date(d + 'T00:00:00').getDay()]}</span>
+                      <span className="n">{+d.slice(8)}</span>
+                      <span className="s"><i />{on ? 'Đang mở' : I.l}</span>
+                      <span className="ss">{on ? 'Mở' : I.sh}</span>
+                      <span className="e">{fut || on ? '' : d === today ? '✎ Bấm để đếm' : I.s === 'lock' ? '👁 Xem' : '✎ Đếm'}</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          )}
-          <div className="sk-tabs">
-            {zones.map(z => (
-              <button key={z.id} className={tab === z.id ? 'on' : ''} onClick={() => setTab(z.id)}>
-                <b>{z.name}</b><small>{zSeen(z.id)}/{zItems(z.id).length}</small>
-                {zItems(z.id).length > 0 && zSeen(z.id) >= zItems(z.id).length && <i className="sk-tdone">✓</i>}
-              </button>
-            ))}
-            <button className={'btp' + (tab === 'btp' ? ' on' : '')} onClick={() => setTab('btp')}>
-              <b>BTP</b><small>{bFilled}/{btps.length}</small>
-            </button>
-            <button className={'sum' + (tab === 'sum' ? ' on' : '')} onClick={() => setTab('sum')}>
-              <b>Tổng hợp</b><small>{filled}/{list.length}</small>
-            </button>
           </div>
-          {/* Mic bật thì có thanh nổi trên cùng: vừa cuộn vừa đọc vẫn thấy máy nghe gì, điền gì, tắt ở đâu */}
-          {mic && (
-            <div className="sk-vfloat">
-              <button type="button" onClick={stopMic} aria-label="Tắt mic"><Ic.mic size={18} /></button>
-              <div>
-                <b>{heard ? '“' + heard + '”' : 'Đang nghe… đọc "sữa đặc ba hộp"'}</b>
-                {vlog[0] && <small className={vlog[0].ok ? 'ok' : 'bad'}>{vlog[0].ok ? '✓ ' : '✗ '}{vlog[0].txt}</small>}
-              </div>
-              {vlog[0] && vlog[0].ok && <button type="button" className="sk-vundo" onClick={() => undoVoice(vlog[0])}>Hoàn tác</button>}
-            </div>
-          )}
-          {/* Một hàng: ô tìm + nút mic. Trước đây là khối mic to + chữ hướng dẫn + ô tìm riêng, chiếm gần nửa màn hình điện thoại */}
-          {(tab !== 'btp' || (canCount && tab !== 'sum')) && (
-            <div className="sk-tool">
-              {tab !== 'btp'
-                ? <input className="inp" type="search" placeholder="Tìm mã, tên…" value={q} onChange={e => setQ(e.target.value)} />
-                : <span className="sk-tool-t">Đếm theo ĐVT mẻ</span>}
-              {isZone && !editZ && canCount && ghost && zItems(tab).some(it => numOf((f[it.code] || {})[tab]) == null && ghostOf(it.code, tab)) && (
-                <button type="button" className="sk-todo sk-copy" onClick={() => takeGhostAll(tab)} title={'Chép số ngày ' + dShort(ghost.date) + ' cho mọi mã chưa đếm ở khu này'}>
-                  <span className="sk-mic-l">Như hôm qua</span><span className="sk-mic-s">↺ HQ</span>
-                </button>
-              )}
-              {isZone && !editZ && (
-                <button type="button" className={'sk-todo' + (todo ? ' on' : '')} onClick={() => setTodo(!todo)}
-                  title="Chỉ hiện mã chưa đếm trong lần này">
-                  Chưa đếm <b>{Math.max(0, zItems(tab).length - zSeen(tab))}</b>
-                </button>
-              )}
-              {canCount && tab !== 'sum' && (
-                <button type="button" className={'sk-mic' + (mic ? ' on' : '')} onClick={mic ? stopMic : startMic}
-                  title='Bấm rồi đọc: "sữa đặc ba hộp", "đường hai ký rưỡi". Nói "thêm …" để cộng dồn.'>
-                  <Ic.mic size={19} /><span className="sk-mic-l">{mic ? 'Tắt mic' : 'Giọng nói'}</span><span className="sk-mic-s">{mic ? 'Tắt' : 'Nói'}</span>
-                </button>
-              )}
-            </div>
-          )}
-          {canCount && tab !== 'sum' && vlog.length > 0 && (
-            <div className="sk-vlog">
-              {vlog.map(v => (
-                <div key={v.id} className={v.ok ? 'ok' : 'bad'}>
-                  <span>{v.ok ? '✓' : '✗'} {v.txt}</span>
-                  {v.ok && <button type="button" onClick={() => undoVoice(v)}>Hoàn tác</button>}
-                </div>
-              ))}
-            </div>
-          )}
-          </div>
-
-          {isZone && (
-            <div className={'sk-list' + (sys.ok ? '' : ' nosys')}>
-              {editZ ? (
-                <div className="sk-hint sk-hint-edit">
-                  <span>Tick mã <b>có ở {curZ.name}</b> — bỏ tick thì tab này không hiện mã đó nữa.</span>
-                  <button type="button" className="btn btn-p btn-sm" onClick={() => setEditZ(false)}>Xong</button>
-                </div>
-              ) : (
-                <div className="sk-hint sk-hint-edit">
-                  <span>Chỉ nhập số <b>thấy ở {curZ.name}</b>. Không có thì để trống.</span>
-                  {canCfg && <button type="button" className="sk-link" onClick={() => setEditZ(true)}>Thêm/bớt mã</button>}
-                </div>
-              )}
-              {editZ && shown.map(it => (
-                <label key={it.code} className={'sk-pick' + (inZone(tab, it.code) ? ' on' : '')}>
-                  <input type="checkbox" checked={inZone(tab, it.code)} onChange={() => toggleInZone(tab, it.code)} />
-                  {img(it)}
-                  <span><b>{it.name}</b><small className="mono">{it.code} · {uCap(it.unit) || '—'}</small></span>
-                </label>
-              ))}
-              {!editZ && shown.map(it => {
-                const book = sysOf(it.code), tot = totalOf(it.code);
-                const others = zones.filter(z => z.id !== tab).map(z => [z.name, numOf((f[it.code] || {})[z.id])]).filter(x => x[1] != null);
-                const bn = btpConv.by[it.code];
-                const d = (book != null && tot != null) ? stkRound(tot - book) : null;
-                return (
-                  <div key={it.code} data-sk={it.code} className={'sk-row' + (flash === it.code ? ' flash' : '')
-                    + (numOf((f[it.code] || {})[tab]) != null ? (seenAll[tab + '|' + it.code] ? ' done' : ' pre') : '')
-                    + (rmt[it.code] ? ' rmt' : '')}>
-                    {img(it)}
-                    <div className="sk-nm">
-                      <b>{others.filter(w => w.c === it.code && w.z === tab).map(w => <span key={w.id} className="sk-who" title={w.n + ' đang gõ ô này'}>{initials(w.n)}</span>)}{it.name}</b>
-                      <small className="mono">{it.code} · {uCap(it.unit) || '—'}</small>
-                      {(others.length > 0 || bn) && <small className="sk-oth">
-                        {others.map(x => x[0] + ' ' + numTxt(x[1])).join(' · ')}{bn ? (others.length ? ' · ' : '') + 'BTP ' + numTxt(bn) : ''}
-                      </small>}
-                    </div>
-                    {/* sk-meta: máy tính thì "trong suốt" (display:contents) để 2 ô này vẫn là cột riêng; điện thoại thì gom lại nằm dưới tên */}
-                    <div className="sk-meta">
-                      {(() => {
-                        const g = numOf((f[it.code] || {})[tab]) == null && ghostOf(it.code, tab);
-                        return g ? <button type="button" className="sk-ghost" disabled={!canCount} title={'Số ngày ' + dShort(ghost.date) + ' — chạm để giữ nguyên'}
-                          onClick={() => takeGhost(it.code, tab)}>HQ {stkPartsTxt(g)} <i>↺</i></button> : null;
-                      })()}
-                      <div className="sk-sys" title={sysTitle(it.code)}><small>Tồn HT</small><b className="mono">{book == null ? '—' : numTxt(book)}</b></div>
-                      <div className={'sk-tot' + (tot == null ? ' sk-nil' : '')}><small>Tổng</small><b className="mono">{tot == null ? '—' : numTxt(tot)}</b>
-                        {tot != null && <small className="sk-tu">{uCap(baseU(it.code))}</small>}
-                        {d != null && <em className={diffCls(d)}>{sgn(d)}</em>}</div>
-                    </div>
-                    {zoneIn(it.code, tab)}
-                    {convLine(it.code, tab)}
-                    {newU && newU.code === it.code && newU.zid === tab && (
-                      <div className="sk-newu">
-                        <span>1</span>
-                        <input autoFocus className="inp" placeholder="thùng, két…" value={newU.u} onChange={e => setNewU({ ...newU, u: e.target.value })} />
-                        <span>=</span>
-                        <input className="inp mono" inputMode="decimal" placeholder="24" value={newU.k}
-                          onChange={e => setNewU({ ...newU, k: e.target.value.replace(/[^\d.,]/g, '') })}
-                          onKeyDown={e => { if (e.key === 'Enter') saveNewUnit(); }} />
-                        <span>{uCap(baseU(it.code))}</span>
-                        <button type="button" className="btn btn-p btn-sm" onClick={saveNewUnit}>Lưu</button>
-                        <button type="button" className="sk-x" onClick={() => setNewU(null)} aria-label="Huỷ">✕</button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {!shown.length && (
-                <div className="sk-empty">
-                  {todo ? <>🎉 Đã đếm hết mã ở <b>{curZ.name}</b>. <button type="button" className="sk-link" onClick={() => setTodo(false)}>Xem lại tất cả</button></>
-                    : q ? 'Không tìm thấy mã nào' : <>Khu này chưa có mã nào{canCfg ? <> — bấm <b>Thêm/bớt mã</b> ở trên</> : ''}.</>}
-                </div>
-              )}
-            </div>
-          )}
-
-          {tab === 'btp' && (
-            <div className="sk-list">
-              <div className="sk-hint">Đếm <b>bán thành phẩm</b> đang còn (bình trà, cốt cà phê…) theo đúng ĐVT mẻ. App tự quy ra nguyên liệu gốc
-                theo công thức sơ chế và <b>cộng vào tổng tồn NVL</b> của ngày.</div>
-              {!btps.length && <Empty title="Chưa có công thức bán thành phẩm" desc="Khai ở tab Sơ chế BTP (cần sản lượng mẻ)." />}
-              {btps.map(r => {
-                const c = numOf(fb[bk(r)]);
-                const conv = btpConv.per[bk(r)] || [];
-                return (
-                  <div key={r.id} data-sk={bk(r)} className={'sk-row btp' + (flash === bk(r) ? ' flash' : '')}>
-                    {r.img ? <img className="sk-img" src={r.img} alt="" /> : <div className="sk-img sk-ph">🫙</div>}
-                    <div className="sk-nm">
-                      <b>{r.name}</b>
-                      <small className="mono">{r.code ? r.code + ' · ' : ''}mẻ {numFmt(r.batch.qty)} {uCap(r.batch.unit)}</small>
-                      {c ? <small className="sk-conv">= {conv.map(u => (u.name || u.sku) + ' ' + numTxt(stkRound(u.qty)) + (u.unit || '')).join(' · ') || 'không quy được NVL nào'}</small> : null}
-                    </div>
-                    {numIn('btp|' + bk(r), fb[bk(r)] || '', v => { setFb(p => ({ ...p, [bk(r)]: v })); queue('b|' + bk(r)); },
-                      ghost && ghost.fb[bk(r)] != null ? 'HQ ' + stkFmtIn(ghost.fb[bk(r)]) : '—')}
-                    <div className="sk-tot"><small>ĐVT</small><b>{uCap(r.batch.unit) || '—'}</b></div>
-                  </div>
-                );
-              })}
-              {btpStray.length > 0 && <div className="hint">⚠ BTP quy ra {btpStray.length} mã NVL không nằm trong danh mục đếm của chi nhánh ({btpStray.join(', ')}) — phần đó không cộng vào đâu. Thêm mã ở Thiết lập kho nếu cần.</div>}
-            </div>
-          )}
-
-          {/* Điện thoại: mỗi mã 2 dòng mảnh — tên … tổng / số từng khu · lệch — vừa màn hình, không phải vuốt ngang.
-              Máy tính giữ bảng đủ cột bên dưới. */}
-          {tab === 'sum' && (
-            <div className="sk-sl">
-              {shown.map(it => {
-                const book = sysOf(it.code), tot = totalOf(it.code);
-                const d = (book != null && tot != null) ? stkRound(tot - book) : null;
-                const zs = zones.map(z => [z.name, numOf((f[it.code] || {})[z.id])]).filter(x => x[1] != null);
-                const bn = btpConv.by[it.code];
-                return (
-                  <div key={it.code} className={'sk-sl-r' + (tot == null ? ' nil' : '')}>
-                    <span className="sk-sl-n"><b>{it.name}</b>
-                    <span className="sk-sl-d">
-                      {tot == null ? 'chưa đếm' : [
-                        ...zs.map(x => x[0] + ' ' + numTxt(x[1])),
-                        ...(bn ? ['BTP ' + numTxt(bn)] : []),
-                      ].join(' · ')}
-                      {book != null && <> · HT {numTxt(book)}</>}
-                      {d != null && <em className={diffCls(d)}> {sgn(d)}</em>}
-                    </span></span>
-                    <span className="sk-sl-t mono">{tot == null ? '—' : numTxt(tot)}<small>{tot == null ? '' : ' ' + uCap(baseU(it.code))}</small></span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {tab === 'sum' && (
-            <div className="scroll-x sk-sum-tbl">
-              <table className="tb tb-compact sk-sum">
-                <thead><tr>
-                  <th style={{ minWidth: 170 }}>Mã · Tên hàng</th>
-                  {sys.ok && <th className="r" title="Đầu kỳ + nhập − xuất sử dụng NVL − huỷ ± chuyển">Tồn hệ thống</th>}
-                  {zones.map(z => <th key={z.id} className="r">{z.name}</th>)}
-                  <th className="r">BTP quy đổi</th>
-                  <th className="r">Tổng đếm</th>
-                  {sys.ok && <th className="r">Lệch HT</th>}
-                  {prev && <th className="r">Ca trước</th>}
-                </tr></thead>
-                <tbody>
-                  {shown.map(it => {
-                    const book = sysOf(it.code), tot = totalOf(it.code);
-                    const d = (book != null && tot != null) ? stkRound(tot - book) : null;
-                    const before = prev && prev.items ? prev.items[it.code] : null;
-                    return (
-                      <tr key={it.code}>
-                        <td><div className="sk-tdn">{img(it)}<div><b>{it.name}</b><div className="rc-sub mono">{it.code} · {uCap(it.unit) || '—'}</div></div></div></td>
-                        {sys.ok && <td className="mono r" title={sysTitle(it.code)} style={{ fontWeight: 700 }}>{book == null ? '—' : numTxt(book)}</td>}
-                        {zones.map(z => {
-                          const v = numOf((f[it.code] || {})[z.id]);
-                          const rt = stkPartsTxt((fr[it.code] || {})[z.id]);
-                          return <td key={z.id} className="mono r">{v == null ? '—' : numTxt(v)}{rt && v != null ? <div className="rc-sub sk-rawt">{rt}</div> : null}</td>;
-                        })}
-                        <td className="mono r" style={{ color: 'var(--txt-3)' }}>{btpConv.by[it.code] ? numTxt(btpConv.by[it.code]) : '—'}</td>
-                        <td className="mono r" style={{ fontWeight: 800 }}>{tot == null ? '—' : numTxt(tot)}</td>
-                        {sys.ok && <td className={'mono r sk-d ' + diffCls(d)}>{sgn(d)}</td>}
-                        {prev && <td className="mono r" style={{ color: 'var(--txt-3)' }}>{before == null ? '—' : numTxt(before)}</td>}
-                      </tr>
-                    );
+          <div className="skm-sc" ref={scRef} onScroll={syncHd}>
+            <table className="skm-tb">
+              <colgroup><col className="skm-cn" />{days.map(d => <col key={d} className="skm-cd" />)}</colgroup>
+              <tbody>
+                {!isB && shown.map(it => {
+                  const u = rowU(it.code);
+                  return (
+                    <tr key={it.code} data-sk={it.code} className={(flash === it.code ? 'flash' : '') + (rmt[it.code] ? ' rmt' : '')}>
+                      {nameTd(it)}
+                      {days.map((d, i) => {
+                        if (d > today) return <td key={d} data-i={i} className="fu" />;
+                        if (d === date) {
+                          if (isSum) {
+                            const tot = totalOf(it.code), book = sysOf(it.code);
+                            const dd = book != null && tot != null ? stkRound(tot - book) : null;
+                            return (
+                              <td key={d} data-i={i} className="on sum">
+                                <b>{tot == null ? <span className="nil">—</span> : numTxt(inU(it.code, tot, u))}</b>
+                                {dd ? <em className={diffCls(dd)}>{sgn(inU(it.code, dd, u))}</em> : null}
+                              </td>
+                            );
+                          }
+                          return <td key={d} data-i={i} className="on">{inCell(it.code)}</td>;
+                        }
+                        const v = snapVal(daySnap[i], it.code, isSum ? 'sum' : tab);
+                        return vTd(d, i, v, numTxt(inU(it.code, v, u)));
+                      })}
+                    </tr>
+                  );
+                })}
+                {isB && btps.map(r => {
+                  const key = bk(r), conv = btpConv.per[key] || [];
+                  return (
+                    <tr key={r.id} data-sk={key} className={flash === key ? 'flash' : ''}>
+                      <td className="skm-nm">
+                        <b title={conv.length ? r.name + ' = ' + conv.map(u => (u.name || u.sku) + ' ' + numTxt(stkRound(u.qty)) + (u.unit || '')).join(' · ') : r.name}>{r.name}</b>
+                        <small><span className="skm-u">{uCap(r.batch.unit) || '—'}</span><span className="skm-ht">mẻ {numFmt(r.batch.qty)}</span></small>
+                      </td>
+                      {days.map((d, i) => {
+                        if (d > today) return <td key={d} data-i={i} className="fu" />;
+                        if (d === date) return <td key={d} data-i={i} className="on">{inB(key)}</td>;
+                        const s = daySnap[i], v = s && s.btp && s.btp[key] != null ? s.btp[key] : null;
+                        return vTd(d, i, v, numTxt(v));
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td className="skm-nm">Đã đếm / {cellsTot} ô</td>
+                  {days.map((d, i) => {
+                    const n = d > today ? '' : d === date ? openN : snapN(daySnap[i]);
+                    return <td key={d} data-i={i} className={d === date ? 'on' : ''}>{n == null ? '·' : n}</td>;
                   })}
-                </tbody>
-              </table>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          {(isB ? !btps.length : !shown.length) && (
+            <div className="sk-empty skm-empty">
+              {isB ? 'Chưa có công thức bán thành phẩm (cần sản lượng mẻ) — khai ở tab Sơ chế BTP.'
+                : todo ? <>🎉 Đã đếm hết mã ở <b>{zoneName(tab)}</b>. <button type="button" className="sk-link" onClick={() => setTodo(false)}>Xem lại tất cả</button></>
+                : q ? 'Không tìm thấy mã nào'
+                : <>Khu này chưa có mã nào{canCfg ? <> — bấm <b>Thêm/bớt mã</b> ở trên</> : ''}.</>}
             </div>
           )}
-          {canCount && (
-            <Field label="Ghi chú bàn giao" hint="Ví dụ: thiếu 2 lon do khách trả lại, đã báo quản lý">
-              <input className="inp" value={note} onChange={e => { setNote(e.target.value); queue('n'); }} />
-            </Field>
-          )}
-          <div className="hint">Số gõ vào <b>tự lưu và hiện ngay</b> trên máy mọi người đang đếm — nhiều người chia khu đếm cùng lúc được.
-            {' '}<b>Chốt cuối ngày</b> mới là số chính thức — ai đếm ca cuối thì người đó chốt.</div>
-        </>
+          {isB && btpStray.length > 0 && <div className="hint skm-empty">⚠ BTP quy ra {btpStray.length} mã NVL không nằm trong danh mục đếm của chi nhánh ({btpStray.join(', ')}) — phần đó không cộng vào đâu.</div>}
+        </div>
       )}
 
       {/* Lịch sử các bản đếm trong ngày — chỗ truy ai đếm lúc nào khi lệch tồn */}
       {((rec || {}).snaps || []).length > 0 && (
-        <>
-          <div className="eyebrow" style={{ margin: '14px 0 6px' }}>Các lần đếm trong ngày ({rec.snaps.length})</div>
+        <details className="skm-hist">
+          <summary>Các lần chốt trong ngày {dShort(date)} ({rec.snaps.length})</summary>
           <div className="bk-log">
             {rec.snaps.slice().reverse().map((s, i) => {
               /* Chỉ số THẬT trong mảng gốc — danh sách đang hiện ngược, dùng i là mở nhầm bản */
@@ -25258,9 +25670,9 @@ function StockCountModal({ bid, date, onClose }) {
               );
             })}
           </div>
-        </>
+        </details>
       )}
-    </Modal>
+    </div>
   );
 }
 
@@ -25513,132 +25925,94 @@ function StockView() {
   );
 }
 
+/* Trạng thái ô ngày trên ma trận đếm: chữ đầy đủ (máy tính) và chữ ngắn (điện thoại) */
+const SKM_ST = {
+  ok: { l: 'Đã chốt', sh: 'Chốt' }, doing: { l: 'Đang đếm', sh: 'Đếm' }, miss: { l: 'Bỏ sót', sh: 'Sót' },
+  lock: { l: 'Đã khoá', sh: 'Khoá' }, today: { l: 'Hôm nay', sh: 'Nay' }, fut: { l: 'Chưa tới', sh: '' },
+};
+
+/* Lịch đếm tồn = ma trận ngày × mã ngay trong trang (bỏ hộp thoại "Đếm tồn dd/mm").
+   Trang này chỉ giữ chi nhánh, kỳ tháng, cửa sổ 13 ngày và ngày đang mở; phần đếm nằm ở StkCountPane,
+   dựng lại theo từng ngày (key) để mỗi ngày có hộp chờ gửi / nhận khu riêng như trước. */
 function StkCalendar() {
   useNeed('stk');
-  const { cfg, user, stocks, employees } = useApp();
+  const { cfg, user } = useApp();
   const brs = bizList(cfg).filter(b => inScope(user, b.id));
   const [bid, setBid] = useState(() => (brs[0] || {}).id || '');
-  const [mo, setMo] = useState(() => todayKey().slice(0, 7));
-  const [open, setOpen] = useState(null);
+  const today = todayKey();
+  const [open, setOpen] = useState(today);
+  const [start, setStart] = useState(() => dAdd(today, -6));
+  const [zone, setZone] = useState(null);
+  const [kyOn, setKyOn] = useState(false);
   const [setup, setSetup] = useState(false);
   const [up, setUp] = useState(false);
   const [lock, setLock] = useState(false);
-  const today = todayKey();
+  const days = useMemo(() => Array.from({ length: 13 }, (_, i) => dAdd(start, i)), [start]);
   const list = stockItems(cfg, bid);
-  const dim = new Date(+mo.slice(0, 4), +mo.slice(5), 0).getDate();
-  const days = useMemo(() => Array.from({ length: dim }, (_, i) => mo + '-' + pad(i + 1)), [mo, dim]);
-  const recOf = (d) => stocks[stkKey(bid, d)] || null;
-  const st = (d) => stkStatus(recOf(d), d, today);
-  const cnt = (k) => days.filter(d => st(d) === k).length;
-  /* Xếp theo tuần × thứ cho dễ nhìn quy luật cuối tuần, giống ma trận khách hàng */
-  const lead = (new Date(mo + '-01T00:00:00').getDay() + 6) % 7;
-  const cells = [...Array.from({ length: lead }, () => null), ...days];
-  while (cells.length % 7) cells.push(null);
-  const weeks = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  /* Kỳ tháng: tháng sau (chưa tới), tháng này, 5 tháng trước. Khoá kỳ = mọi ngày đã qua của tháng đều đã khoá */
+  const mo = open.slice(0, 7);
+  const moAdd = (m, n) => { const d = new Date(+m.slice(0, 4), +m.slice(5) - 1 + n, 1); return d.getFullYear() + '-' + pad(d.getMonth() + 1); };
+  const moDays = (m) => new Date(+m.slice(0, 4), +m.slice(5), 0).getDate();
+  const moLocked = (m) => {
+    const n = moDays(m), ds = Array.from({ length: n }, (_, i) => m + '-' + pad(i + 1)).filter(d => d <= today);
+    return ds.length > 0 && ds.every(d => stkLocked(cfg, d));
+  };
+  const kys = [1, 0, -1, -2, -3, -4, -5].map(n => moAdd(today.slice(0, 7), n));
+  const moTxt = (m) => 'Tháng ' + (+m.slice(5)) + ' · ' + m.slice(0, 4);
+  const pickKy = (m) => {
+    setKyOn(false);
+    if (m > today.slice(0, 7)) return;
+    if (m === today.slice(0, 7)) { setOpen(today); setStart(dAdd(today, -6)); return; }
+    const last = m + '-' + pad(moDays(m));
+    setOpen(last); setStart(dAdd(last, -12));
+  };
+  const pickDay = (d) => { if (d <= today) setOpen(d); };
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
-      <div className="grid g4" style={{ gap: 10 }}>
-        <Stat icon={<Ic.check size={13} />} k="Ngày đã chốt" v={cnt('closed')} d={'trong tháng ' + mo.slice(5)} color="var(--green)" />
-        <Stat icon={<Ic.clock size={13} />} k="Đang đếm dở" v={cnt('doing')} d="có người đếm, chưa chốt" color="var(--amber)" />
-        <Stat icon={<Ic.alert size={13} />} k="Bỏ sót" v={cnt('miss')} d="ngày đã qua mà không ai đếm" color={cnt('miss') ? 'var(--red)' : null} />
-        <Stat icon={<Ic.checklist size={13} />} k="Mã hàng đang bán" v={list.length} d={branchOf(bid).name} />
-      </div>
-
-      <div className="card">
-        <div className="card-h" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <div><h3>Tồn kho theo ngày</h3><p>Bấm vào ngày để đếm · gõ là tự lưu cho mọi người, chốt mới là số cuối ngày</p></div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <select className="inp" style={{ width: 'auto' }} value={bid} onChange={e => setBid(e.target.value)}>
-              {brs.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-            <input className="inp" type="month" style={{ width: 'auto' }} value={mo} onChange={e => setMo(e.target.value)} />
-            {canStockCfg(user) && (
-              <button className="btn btn-o" onClick={() => setSetup(true)}><Ic.settings size={15} /> Thiết lập kho</button>
-            )}
-            {/* Nạp tồn cả hệ thống — để ngay đây vì đây là nơi người ta nghĩ tới đầu tiên khi
-                muốn nhập số tồn, chứ không phải lặn vào tab báo cáo mới thấy */}
-            {/* Nạp Excel ghi đè bản chốt của NHIỀU cơ sở một lượt nên giữ ở cấp quản lý kho,
-                không đi theo quyền "chốt cuối ngày" (quyền đó nay mở cho mọi người đếm) */}
-            {canStockCfg(user) && (
-              <button className="btn btn-p" onClick={() => setUp(true)}><Ic.upload size={15} /> Nạp tồn từ Excel</button>
-            )}
-            {/* Khoá sổ tồn theo ngày — chỉ quản trị */}
-            {canStkLock(user) && (
-              <button className="btn btn-o" onClick={() => setLock(true)}
-                title="Khoá ngày lại thì không ai sửa được số tồn của ngày đó nữa">
-                🔒 Khoá tồn kho ngày
-              </button>
-            )}
-          </div>
+    <div className="skm-page">
+      <div className="skm-top">
+        <div className="skm-pk">
+          <button type="button" className="skm-pb" onClick={() => setKyOn(!kyOn)}>
+            <Ic.calendar size={15} /><span><small>Kỳ tháng</small><b>{moTxt(mo)}</b></span><i>▾</i>
+          </button>
+          {kyOn && <>
+            <div className="skm-scrim" onClick={() => setKyOn(false)} />
+            <div className="skm-menu">
+              {kys.map(m => {
+                const fut = m > today.slice(0, 7), lk = !fut && moLocked(m);
+                return (
+                  <button key={m} type="button" className={(m === mo ? 'cur' : '') + (fut ? ' fut' : '')} disabled={fut} onClick={() => pickKy(m)}>
+                    {moTxt(m)}
+                    <span className={'tag ' + (fut ? 't-gray' : lk ? 't-red' : 't-green')}>{fut ? 'Chưa tới' : lk ? 'Đã khoá kỳ' : 'Đang mở'}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>}
         </div>
-        <div className="card-b">
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-            {['closed', 'doing', 'miss', 'today', 'future'].map(k => (
-              <span key={k} className={'tag ' + STK_ST[k].tag}>{STK_ST[k].l}</span>
-            ))}
-          </div>
-          {!list.length && (
-            <div className="pay-calc bad" style={{ marginBottom: 10 }}><span>
-              <b>{branchOf(bid).name}</b> chưa khai mã hàng nào — bấm <b>Thiết lập kho</b> để chọn mã đang bán,
-              không thì mở ngày nào ra cũng trống.
-            </span></div>
-          )}
-        </div>
-        <div className="card-b scroll-x" style={{ paddingTop: 0 }}>
-          <table className="tb tb-compact sk-cal">
-            <thead><tr>
-              <th className="wk" style={{ width: 46 }} />
-              {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((w, i) => (
-                <th key={w} style={{ textAlign: 'center', color: i >= 5 ? 'var(--violet)' : 'var(--txt-3)' }}>{w}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {weeks.map((wk, wi) => (
-                <tr key={wi}>
-                  <td className="rc-sub wk" style={{ whiteSpace: 'nowrap' }}>T{wi + 1}</td>
-                  {wk.map((d, di) => {
-                    if (!d) return <td key={di} />;
-                    const k = st(d);
-                    const S = STK_ST[k];
-                    const r = recOf(d);
-                    const nSnap = ((r || {}).snaps || []).length;
-                    const lk = stkLocked(cfg, d);
-                    return (
-                      <td key={di} style={{ padding: 3, textAlign: 'center' }}>
-                        <button className="sk-day" onClick={() => setOpen(d)} disabled={d > today}
-                          title={dShort(d) + ' · ' + S.l + (nSnap ? ' · ' + nSnap + ' lần đếm' : '') + (lk ? ' · ĐÃ KHOÁ, chỉ xem' : '')}
-                          style={{
-                            width: '100%', background: S.bg, border: '1.5px solid ' + S.bd,
-                            borderRadius: 9, cursor: d > today ? 'default' : 'pointer',
-                            opacity: d > today ? .5 : 1,
-                          }}>
-                          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--txt-2)' }}>
-                            {lk ? '🔒 ' : ''}{+d.slice(8)}
-                          </div>
-                          <div style={{ fontSize: 9.5, color: lk ? 'var(--red)' : S.bd, fontWeight: 700 }}>
-                            {lk ? 'đã khoá' : k === 'closed' ? '✓ chốt' : k === 'doing' ? (nSnap ? nSnap + ' lần' : 'đang đếm') : k === 'miss' ? 'sót' : k === 'today' ? 'hôm nay' : ''}
-                          </div>
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="card-b" style={{ paddingTop: 0 }}>
-          <p className="hint">
-            <b>Xanh</b> = đã chốt, số đó là tồn cuối ngày lúc 23:59:59. <b>Vàng</b> = có người đếm giao ca nhưng
-            chưa ai chốt. <b>Đỏ</b> = ngày đã qua mà không ai đếm. Ngày chưa tới thì bấm không được.
-            Mỗi lần giao ca lưu một bản riêng kèm giờ và tên người đếm, ca sau mở ra thấy số ca trước để đối chiếu.
-          </p>
+        {brs.length > 1 && (
+          <label className="skm-pb skm-br">
+            <span><small>Chi nhánh</small>
+              <select value={bid} onChange={e => { setBid(e.target.value); setZone(null); }}>
+                {brs.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </span>
+          </label>
+        )}
+        <div className="skm-adm">
+          {canStockCfg(user) && <button type="button" className="skm-ab" onClick={() => setSetup(true)}><Ic.settings size={14} /> Thiết lập kho</button>}
+          {/* Nạp Excel ghi đè bản chốt của NHIỀU cơ sở một lượt nên giữ ở cấp quản lý kho */}
+          {canStockCfg(user) && <button type="button" className="skm-ab" onClick={() => setUp(true)}><Ic.upload size={14} /> Nạp Excel</button>}
+          {canStkLock(user) && <button type="button" className="skm-ab" onClick={() => setLock(true)} title="Khoá ngày lại thì không ai sửa được số tồn của ngày đó nữa">🔒 Khoá ngày</button>}
         </div>
       </div>
-
-      {open && <StockCountModal bid={bid} date={open} onClose={() => setOpen(null)} />}
+      {!list.length && (
+        <div className="pay-calc bad"><span>
+          <b>{branchOf(bid).name}</b> chưa khai mã hàng nào — bấm <b>Thiết lập kho</b> để chọn mã đang bán.
+        </span></div>
+      )}
+      <StkCountPane key={bid + '|' + open} bid={bid} date={open} days={days} today={today}
+        onDate={pickDay} onShift={n => setStart(s => dAdd(s, n))} zonePref={zone} onZone={setZone} />
       {setup && <StockSetupModal bid={bid} onClose={() => setSetup(false)} />}
       {up && <StkUploadModal onClose={() => setUp(false)} />}
       {lock && <StkLockModal onClose={() => setLock(false)} />}
@@ -53409,7 +53783,9 @@ function App() {
     const emps = seedEmployees();
     setEmployees(emps);
     setRecipes([...seedRecipes(), ...seedBtp()]);
-    setCfg(normCfg({ ...DEFAULT_CFG, items: seedMats() }));
+    const dst = DEMO ? seedDemoStock(seedMats()) : null;
+    setCfg(normCfg({ ...DEFAULT_CFG, items: seedMats(), ...(dst ? dst.cfg : {}) }));
+    if (dst) setStocks(dst.stocks);
     setEmpLoaded(true);
     /* Môi trường test (?demo=1): bỏ qua màn đăng nhập, vào thẳng bằng tài khoản ADMIN mẫu
        để xem/chỉnh giao diện trang trong mà không cần mật khẩu. */
