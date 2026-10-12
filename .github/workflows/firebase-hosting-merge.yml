@@ -1,6 +1,6 @@
 # Tự deploy app Hí Hế lên Firebase Hosting (project hihehihe) mỗi khi có code mới vào main.
 # Secret cần có: FIREBASE_SERVICE_ACCOUNT_HIHEHIHE (JSON tài khoản dịch vụ có quyền Firebase Hosting Admin).
-# Chỉ deploy Hosting — luật/chỉ mục Firestore vẫn deploy tay: firebase deploy --only firestore
+# Chỉ deploy Hosting — luật/chỉ mục Firestore deploy tay: firebase deploy --only firestore
 name: Deploy to Firebase Hosting on merge
 on:
   push:
