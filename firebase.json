@@ -23,7 +23,9 @@
       "package.json",
       "package-lock.json",
       "firestore.indexes.json",
-      "tools/**"
+      "tools/**",
+      "Claude outputs/**",
+      "*.zip"
     ],
     "headers": [
       {
