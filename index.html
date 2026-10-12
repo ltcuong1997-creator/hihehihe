@@ -1496,6 +1496,10 @@ table.tb.bk-heat td{padding:5px 4px;font-size:11.5px;white-space:nowrap}
 .brand-badge + h2{margin-top:0}
 .map-box{height:340px;border-radius:14px;overflow:hidden;border:1px solid var(--line);z-index:1}
 /* Bảng xếp lịch nhân viên × ngày */
+.sch-mv{display:flex;flex-direction:column;gap:2px;flex:0 0 auto}
+.sch-mv button{width:20px;height:16px;padding:0;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--txt-3);font-size:8px;line-height:1;cursor:pointer}
+.sch-mv button:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+.sch-mv button:disabled{opacity:.3;cursor:default}
 .sch-tbl{width:100%;border-collapse:separate;border-spacing:0;min-width:860px}
 .sch-tbl th{font-size:12px;font-weight:700;color:var(--txt-3);text-align:center;padding:6px 4px 9px;border-bottom:1px solid var(--line);background:var(--card)}
 .sch-tbl th.today .sch-wd,.sch-tbl th.today .sch-dd{color:var(--brand-dark)}
@@ -15066,8 +15070,19 @@ function ScheduleView() {
     extra.forEach(id => ids.add(id));
     const list = [...ids].map(id => employees.find(e => e.id === id) || { id, name: 'Nhân sự đã xoá (' + id + ')', branches: [] });
     const own = (e) => ((e.branches || []).includes(bid) ? 0 : 1);
-    return list.sort((a, b) => (own(a) - own(b)) || String(a.code || a.name).localeCompare(String(b.code || b.name)));
-  }, [employees, sched, bid, days, extra, shifts.length]);
+    list.sort((a, b) => (own(a) - own(b)) || String(a.code || a.name).localeCompare(String(b.code || b.name)));
+    /* Thứ tự quản lý tự sắp (dời lên/xuống) theo từng chi nhánh — ai chưa có trong danh sách thì xếp sau, theo mặc định */
+    const ord = (cfg.empOrder || {})[bid] || [];
+    return list.map((e, i) => ({ e, r: ord.indexOf(e.id) < 0 ? 1e4 + i : ord.indexOf(e.id) }))
+      .sort((a, b) => a.r - b.r).map(x => x.e);
+  }, [employees, sched, bid, days, extra, shifts.length, cfg.empOrder]);
+  const moveEmp = (id, dir) => {
+    const ids = rowEmps.map(e => e.id);
+    const i = ids.indexOf(id), j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    saveCfg({ empOrder: { ...(cfg.empOrder || {}), [bid]: ids } });
+  };
   /* Thêm được ai vào bảng: người đăng ký đi hỗ trợ trong tuần, hoặc bất kỳ ai nếu có quyền toàn hệ thống */
   const addable = (() => {
     const inRow = new Set(rowEmps.map(e => e.id));
@@ -15147,12 +15162,18 @@ function ScheduleView() {
                 </tr>
               </thead>
               <tbody>
-                {rowEmps.map(e => {
+                {rowEmps.map((e, ri) => {
                   const away = !(e.branches || []).includes(bid);
                   return (
                     <tr key={e.id}>
                       <td className="sch-emp">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {canEditSched && (
+                            <span className="sch-mv">
+                              <button type="button" title="Dời lên" disabled={ri === 0} onClick={() => moveEmp(e.id, -1)}>▲</button>
+                              <button type="button" title="Dời xuống" disabled={ri === rowEmps.length - 1} onClick={() => moveEmp(e.id, 1)}>▼</button>
+                            </span>
+                          )}
                           <Avatar name={e.name} src={e.avatar} size="sm" />
                           <div style={{ minWidth: 0 }}>
                             <div className="sch-name">{e.name}</div>
