@@ -5343,12 +5343,15 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-disc::before{content:'';position:absolute;width:118%;aspect-ratio:1;border-radius:50%;background:rgba(255,255,255,.3);top:50%;left:50%;transform:translate(-50%,-46%)}
 
 /* ---- THỰC ĐƠN ---- */
-.ml-menu{background:#fff;border-radius:28px;padding:28px 40px 36px;box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.ml-menu{background:#fff;border-radius:22px;padding:18px 22px 22px;box-shadow:0 1px 0 rgba(0,0,0,.04)}
 .ml-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.ml-head h2{font:700 26px Unbounded,sans-serif;margin:0;letter-spacing:-.02em}
+.ml-head h2{font:700 20px Unbounded,sans-serif;margin:0;letter-spacing:-.02em}
 .ml-head p{margin:2px 0 0;color:#6B655C;font-size:14px}
 .ml-head .ml-type{max-width:560px;margin-left:auto}
-.ml-tools{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 0;align-items:center}
+.ml-tools{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0;align-items:center}
+.ml-seg{display:inline-flex;background:#F2EFEA;border-radius:999px;padding:3px}
+.ml .ml-seg button{border:0;background:none;font-family:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;cursor:pointer;color:#5E5A53;min-height:0}
+.ml .ml-seg button.on{background:#1A1A1A;color:#fff}
 .ml-chip{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 16px;border-radius:999px;border:2px solid transparent;background:#F3F1ED;color:#1A1A1A;font:600 14px 'Be Vietnam Pro',sans-serif;cursor:pointer;white-space:nowrap}
 .ml-chip b{font-weight:700;opacity:.55}
 .ml-chip.on{background:#1A1A1A;color:#fff}
@@ -5357,19 +5360,37 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-chip.dash.on{border-color:#1A1A1A;background:#1A1A1A;color:#fff}
 .ml-search{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;background:#F3F1ED;margin-left:auto}
 .ml-search input{border:0;background:transparent;outline:none;font:500 15px 'Be Vietnam Pro',sans-serif;width:130px}
-.ml-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));grid-auto-rows:290px;gap:14px;margin-top:20px}
-.ml-tile{position:relative;overflow:hidden;border-radius:28px;background:var(--bg);color:var(--ink);padding:22px 22px 20px;text-align:left;border:0;cursor:pointer;display:flex;flex-direction:column;font:inherit}
+.ml-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));grid-auto-rows:150px;gap:10px;margin-top:14px}
+.ml-tile{position:relative;overflow:hidden;border-radius:18px;background:var(--bg);color:var(--ink);padding:13px 14px 12px;text-align:left;border:0;cursor:pointer;display:flex;flex-direction:column;font:inherit}
 .ml-tile:hover .cup{transform:translateY(-4px) rotate(-2deg)}
-.ml-tile .cup{position:absolute;right:16px;bottom:10px;transition:transform .4s}
-.ml-tile small{font-size:13px;font-weight:600;opacity:.8}
-.ml-tile h4{font:800 24px/1.02 Unbounded,sans-serif;letter-spacing:-.03em;margin:8px 0 0;max-width:9ch;overflow-wrap:break-word;position:relative;z-index:1}
-.ml-tile .ml-tf{margin-top:auto;font-size:13px;font-weight:500;max-width:62%;position:relative;z-index:1;line-height:1.4}
+.ml-tile .cup{position:absolute;right:10px;bottom:8px;transition:transform .4s}
+.ml-tile small{font-size:11.5px;font-weight:600;opacity:.8}
+.ml-tile h4{font:800 17px/1.08 Unbounded,sans-serif;letter-spacing:-.02em;margin:5px 0 0;max-width:11ch;overflow-wrap:break-word;position:relative;z-index:1}
+.ml-tile .ml-tf{margin-top:auto;font-size:11.5px;font-weight:500;max-width:64%;position:relative;z-index:1;line-height:1.35}
 .ml-tile .ml-pill{position:relative;z-index:1;align-self:flex-start;margin-top:10px}
 .ml-tile.big h4{font-size:44px}
 .ml-tile.big .ml-tf{font-size:15px;max-width:55%}
 .ml-tile.empty{background:#fff;border:2px dashed #D8D2C8;color:#5E5A53}
 .ml-tile.empty .cup{opacity:.9}
-@container (min-width:620px){ .ml-tile.big{grid-column:span 2} }
+/* Bảng tổng hợp: mọi công thức trên một màn, xếp cột kiểu báo — bấm món để xem chi tiết */
+.ml-board{position:relative;margin-top:14px;column-width:210px;column-gap:10px;background:#fff}
+.ml-board:fullscreen{padding:18px;overflow:auto;column-width:230px}
+.ml-bc{break-inside:avoid;display:flex;flex-direction:column;width:100%;margin:0 0 10px;padding:0;border:1px solid #ECE7DF;border-radius:14px;overflow:hidden;background:#fff;text-align:left;font:inherit;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.ml-bc:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.08)}
+.ml-bc-h{display:flex;align-items:center;gap:7px;padding:7px 10px}
+.ml-bc-h .cup{flex:0 0 auto}
+.ml-bc-h b{font:700 13.5px/1.2 Unbounded,sans-serif;letter-spacing:-.01em;flex:1;min-width:0}
+.ml-bc-h i{font-style:normal;font-size:11.5px;font-weight:700;opacity:.85;white-space:nowrap}
+.ml-bc-l{display:flex;flex-direction:column;padding:6px 10px 4px;font-size:12px;line-height:1.35}
+.ml-bc-l span{display:flex;gap:6px;padding:1.5px 0;border-bottom:1px dotted #EEE9E1}
+.ml-bc-l span:last-child{border-bottom:0}
+.ml-bc-l em{font-style:normal;font-weight:800;min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
+.ml-bc-l em small{font-weight:500;opacity:.7;margin-left:2px;font-size:10.5px}
+.ml-bc-f{padding:3px 10px 7px;font-size:11px;color:#6B655C}
+.ml-bc-empty{cursor:default;border-style:dashed}
+.ml-bc-empty .ml-bc-h{color:#6B655C}
+.ml-bc-empty .ml-bc-l span{border:0}
+@media (max-width:640px){.ml-menu{padding:14px 12px 16px;border-radius:18px}.ml-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:138px;gap:8px}.ml-board{column-width:160px}.ml-fs{display:none}}
 .ml-intro .ml-tile{animation:mlUp14 .5s ease-out backwards;animation-delay:calc(var(--i) * 50ms)}
 .ml-intro .ml-tile .cup__layer{animation:mlFill .8s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--i) * 50ms + 300ms + var(--j) * 160ms)}
 @keyframes mlUp14{from{opacity:0;transform:translateY(14px)}}
@@ -42691,6 +42712,11 @@ function MlQuickInput({ onSubmit, onWhite, placeholder }) {
 let mlIntroDone = false;
 function MlMenu({ drinks, admin, onOpen, onAdd, onEditQuick, onMenuBoard, onImport, onNew }) {
   const [cf, setCf] = useState('all');
+  /* Thẻ (lưới card màu) | Bảng (mọi công thức trên một màn, bấm món để xem chi tiết) — nhớ lựa chọn trên máy này */
+  const [mode, setMode0] = useState(() => { try { return localStorage.getItem('ml_mode') || 'cards'; } catch (e) { return 'cards'; } });
+  const setMode = (m) => { setMode0(m); try { localStorage.setItem('ml_mode', m); } catch (e) {} };
+  const boardRef = useRef(null);
+  const fullScreen = () => { const el = boardRef.current; if (el && el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
   const [q, setQ] = useState('');
   const [intro] = useState(() => !mlIntroDone);
   useEffect(() => { mlIntroDone = true; }, []);
@@ -42724,22 +42750,54 @@ function MlMenu({ drinks, admin, onOpen, onAdd, onEditQuick, onMenuBoard, onImpo
         {!!nEmpty && <button className={'ml-chip dash' + (cf === '_empty' ? ' on' : '')} onClick={() => setCf('_empty')}>Chưa có công thức <b>{nEmpty}</b></button>}
       </div>
       <div className="ml-tools">
+        <span className="ml-seg" role="tablist" aria-label="Kiểu xem">
+          <button role="tab" aria-selected={mode === 'cards'} className={mode === 'cards' ? 'on' : ''} onClick={() => setMode('cards')}>Thẻ</button>
+          <button role="tab" aria-selected={mode === 'board'} className={mode === 'board' ? 'on' : ''} onClick={() => setMode('board')}>Bảng tổng hợp</button>
+        </span>
         <label className="ml-search"><Ic.search size={16} /><input aria-label="Tìm món" value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm món…" /></label>
         <button className="ml-chip" onClick={onMenuBoard}><Ic.menu size={15} /> Xem Menu</button>
         {admin && <button className="ml-chip" onClick={onImport}><Ic.upload size={15} /> Nhập Excel</button>}
         {admin && <button className="ml-chip" onClick={onNew} title="Form đầy đủ: bước pha, kiểu ly, ảnh">Form đầy đủ</button>}
+        {mode === 'board' && <button className="ml-chip ml-fs" onClick={fullScreen} title="Toàn màn hình (Esc để thoát)">⤢ Toàn màn hình</button>}
       </div>
-      {ordered.length ? (
+      {ordered.length && mode === 'board' ? (
+        <div className="ml-board" ref={boardRef}>
+          {list.filter(r => st(r) !== 'empty').map(r => {
+            const C = mlColors(r), cost = mlCost(r.items);
+            return (
+              <button key={r.id} className="ml-bc" onClick={() => onOpen(r.id)} title={'Xem chi tiết ' + r.name}>
+                <span className="ml-bc-h" style={{ background: C.bg, color: C.ink }}>
+                  <MlRecipeCup r={r} w={22} h={32} />
+                  <b>{r.name}</b>
+                  {r.price ? <i>{mlMoney(r.price)}</i> : null}
+                </span>
+                <span className="ml-bc-l">
+                  {(r.items || []).map(x => (
+                    <span key={x.id}><em>{numFmt(+x.qty || 0)}<small>{x.unit}</small></em>{x.name}</span>
+                  ))}
+                </span>
+                {cost ? <span className="ml-bc-f">Vốn {mlMoney(cost)}{r.price ? ' · ' + mlPct(cost / r.price * 100) : ''}</span> : null}
+              </button>
+            );
+          })}
+          {list.some(r => st(r) === 'empty') && (
+            <div className="ml-bc ml-bc-empty">
+              <span className="ml-bc-h"><b>Chưa có công thức</b></span>
+              <span className="ml-bc-l">{list.filter(r => st(r) === 'empty').map(r => <span key={r.id}>{r.name || 'Chưa đặt tên'}</span>)}</span>
+            </div>
+          )}
+        </div>
+      ) : ordered.length ? (
         <div className="ml-grid">
           {ordered.map((r, i) => {
-            const s = st(r), big = r === recent, C = mlColors(r);
+            const s = st(r), big = false, C = mlColors(r);
             const cost = mlCost(r.items);
             const sub = [r.cat, r.price ? mlMoney(r.price) : ''].filter(Boolean).join(', ');
             if (s === 'empty') return (
               <div key={r.id} className="ml-tile empty" style={{ '--i': i }}>
                 <small>{sub || 'Chưa có giá'}</small>
                 <h4>{r.name || 'Chưa đặt tên'}</h4>
-                <MlCup w={92} h={132} empty />
+                <MlCup w={62} h={88} empty />
                 <div className="ml-tf">Chưa có công thức</div>
                 {admin && <button className="ml-pill dark sm" onClick={() => onAdd(r.name + (r.price ? ' ' + Math.round(r.price / 1000) + 'k' : '') + ': ', r.id)}>Gõ công thức</button>}
               </div>
@@ -42752,7 +42810,7 @@ function MlMenu({ drinks, admin, onOpen, onAdd, onEditQuick, onMenuBoard, onImpo
                 <h4>{r.name}</h4>
                 <div className="ml-tf">{mlSteps(r).length} bước{cost ? ', vốn ' + mlMoney(cost) : ''}{cost && r.price ? ', bằng ' + mlPct(cost / r.price * 100) : ''}</div>
                 {s === 'draft' && admin && <button className="ml-pill dark sm" onClick={e => { e.stopPropagation(); onEditQuick(r.id); }}>Gõ thêm</button>}
-                <MlRecipeCup r={r} w={big ? 170 : 92} h={big ? 244 : 132} />
+                <MlRecipeCup r={r} w={62} h={88} />
               </div>
             );
           })}
@@ -42830,7 +42888,6 @@ function MlView({ r, list, admin, onPick, onBack, onAdd, onEdit, onBar, onPlayer
           <div className="ml-acts ml-anim" style={{ animationDelay: (180 + its.length * 70) + 'ms' }}>
             {!!its.length && <button className="ml-pill solid" onClick={onBar}>Pha món này</button>}
             {admin && <button className="ml-pill" onClick={onEdit}><Ic.edit size={15} /> Sửa công thức</button>}
-            {!!its.length && <button className="ml-pill" onClick={onPlayer}><Ic.eye size={15} /> Quy trình hoạt hình</button>}
             {admin && <button className="ml-pill" onClick={onFull}>Form đầy đủ</button>}
           </div>
         </div>
@@ -51925,7 +51982,7 @@ const TITLES = {
   issues: ['Bảo trì & sự cố', 'Báo hỏng, xử lý và nghiệm thu'],
   requests: ['Đề nghị thanh toán', 'Mua sắm, thanh toán và trình duyệt'],
   sop: ['E-learning · Quy trình chuẩn', 'Module Pha chế & Thu ngân · Module Phục vụ — học bằng hình động, làm test từng bài'],
-  recipes: ['Công thức & Quy trình', 'Thực đơn kèm hoạt hình pha chế từng bước'],
+  recipes: ['Công thức & Quy trình', 'Thực đơn, định lượng và giá vốn từng món'],
   prep: ['Sơ chế bán thành phẩm', 'Định mức từng mẻ nấu, giá vốn và quy trình làm từng bước'],
   mats: ['Danh mục nguyên liệu', 'Tên đầy đủ, quy cách, xuất xứ và giá thị trường — AI tra trên Google'],
   norms: ['Định mức', 'Bàn pha chế, giá vốn từng ly và lượng nguyên liệu phải xuất'],
