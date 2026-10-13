@@ -5502,21 +5502,41 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
   .ml-row .ml-step{grid-area:s}
   .ml-row.add{display:flex}
 }
+/* ---- Màn chi tiết GỌN (13/10): chữ, dòng, ly, nút nhỏ lại; không còn kéo cao hết màn hình ---- */
+.ml-stage{padding:16px 24px 12px;border-radius:22px;min-height:0}
+.ml-top{gap:8px}
+.ml-top .ml-t{font-size:16px}
+.ml-back{min-height:36px;font-size:13px;padding:0 12px 0 6px}
+.ml-stage .ml-pill{min-height:36px;padding:0 14px;font-size:13px;gap:6px}
+.ml-body{gap:22px;padding:12px 0 6px}
+.ml-sub{font-size:13px}
+.ml-name{font-size:clamp(24px,4.4cqw,42px);margin:4px 0 10px}
+.ml-lines{max-width:520px}
+.ml-lines li{gap:12px;padding:5px 0}
+.ml-lines .n{font-size:12px;width:14px}
+.ml-lines .q{font-size:19px;min-width:92px}
+.ml-lines .t{font-size:14.5px}
+.ml-cost{margin-top:10px;font-size:14px}
+.ml-acts{gap:8px;margin-top:12px}
+.ml-picks{gap:6px;padding:8px 2px 2px}
+.ml-pk{min-height:36px;padding:3px 12px 3px 6px;font-size:12.5px;gap:6px}
 /* ---- Bản hẹp (điện thoại / khung < 640px) ---- */
 @container (max-width:640px){
   .ml-menu{padding:18px 14px 22px;border-radius:22px}
   .ml-head .ml-type{max-width:none;flex-basis:100%}
   .ml-search{margin-left:0;flex:1}
   .ml-search input{width:100%}
-  .ml-stage{padding:14px 18px 14px;border-radius:22px;min-height:calc(100dvh - 190px)}
-  .ml-top .ml-type{order:9;flex-basis:100%;max-width:none}
+  .ml-stage{padding:12px 14px 12px;border-radius:18px;min-height:0}
+  .ml-stage .ml-top .ml-type{display:none}
   .ml-body{align-items:flex-start;padding-top:14px}
   .ml-w{display:none!important}
   .ml-n{display:flex!important}
-  .ml-name{font-size:30px;margin:6px 0 4px;max-width:none;overflow-wrap:normal}
+  .ml-name{font-size:23px;margin:4px 0 4px;max-width:none;overflow-wrap:normal}
   .ml-ename{font-size:26px}
-  .ml-lines .q{font-size:19px;min-width:92px}
-  .ml-lines .t{font-size:15px}
+  .ml-lines .q{font-size:16px;min-width:70px}
+  .ml-lines .t{font-size:14px}
+  .ml-body{padding-top:8px}
+  .ml-acts .ml-pill{min-height:38px}
   .ml-step input{width:56px;font-size:19px}
   .ml-step button{width:38px;height:38px}
   .ml-grip{width:24px}
@@ -42865,7 +42885,7 @@ function MlView({ r, list, admin, onPick, onBack, onAdd, onEdit, onBar, onPlayer
               <div className="ml-sub ml-anim">{sub || 'Chưa có giá bán'}</div>
               <h1 className="ml-name ml-anim" style={{ animationDelay: '40ms' }}>{r.name}</h1>
             </div>
-            <div className="ml-n"><MlRecipeCup r={r} w={124} h={178} slots={slots} /></div>
+            <div className="ml-n"><MlRecipeCup r={r} w={78} h={112} slots={slots} /></div>
           </div>
           {its.length ? (
             <ol className="ml-lines">
@@ -42891,7 +42911,7 @@ function MlView({ r, list, admin, onPick, onBack, onAdd, onEdit, onBar, onPlayer
             {admin && <button className="ml-pill" onClick={onFull}>Form đầy đủ</button>}
           </div>
         </div>
-        <div className="ml-disc ml-w"><MlRecipeCup r={r} w={300} h={430} slots={slots} /></div>
+        <div className="ml-disc ml-w"><MlRecipeCup r={r} w={190} h={272} slots={slots} /></div>
       </div>
       <div className="ml-picks" role="tablist" aria-label="Chọn món">
         {list.map(x => (
