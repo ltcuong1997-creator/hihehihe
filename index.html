@@ -5373,16 +5373,32 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-tile.empty{background:#fff;border:2px dashed #D8D2C8;color:#5E5A53}
 .ml-tile.empty .cup{opacity:.9}
 /* Bảng tổng hợp: mọi công thức trên một màn, xếp cột kiểu báo — bấm món để xem chi tiết */
-.ml-grp{margin-top:16px}
+.ml-grp{margin-top:14px}
 .ml-grp-h{font:700 14px Unbounded,sans-serif;letter-spacing:-.01em;margin:0 0 8px;display:flex;align-items:center;gap:8px;color:#3B372F}
 .ml-grp-h small{font:600 12px 'Be Vietnam Pro',sans-serif;background:#F2EFEA;border-radius:999px;padding:2px 8px;color:#6B655C}
 .ml-grp .ml-grid{margin-top:0}
 /* Xếp NGANG theo hàng (trái → phải rồi mới xuống dòng), mỗi ô cao theo nội dung */
 .ml-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px;align-items:start;background:#fff}
 .ml-menu.is-board:fullscreen{padding:18px 22px;overflow:auto;border-radius:0}
-.ml-bc{display:flex;flex-direction:column;width:100%;margin:0;padding:0;border:1px solid #ECE7DF;border-radius:14px;overflow:hidden;background:#fff;text-align:left;font:inherit;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.ml-bc{position:relative;display:flex;flex-direction:column;width:100%;margin:0;background:color-mix(in srgb,var(--g,#fff) 22%,#fff) !important;border-color:color-mix(in srgb,var(--g,#ECE7DF) 85%,#000 4%) !important;padding:0;border:1px solid #ECE7DF;border-radius:14px;overflow:hidden;background:#fff;text-align:left;font:inherit;cursor:pointer;transition:transform .15s,box-shadow .15s}
 .ml-bc:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.08)}
-.ml-bc-h{display:flex;align-items:center;gap:7px;padding:7px 10px}
+.ml-bc-h{display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--g,#F2EFEA);color:var(--gi,#1A1A1A)}
+.ml-bc-g{position:absolute;right:8px;top:-8px;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;background:var(--gi);color:#fff;border-radius:999px;padding:1px 7px;opacity:0;transition:opacity .15s}
+.ml-bc:hover .ml-bc-g{opacity:1}
+.ml-bc-grip{cursor:grab;touch-action:none;user-select:none;font-size:12px;letter-spacing:-3px;opacity:.55;padding:2px 3px;margin-left:-4px;border-radius:5px}
+.ml-bc-grip:hover{opacity:1;background:rgba(255,255,255,.5)}
+.ml-bc.dragging{opacity:.4}
+.ml-bc.drop-l{box-shadow:-4px 0 0 0 var(--brand)}
+.ml-bc.drop-r{box-shadow:4px 0 0 0 var(--brand)}
+.ml-bc.editing{grid-column:span 2;cursor:default;transform:none !important;box-shadow:0 10px 28px rgba(0,0,0,.12)}
+.ml-gdot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1.5px solid;margin-right:6px;vertical-align:-1px}
+.mlq-card{display:flex;flex-direction:column;gap:6px;padding:10px;background:#fff}
+.mlq-top{display:flex;align-items:baseline;gap:8px;padding:2px 2px 4px;border-bottom:2px solid var(--g)}
+.mlq-top>b{font:700 14px Unbounded,sans-serif;flex:1;min-width:0}
+.mlq-card .mlq-cost{margin:0;font-size:12px}
+.mlq-foot{display:flex;gap:6px;align-items:center;justify-content:flex-end;padding-top:4px}
+.mlq-link{margin-right:auto;border:0;background:none;color:var(--txt-2);font:inherit;font-size:12.5px;text-decoration:underline;cursor:pointer}
+@media (max-width:640px){.ml-bc.editing{grid-column:1 / -1}}
 .ml-bc-h .cup{flex:0 0 auto}
 .ml-bc-h b{font:700 13.5px/1.2 Unbounded,sans-serif;letter-spacing:-.01em;flex:1;min-width:0}
 .ml-bc-h i{font-style:normal;font-size:11.5px;font-weight:700;opacity:.85;white-space:nowrap}
@@ -5397,6 +5413,21 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-bc-l span.btp em{color:#6B3FA0}
 .ml-bc-l span.btp::before{content:'';width:3px;border-radius:2px;background:#9B6BD0;flex:0 0 auto}
 .ml-bc-l span.nvl::before{content:'';width:3px;border-radius:2px;background:#4FA36B;flex:0 0 auto}
+.ml-bc-l span.ice{color:#2C78A8}.ml-bc-l span.ice em{color:#2C78A8}
+.ml-bc-l span.ice::before{content:'';width:3px;border-radius:2px;background:#5AA9D6;flex:0 0 auto}
+.ml-bc-l span.top{color:#A85A00}.ml-bc-l span.top em{color:#A85A00}
+.ml-bc-l span.top::before{content:'';width:3px;border-radius:2px;background:#E8930C;flex:0 0 auto}
+.mlq-sec{border:1px solid var(--line-soft);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:4px}
+.mlq-sec h4{margin:0 0 2px;font-size:13px;display:flex;align-items:center;gap:7px}
+.mlq-sec h4 i{font-style:normal;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;color:#fff;background:#4FA36B}
+.mlq-sec.ice h4 i{background:#5AA9D6}
+.mlq-sec.top h4 i{background:#E8930C}
+.mlq-sec h4 small{font-weight:500;color:var(--txt-3);font-size:11.5px}
+.mlq-row.ice{background:#F1F8FD;border-left-color:#5AA9D6}
+.mlq-row.top{background:#FFF6EA;border-left-color:#E8930C}
+.mlq-row.top .mlq-n{color:#8A4A00}
+.mlq-sec .mlq-add{margin-top:0}
+.mlq-sec .mlq-add input{height:34px}
 .mlq{display:flex;flex-direction:column;gap:4px}
 .mlq-leg{font-size:11.5px;color:var(--txt-3);display:flex;align-items:center;gap:6px;margin-bottom:4px}
 .mlq-b{display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;letter-spacing:.04em;border-radius:6px;padding:2px 6px;flex:0 0 auto}
@@ -42807,7 +42838,16 @@ const mlStepsMerge = (r, items) => {
   if (si < 0) steps.push(...extra); else steps.splice(si, 0, ...extra);
   return { steps, simple };
 };
-function MlQuickEdit({ r, onClose, onOpenFull }) {
+/* Một món gồm 3 phần: Kết cấu (NVL/BTP) · Đá viên · Topping. Ghi `sec` khi thêm từ hộp sửa nhanh;
+   dòng cũ chưa có `sec` thì đoán theo loại nguyên liệu (đá → Đá viên; topping/kem phủ/trang trí → Topping). */
+const ML_SECS = [
+  { id: 'base', l: 'Kết cấu món', hint: 'NVL / BTP làm nên món' },
+  { id: 'ice', l: 'Đá viên', hint: 'lượng đá cho 1 ly' },
+  { id: 'top', l: 'Topping', hint: 'trân châu, thạch, kem phủ…' },
+];
+const mlSec = (x) => x.sec || ((x.kind === 'ice' || mlIng(x).ice) ? 'ice' : (['topping', 'foam', 'garnish'].includes(x.kind) ? 'top' : 'base'));
+const mlBySec = (items) => ML_SECS.flatMap(S => (items || []).filter(x => mlSec(x) === S.id));
+function MlInlineEdit({ r, onClose, onOpenFull }) {
   const { recipes, cfg, saveRecipe, user, toast } = useApp();
   const mats = (cfg.items || []).filter(c => (c.name || '').trim());
   const btps = (recipes || []).filter(x => isBtp(x) && (x.name || '').trim() && x.id !== r.id);
@@ -42815,22 +42855,27 @@ function MlQuickEdit({ r, onClose, onOpenFull }) {
   const srcOf = (x) => (x.sku && (btps.find(b => b.code === x.sku) || mats.find(c => c.code === x.sku)))
     || (x.btp && btps.find(b => mlKey(b.name) === mlKey(x.name))) || null;
   const isB = (x) => !!(x.btp || (x.sku && btpCodes.has(x.sku)));
-  const [items, setItems] = useState(() => (r.items || []).map(x => ({ ...x })));
-  const [q, setQ] = useState('');
+  const [items, setItems] = useState(() => mlBySec((r.items || []).map(x => ({ ...x }))));
+  const [add, setAdd] = useState({ sec: '', q: '' });
   const [hi, setHi] = useState(0);
   const qtyRefs = useRef({});
   const [focusId, setFocusId] = useState(null);
   useEffect(() => { if (focusId && qtyRefs.current[focusId]) { qtyRefs.current[focusId].focus(); qtyRefs.current[focusId].select(); } }, [focusId]);
-  const C = mlColors(r);
   const cost = mlCost(items);
-  const kq = mlKey(q);
-  const sugg = !kq ? [] : [
-    ...btps.map(b => ({ t: 'btp', id: b.id, code: b.code || '', name: b.name, unit: (b.batch || {}).unit || 'ml', src: b })),
-    ...mats.map(c => ({ t: 'nvl', id: c.code || c.name, code: c.code || '', name: c.name, unit: c.unit || '', src: c })),
-  ].filter(x => mlKey(x.name).includes(kq) || mlKey(x.code).includes(kq))
-    .sort((a, b) => (mlKey(a.name).indexOf(kq) - mlKey(b.name).indexOf(kq)) || a.name.length - b.name.length)
-    .slice(0, 8);
-  const pick = (sg) => {
+  const suggFor = (sec, q) => {
+    const kq = mlKey(q);
+    if (!kq) return [];
+    return [
+      ...btps.map(b => ({ t: 'btp', id: b.id, code: b.code || '', name: b.name, unit: (b.batch || {}).unit || 'ml', src: b })),
+      ...mats.map(c => ({ t: 'nvl', id: c.code || c.name, code: c.code || '', name: c.name, unit: c.unit || '', src: c })),
+    ].filter(x => mlKey(x.name).includes(kq) || mlKey(x.code).includes(kq))
+      /* Ô Đá viên ưu tiên mục có chữ "đá" lên đầu */
+      .sort((a, b) => (sec === 'ice' ? (/\bda\b|da vien/.test(mlKey(b.name)) - /\bda\b|da vien/.test(mlKey(a.name))) : 0)
+        || (mlKey(a.name).indexOf(kq) - mlKey(b.name).indexOf(kq)) || a.name.length - b.name.length)
+      .slice(0, 8);
+  };
+  const sugg = suggFor(add.sec, add.q);
+  const pick = (sec, sg) => {
     if (!sg) return;
     const id = uid('I');
     let it;
@@ -42842,81 +42887,109 @@ function MlQuickEdit({ r, onClose, onOpenFull }) {
       const per = mlCostPer(sg.src, u);
       it = { id, sku: sg.code, name: sg.name, qty: 0, unit: u, kind: rcpGuessKind(sg.name, sg.src.unit), color: '', cost: per == null ? 0 : per, noConv: per == null };
     }
-    setItems(a => [...a, it]);
-    setQ(''); setHi(0); setFocusId(id);
+    it.sec = sec;
+    if (sec === 'ice') it.kind = 'ice';
+    else if (sec === 'top' && !['topping', 'foam', 'garnish'].includes(it.kind)) it.kind = 'topping';
+    else if (sec === 'base' && ['ice', 'topping', 'foam', 'garnish'].includes(it.kind)) it.kind = rcpGuessKind('', it.unit);
+    setItems(a => mlBySec([...a, it]));
+    setAdd({ sec, q: '' }); setHi(0); setFocusId(id);
   };
-  const upd = (i, p) => setItems(a => a.map((x, k) => k === i ? { ...x, ...p } : x));
-  const setUnit = (i, u) => {
-    const x = items[i], c = srcOf(x);
-    if (c && isBtp(c)) upd(i, { unit: u, cost: mlBtpPer(c, u) });
-    else if (c) { const per = mlCostPer(c, u); upd(i, { unit: u, cost: per == null ? 0 : per, noConv: per == null }); }
-    else upd(i, { unit: u });
+  const updId = (id, p) => setItems(a => a.map(x => x.id === id ? { ...x, ...p } : x));
+  const setUnit = (x, u) => {
+    const c = srcOf(x);
+    if (c && isBtp(c)) updId(x.id, { unit: u, cost: mlBtpPer(c, u) });
+    else if (c) { const per = mlCostPer(c, u); updId(x.id, { unit: u, cost: per == null ? 0 : per, noConv: per == null }); }
+    else updId(x.id, { unit: u });
   };
   const save = () => {
     if (items.some(x => !String(x.name || '').trim())) return toast('Có nguyên liệu chưa có tên');
-    const { steps, simple } = mlStepsMerge(r, items);
-    saveRecipe({ ...r, items, steps, quick: simple ? true : r.quick, draft: '', at: new Date().toISOString(), by: user.id });
+    const its = mlBySec(items);
+    const { steps, simple } = mlStepsMerge(r, its);
+    saveRecipe({ ...r, items: its, steps, quick: simple ? true : r.quick, draft: '', at: new Date().toISOString(), by: user.id });
     toast('Đã lưu công thức ' + r.name);
     onClose();
   };
+  const row = (x) => {
+    const b = isB(x), c = srcOf(x), sec = mlSec(x);
+    const opts = c ? mlUnitOpts(isBtp(c) ? { unit: (c.batch || {}).unit } : c) : [];
+    if (x.unit && !opts.some(u => stkUnitNorm(u) === stkUnitNorm(x.unit))) opts.unshift(x.unit);
+    return (
+      <div key={x.id} className={'mlq-row ' + (sec === 'base' ? (b ? 'btp' : 'nvl') : sec)}>
+        <span className={'mlq-b ' + (b ? 'btp' : 'nvl')}>{b ? 'BTP' : 'NVL'}</span>
+        <span className="mlq-n" title={x.sku ? x.sku : 'chưa nối kho'}>{x.name}</span>
+        <input ref={el => { qtyRefs.current[x.id] = el; }} className="mlq-q" inputMode="decimal" aria-label={'Định lượng ' + x.name}
+          value={x.qty === 0 ? '' : x.qty} placeholder="0"
+          onChange={e => updId(x.id, { qty: +String(e.target.value).replace(',', '.').replace(/[^\d.]/g, '') || 0 })}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const el = document.querySelector('.mlq-sec[data-sec="' + sec + '"] .mlq-add input'); el && el.focus(); } }} />
+        <select className="mlq-u" aria-label={'Đơn vị ' + x.name} value={x.unit || ''} onChange={e => setUnit(x, e.target.value)} disabled={opts.length < 2}>
+          {opts.map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+        <button className="mlq-x" aria-label={'Xoá ' + x.name} onClick={() => setItems(a => a.filter(y => y.id !== x.id))}>×</button>
+      </div>
+    );
+  };
   return (
-    <Modal title={r.name} sub={[r.cat, r.price ? mlMoney(r.price) : ''].filter(Boolean).join(' · ') || 'Sửa nhanh công thức'} onClose={onClose} cls="mlq-modal"
-      footer={<>
-        <span className="mlq-cost">Vốn <b>{mlMoney(cost)}</b>{r.price ? <> · <b>{mlPct(cost / r.price * 100)}</b> giá bán</> : null}</span>
-        <button className="btn btn-o" onClick={onOpenFull}>Xem chi tiết</button>
-        <button className="btn btn-p" onClick={save}><Ic.check size={15} /> Lưu</button>
-      </>}>
-      <div className="mlq" style={{ '--bg': C.bg, '--ink': C.ink }}>
-        <div className="mlq-leg"><span className="mlq-b nvl">NVL</span> nguyên vật liệu <span className="mlq-b btp">BTP</span> bán thành phẩm</div>
-        {items.map((x, i) => {
-          const b = isB(x), c = srcOf(x);
-          const opts = c ? mlUnitOpts(isBtp(c) ? { unit: (c.batch || {}).unit } : c) : [];
-          if (x.unit && !opts.some(u => stkUnitNorm(u) === stkUnitNorm(x.unit))) opts.unshift(x.unit);
+    <div className="mlq-card" onClick={e => e.stopPropagation()}>
+      <div className="mlq-top">
+        <b>{r.name}</b>
+        <span className="mlq-cost">Vốn <b>{mlMoney(cost)}</b>{r.price ? <> · <b>{mlPct(cost / r.price * 100)}</b></> : null}</span>
+      </div>
+      <div className="mlq">
+        {ML_SECS.map((S, si) => {
+          const list = items.filter(x => mlSec(x) === S.id);
+          const on = add.sec === S.id && !!mlKey(add.q);
           return (
-            <div key={x.id} className={'mlq-row ' + (b ? 'btp' : 'nvl')}>
-              <span className={'mlq-b ' + (b ? 'btp' : 'nvl')}>{b ? 'BTP' : 'NVL'}</span>
-              <span className="mlq-n" title={x.sku ? x.sku : 'chưa nối kho'}>{x.name}</span>
-              <input ref={el => { qtyRefs.current[x.id] = el; }} className="mlq-q" inputMode="decimal" aria-label={'Định lượng ' + x.name}
-                value={x.qty === 0 ? '' : x.qty} placeholder="0"
-                onChange={e => upd(i, { qty: +String(e.target.value).replace(',', '.').replace(/[^\d.]/g, '') || 0 })}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const el = document.querySelector('.mlq-add input'); el && el.focus(); } }} />
-              <select className="mlq-u" aria-label={'Đơn vị ' + x.name} value={x.unit || ''} onChange={e => setUnit(i, e.target.value)} disabled={opts.length < 2}>
-                {opts.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <button className="mlq-x" aria-label={'Xoá ' + x.name} onClick={() => setItems(a => a.filter((_, k) => k !== i))}>×</button>
-            </div>
+            <section key={S.id} className={'mlq-sec ' + S.id} data-sec={S.id}>
+              <h4><i>{si + 1}</i>{S.l} <small>{list.length ? list.length + ' dòng' : S.hint}</small></h4>
+              {list.map(row)}
+              <div className="mlq-add">
+                <input value={add.sec === S.id ? add.q : ''} aria-label={'Thêm vào ' + S.l}
+                  placeholder={S.id === 'ice' ? '+ Đá viên — gõ "đá"…' : S.id === 'top' ? '+ Thêm topping — gõ tên…' : '+ Thêm NVL / BTP — gõ tên hoặc mã…'}
+                  onFocus={() => { if (add.sec !== S.id) { setAdd({ sec: S.id, q: '' }); setHi(0); } }}
+                  onChange={e => { setAdd({ sec: S.id, q: e.target.value }); setHi(0); }}
+                  onKeyDown={e => {
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, sugg.length - 1)); }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(h - 1, 0)); }
+                    else if (e.key === 'Enter') { e.preventDefault(); pick(S.id, sugg[hi]); }
+                    else if (e.key === 'Escape') setAdd({ sec: S.id, q: '' });
+                  }} />
+                {on && (
+                  <div className="mlq-sugg" role="listbox">
+                    {sugg.length ? sugg.map((sg, k) => (
+                      <button key={sg.t + sg.id} type="button" role="option" aria-selected={k === hi} className={k === hi ? 'on' : ''}
+                        onMouseEnter={() => setHi(k)} onMouseDown={e => { e.preventDefault(); pick(S.id, sg); }}>
+                        <span className={'mlq-b ' + sg.t}>{sg.t === 'btp' ? 'BTP' : 'NVL'}</span>
+                        <b>{sg.name}</b><small>{[sg.code, sg.unit].filter(Boolean).join(' · ')}</small>
+                      </button>
+                    )) : <div className="mlq-none">Không thấy “{add.q}” trong danh mục NVL / BTP</div>}
+                  </div>
+                )}
+              </div>
+            </section>
           );
         })}
-        <div className="mlq-add">
-          <input value={q} placeholder="+ Thêm NVL / BTP — gõ tên hoặc mã…" aria-label="Thêm nguyên liệu"
-            onChange={e => { setQ(e.target.value); setHi(0); }}
-            onKeyDown={e => {
-              if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, sugg.length - 1)); }
-              else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(h - 1, 0)); }
-              else if (e.key === 'Enter') { e.preventDefault(); pick(sugg[hi]); }
-              else if (e.key === 'Escape') setQ('');
-            }} />
-          {!!kq && (
-            <div className="mlq-sugg" role="listbox">
-              {sugg.length ? sugg.map((sg, k) => (
-                <button key={sg.t + sg.id} type="button" role="option" aria-selected={k === hi} className={k === hi ? 'on' : ''}
-                  onMouseEnter={() => setHi(k)} onMouseDown={e => { e.preventDefault(); pick(sg); }}>
-                  <span className={'mlq-b ' + sg.t}>{sg.t === 'btp' ? 'BTP' : 'NVL'}</span>
-                  <b>{sg.name}</b><small>{[sg.code, sg.unit].filter(Boolean).join(' · ')}</small>
-                </button>
-              )) : <div className="mlq-none">Không thấy “{q}” trong danh mục NVL / BTP</div>}
-            </div>
-          )}
-        </div>
       </div>
-    </Modal>
+      <div className="mlq-foot">
+        <button className="mlq-link" onClick={onOpenFull}>Xem chi tiết</button>
+        <button className="btn btn-o btn-sm" onClick={onClose}>Huỷ</button>
+        <button className="btn btn-p btn-sm" onClick={save}><Ic.check size={14} /> Lưu</button>
+      </div>
+    </div>
   );
 }
 
 /* ================= THỰC ĐƠN ================= */
 let mlIntroDone = false;
+/* Màu nhóm: mỗi nhóm thực đơn một tông — thẻ trên Bảng tổng hợp mang màu nhóm, chip lọc nhóm làm luôn chú giải */
+const ML_GRP_PAL = [
+  ['#F3E1C7', '#5B3A1A'], ['#E6DDF6', '#4A2F7A'], ['#D8EFE2', '#1F5E3A'], ['#FBDDD2', '#7A2E14'],
+  ['#D9E9F7', '#1E4B73'], ['#F6EEC4', '#6A5410'], ['#F4D9E8', '#72204E'], ['#DDEFEF', '#1E5A5A'],
+];
+const mlGrpColor = (cat, cats) => { const i = Math.max(0, (cats || []).indexOf(cat || '')); return ML_GRP_PAL[i % ML_GRP_PAL.length]; };
 function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoard, onImport, onNew }) {
-  const { recipes: allRcp } = useApp();
+  const { recipes: allRcp, saveRecipe, toast } = useApp();
+  const [editId, setEditId] = useState(null);
+  const [drag, setDrag] = useState(null);
   const btpSet = new Set((allRcp || []).filter(isBtp).map(b => b.code).filter(Boolean));
   const [cf, setCf] = useState('all');
   /* Thẻ (lưới card màu) | Bảng (mọi công thức trên một màn, bấm món để xem chi tiết) — nhớ lựa chọn trên máy này */
@@ -42941,12 +43014,47 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
   /* Món chưa có công thức: không bày ra lưới mà gom vào ô xổ xuống trên thanh công cụ */
   const empties = list.filter(r => st(r) === 'empty');
   const ddRef = useRef(null);
-  /* Gom theo nhóm (Cà phê, Trà sữa…) theo đúng thứ tự nhóm của thực đơn; món không nhóm xuống cuối */
-  const groups = (() => {
-    const has = list.filter(r => st(r) !== 'empty');
-    const keys = [...new Set(has.map(r => r.cat || ''))].sort((a, b) => (a === '') - (b === '') || rcpCatIdx(a) - rcpCatIdx(b) || a.localeCompare(b));
-    return keys.map(k => ({ k, name: k || 'Khác', items: has.filter(r => (r.cat || '') === k) }));
-  })();
+  /* Một dòng chảy duy nhất: xếp theo nhóm thực đơn, trong nhóm theo thứ tự quản lý kéo thả (`ord`).
+     Nhóm phân biệt bằng MÀU thẻ, không tách khối riêng. */
+  const catKeys = [...new Set(drinks.map(r => r.cat || ''))].sort((a, b) => (a === '') - (b === '') || rcpCatIdx(a) - rcpCatIdx(b) || a.localeCompare(b));
+  const ordOf = (r) => (r.ord == null ? 1e6 : +r.ord);
+  const flow = list.filter(r => st(r) !== 'empty').slice()
+    .sort((a, b) => catKeys.indexOf(a.cat || '') - catKeys.indexOf(b.cat || '') || ordOf(a) - ordOf(b) || rcpOrder(a, b));
+  const groups = flow.length ? [{ k: '_', name: '', items: flow }] : [];
+  const gc = (r) => mlGrpColor(r.cat || '', catKeys);
+  /* Kéo ⋮⋮ để dời món: thả lên món khác thì chen vào trước/sau món đó; thả sang nhóm khác thì đổi nhóm.
+     Chỉ ghi những món đổi thứ tự / đổi nhóm. */
+  const startDrag = (ev, id) => {
+    ev.preventDefault(); ev.stopPropagation();
+    const at = (x, y) => { const el = document.elementFromPoint(x, y); const c = el && el.closest('[data-dish]'); if (!c) return null; const b = c.getBoundingClientRect(); return { id: c.getAttribute('data-dish'), after: x > b.left + b.width / 2 }; };
+    const move = (e) => { e.preventDefault(); setDrag({ id, over: at(e.clientX, e.clientY) }); };
+    const up = (e) => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+      document.body.classList.remove('sch-dragging');
+      const o = e.type === 'pointerup' ? at(e.clientX, e.clientY) : null;
+      setDrag(null);
+      if (!o || o.id === id) return;
+      const cur = flow.slice(), me = cur.find(x => x.id === id), tg = cur.find(x => x.id === o.id);
+      if (!me || !tg) return;
+      const rest = cur.filter(x => x.id !== id);
+      let j = rest.indexOf(tg) + (o.after ? 1 : 0);
+      const moved = { ...me, cat: tg.cat };
+      rest.splice(j, 0, moved);
+      const byCat = {};
+      rest.forEach(x => { (byCat[x.cat || ''] = byCat[x.cat || ''] || []).push(x); });
+      let n = 0;
+      Object.values(byCat).forEach(arr => arr.forEach((x, i) => {
+        const orig = cur.find(y => y.id === x.id);
+        if (orig.ord !== i || (orig.cat || '') !== (x.cat || '')) { saveRecipe({ ...orig, cat: x.cat, ord: i }); n++; }
+      }));
+      if ((me.cat || '') !== (tg.cat || '')) toast('Đã chuyển ' + me.name + ' sang nhóm ' + (tg.cat || 'Khác'));
+    };
+    document.body.classList.add('sch-dragging');
+    setDrag({ id, over: null });
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
 
   return (
     <div ref={rootRef} className={'ml ml-menu' + (intro ? ' ml-intro' : '') + (mode === 'board' ? ' is-board' : '')}>
@@ -42961,7 +43069,7 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
       <div className="ml-tools">
         <button className={'ml-chip' + (cf === 'all' ? ' on' : '')} onClick={() => setCf('all')}>Tất cả <b>{drinks.length}</b></button>
         {catsIn.map(c => (
-          <button key={c} className={'ml-chip' + (cf === c ? ' on' : '')} onClick={() => setCf(c)}>{c} <b>{drinks.filter(r => r.cat === c).length}</b></button>
+          <button key={c} className={'ml-chip' + (cf === c ? ' on' : '')} onClick={() => setCf(c)}><i className="ml-gdot" style={{ background: mlGrpColor(c, catKeys)[0], borderColor: mlGrpColor(c, catKeys)[1] }} />{c} <b>{drinks.filter(r => r.cat === c).length}</b></button>
         ))}
       </div>
       <div className="ml-tools">
@@ -42992,25 +43100,37 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
       </div>
       {groups.length ? groups.map(g => (
         <section key={g.k} className="ml-grp">
-          <h3 className="ml-grp-h">{g.name} <small>{g.items.length}</small></h3>
           {mode === 'board' ? (
             <div className="ml-board">
               {g.items.map(r => {
-                const C = mlColors(r), cost = mlCost(r.items);
+                const G = gc(r), cost = mlCost(r.items);
+                const ov = drag && drag.over && drag.over.id === r.id && drag.id !== r.id ? (drag.over.after ? ' drop-r' : ' drop-l') : '';
+                if (editId === r.id) return (
+                  <div key={r.id} data-dish={r.id} className="ml-bc editing" style={{ '--g': G[0], '--gi': G[1] }}>
+                    <MlInlineEdit r={r} onClose={() => setEditId(null)} onOpenFull={() => { setEditId(null); onOpen(r.id); }} />
+                  </div>
+                );
                 return (
-                  <button key={r.id} className="ml-bc" onClick={() => (admin && onQuick ? onQuick(r.id) : onOpen(r.id))} title={(admin ? 'Sửa nhanh ' : 'Xem chi tiết ') + r.name}>
-                    <span className="ml-bc-h" style={{ background: C.bg, color: C.ink }}>
-                      <MlRecipeCup r={r} w={22} h={32} />
+                  <div key={r.id} data-dish={r.id} role="button" tabIndex={0}
+                    className={'ml-bc' + (drag && drag.id === r.id ? ' dragging' : '') + ov} style={{ '--g': G[0], '--gi': G[1] }}
+                    onClick={() => (admin ? setEditId(r.id) : onOpen(r.id))}
+                    onKeyDown={e => { if (e.key === 'Enter') (admin ? setEditId(r.id) : onOpen(r.id)); }}
+                    title={(admin ? 'Bấm để sửa công thức · ' : 'Xem chi tiết · ') + r.name}>
+                    <span className="ml-bc-h">
+                      {admin && <span className="ml-bc-grip" title="Kéo để dời món (thả sang nhóm khác để đổi nhóm)" onPointerDown={ev => startDrag(ev, r.id)} onClick={ev => ev.stopPropagation()}>⋮⋮</span>}
+                      <MlRecipeCup r={r} w={20} h={29} />
                       <b>{r.name}</b>
                       {r.price ? <i>{mlMoney(r.price)}</i> : null}
                     </span>
+                    <span className="ml-bc-g">{r.cat || 'Khác'}</span>
                     <span className="ml-bc-l">
-                      {(r.items || []).map(x => (
-                        <span key={x.id} className={(x.btp || (x.sku && btpSet.has(x.sku))) ? 'btp' : 'nvl'}><em>{numFmt(+x.qty || 0)}<small>{x.unit}</small></em>{x.name}</span>
-                      ))}
+                      {mlBySec(r.items).map(x => {
+                        const sc = mlSec(x);
+                        return <span key={x.id} className={sc !== 'base' ? sc : ((x.btp || (x.sku && btpSet.has(x.sku))) ? 'btp' : 'nvl')}><em>{numFmt(+x.qty || 0)}<small>{x.unit}</small></em>{x.name}</span>;
+                      })}
                     </span>
                     {cost ? <span className="ml-bc-f">Vốn {mlMoney(cost)}{r.price ? ' · ' + mlPct(cost / r.price * 100) : ''}</span> : null}
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -43463,7 +43583,6 @@ function RecipeView() {
   const [edit, setEdit] = useState(null);   /* form đầy đủ RcpEditor: { item } hoặc { item: null } khi tạo mới */
   const [imp, setImp] = useState(false);    /* đang mở popup nhập Excel */
   const [menu, setMenu] = useState(false);  /* đang mở bảng menu khách xem */
-  const [qe, setQe] = useState(null);       /* id món đang sửa nhanh từ Bảng tổng hợp */
   const [saved, setSaved] = useState(null); /* toast "Đã lưu …" kèm nút Xem công thức */
   useEffect(() => { if (!saved) return; const h = setTimeout(() => setSaved(null), 6000); return () => clearTimeout(h); }, [saved]);
 
@@ -43483,7 +43602,7 @@ function RecipeView() {
   return (
     <div className="grid" style={{ gap: 14 }}>
       {scr.m === 'menu' && <MlMenu drinks={drinks} admin={admin}
-        onOpen={id => setScr({ m: 'view', id })} onQuick={setQe} onAdd={toAdd} onEditQuick={id => setScr({ m: 'edit', id })}
+        onOpen={id => setScr({ m: 'view', id })} onAdd={toAdd} onEditQuick={id => setScr({ m: 'edit', id })}
         onMenuBoard={() => setMenu(true)} onImport={() => setImp(true)} onNew={() => setEdit({ item: null })} />}
       {scr.m === 'view' && cur && <MlView r={cur} admin={admin}
         list={withRecipe.some(r => r.id === cur.id) ? withRecipe : [cur, ...withRecipe]}
@@ -43495,7 +43614,6 @@ function RecipeView() {
       {scr.m === 'edit' && cur && <MlEdit key={cur.id} r={cur} onCancel={() => setScr({ m: 'view', id: cur.id })} onSaved={onSaved} />}
 
       {br && <MlBar r={br} onClose={() => setBar(null)} />}
-      {qe && find(qe) && <MlQuickEdit key={qe} r={find(qe)} onClose={() => setQe(null)} onOpenFull={() => { setScr({ m: 'view', id: qe }); setQe(null); }} />}
       {edit && <RcpEditor item={edit.item} onClose={() => setEdit(null)} />}
       {imp && <RcpImportModal onClose={() => setImp(false)} />}
       {menu && <MenuBoard onClose={() => setMenu(false)} />}
