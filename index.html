@@ -5475,6 +5475,26 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-stage .ml-seg button{min-height:30px;font-size:12.5px;padding:0 12px}
 .ml-stage .ml-sug{min-height:32px;font-size:12.5px;padding:0 12px}
 .mlq-top>b{font:700 14px K2D,sans-serif}
+.mlq-info{display:grid;grid-template-columns:minmax(0,1fr) auto 92px;gap:6px;align-items:center}
+.mlq-info input,.mlq-info select{height:34px;border:1.5px solid var(--line);border-radius:9px;padding:0 10px;font:inherit;font-size:13.5px;background:#fff;min-width:0}
+.mlq-info input:focus,.mlq-info select:focus{border-color:var(--brand);outline:none}
+.mlq-nm{position:relative;min-width:0}
+.mlq-nm input{width:100%;font-weight:700;font-size:14.5px}
+.mlq-nm .mlq-sugg{position:absolute;left:0;top:100%;z-index:20;width:max(100%,300px);max-width:calc(100vw - 40px)}
+.mlq-nm .mlq-sugg button{flex-direction:column;align-items:flex-start;gap:1px}
+.mlq-nm .mlq-sugg button b{flex:none;width:100%}
+.mlq-nm .mlq-sugg button small{white-space:normal}
+.mlq-sh{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--txt-3);padding:4px 8px 2px}
+.mlq-pr{text-align:right;font-weight:700}
+.mlq-kv{flex:1;font-size:11.5px;color:var(--txt-3)}
+.mlq-kv.on{color:#1F5E3A;font-weight:600}
+.mlq-warn{font-size:12.5px;background:#FFF4E5;color:#7A4A00;border-radius:9px;padding:7px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mlq-warn button{border:0;background:#7A4A00;color:#fff;border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.ml-pend{margin-top:14px}
+.ml-pend .ml-bc.editing{grid-column:1 / span 2}
+.ml-bc.ml-bc-add{align-items:center;justify-content:center;flex-direction:row;gap:6px;min-height:96px;border:2px dashed #D8D2C8 !important;background:#fff !important;color:#5E5A53;font-weight:700;font-size:14px}
+.ml-bc.ml-bc-add:hover{border-color:var(--brand) !important;color:var(--brand)}
+@media (max-width:640px){.mlq-info{grid-template-columns:1fr 1fr}.mlq-nm{grid-column:1 / -1}.ml-pend .ml-bc.editing{grid-column:1 / -1}}
 .mfs-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .mfs-bar .inp{flex:1;min-width:180px}
 .mfs-list{max-height:min(56vh,520px);overflow:auto;border:1px solid var(--line);border-radius:12px}
@@ -42953,8 +42973,44 @@ const mlUShort = (u) => {
   return ({ gram: 'g', kilogram: 'kg', milliliter: 'ml', mililit: 'ml', liter: 'l', 'lít': 'l' })[t.toLowerCase()] || t;
 };
 const mlBySec = (items) => ML_SECS.flatMap(S => (items || []).filter(x => mlSec(x) === S.id));
+/* Món đang bán trên KiotViet (số bán đã nạp ở trang Xuất bán), cộng mọi chi nhánh/tháng:
+   { code, name, group, qty, amount, price, has } — has = đã có món (trùng mã KiotViet hoặc trùng tên).
+   Mã khai là hàng hoá bán nguyên (danh mục NVL, kvCodes) bị bỏ vì không cần công thức. */
+const mlSalesItems = (sales, recipes, cfg) => {
+  const goods = stkGoodsMap(cfg);
+  const dr = (recipes || []).filter(r => !isBtp(r));
+  const haveKv = new Set(dr.filter(r => r.kvCode).map(r => String(r.kvCode).trim().toUpperCase()));
+  const haveNm = new Set(dr.map(r => mlKey(r.name)));
+  const o = {};
+  Object.values(sales || {}).forEach(d => Object.keys((d || {}).items || {}).forEach(c => {
+    const it = d.items[c] || {}, k = String(c).trim().toUpperCase();
+    if (!k || goods[k]) return;
+    const x = o[k] || (o[k] = { code: String(c).trim(), name: '', group: '', qty: 0, amount: 0 });
+    if (it.name && !x.name) x.name = String(it.name).trim();
+    if (it.group && !x.group) x.group = String(it.group).trim();
+    x.qty += +it.qty || 0; x.amount += +it.amount || 0;
+  }));
+  return Object.values(o).filter(x => x.name).map(x => ({
+    ...x, price: x.qty > 0 ? Math.round(x.amount / x.qty / 1000) * 1000 : 0,
+    has: haveKv.has(x.code.toUpperCase()) || haveNm.has(mlKey(x.name)),
+  }));
+};
+/* Giá gõ tay: "29", "29k" → 29.000; "29.000" → 29.000 */
+const mlParsePrice = (v) => { const n = +String(v || '').replace(/[^\d]/g, '') || 0; return n && n < 1000 ? n * 1000 : n; };
+/* Sửa/thêm món NGAY TRONG Bảng tổng hợp: tên, nhóm, giá (gõ tên gợi ý món đang bán trên KiotViet → tự điền
+   nhóm, giá, gắn mã) + định lượng CHỈ chọn từ danh mục NVL / BTP — không có nguyên liệu gõ tự do.
+   r.isNew = thẻ món mới chưa lưu. */
 function MlInlineEdit({ r, onClose, onOpenFull }) {
-  const { recipes, cfg, saveRecipe, user, toast } = useApp();
+  useNeed('sales');
+  const { recipes, cfg, saveRecipe, user, toast, sales, go } = useApp();
+  const [info, setInfo] = useState(() => ({ name: r.name || '', cat: r.cat || RCP_CATS[0], priceTxt: r.price ? numFmt(r.price) : '', kvCode: r.kvCode || '', kvName: r.kvName || '' }));
+  const [nmOpen, setNmOpen] = useState(false);
+  const [nmHi, setNmHi] = useState(0);
+  const price = mlParsePrice(info.priceTxt);
+  const kvAll = mlSalesItems(sales, (recipes || []).filter(x => x.id !== r.id), cfg);
+  const kvSugg = (() => { const k = mlKey(info.name); return kvAll.filter(x => !x.has && (!k || mlKey(x.name).includes(k) || mlKey(x.code).includes(k))).sort((a, b) => b.qty - a.qty).slice(0, 8); })();
+  const pickKv = (x) => { if (!x) return; setInfo(i => ({ ...i, name: x.name, cat: x.group || i.cat, priceTxt: x.price ? numFmt(x.price) : i.priceTxt, kvCode: x.code, kvName: x.name })); setNmOpen(false); };
+  const catOpts = [...new Set([...RCP_CATS, ...(recipes || []).filter(x => !isBtp(x)).map(x => x.cat), info.cat].filter(Boolean))];
   const mats = (cfg.items || []).filter(c => (c.name || '').trim());
   const btps = (recipes || []).filter(x => isBtp(x) && (x.name || '').trim() && x.id !== r.id);
   const btpCodes = new Set(btps.map(b => b.code).filter(Boolean));
@@ -43007,11 +43063,19 @@ function MlInlineEdit({ r, onClose, onOpenFull }) {
     else updId(x.id, { unit: u });
   };
   const save = () => {
+    const name = info.name.trim();
+    if (!name) return toast('Nhập tên món');
+    if ((recipes || []).some(x => !isBtp(x) && x.id !== r.id && mlKey(x.name) === mlKey(name))) return toast('Đã có món “' + name + '”');
     if (items.some(x => !String(x.name || '').trim())) return toast('Có nguyên liệu chưa có tên');
     const its = mlBySec(items);
     const { steps, simple } = mlStepsMerge(r, its);
-    saveRecipe({ ...r, items: its, steps, quick: simple ? true : r.quick, draft: '', at: new Date().toISOString(), by: user.id });
-    toast('Đã lưu công thức ' + r.name);
+    const { isNew, ...base } = r;
+    saveRecipe({
+      ...(isNew ? { glass: 'tall', size: 'M', desc: '', ai: {} } : {}), ...base,
+      name, cat: info.cat, price, kvCode: info.kvCode.trim(), kvName: info.kvName,
+      items: its, steps, quick: simple ? true : r.quick, draft: '', at: new Date().toISOString(), by: user.id,
+    });
+    toast((isNew ? 'Đã thêm món ' : 'Đã lưu công thức ') + name);
     onClose();
   };
   const row = (x) => {
@@ -43035,10 +43099,45 @@ function MlInlineEdit({ r, onClose, onOpenFull }) {
   };
   return (
     <div className="mlq-card" onClick={e => e.stopPropagation()}>
-      <div className="mlq-top">
-        <b>{r.name}</b>
-        <span className="mlq-cost">Vốn <b>{mlMoney(cost)}</b>{r.price ? <> · <b>{mlPct(cost / r.price * 100)}</b></> : null}</span>
+      <div className="mlq-info">
+        <div className="mlq-nm">
+          <input autoFocus={!!r.isNew} value={info.name} placeholder={kvAll.length ? 'Tên món — gõ để chọn món đang bán trên KiotViet' : 'Tên món'} aria-label="Tên món"
+            onFocus={() => setNmOpen(true)} onBlur={() => setTimeout(() => setNmOpen(false), 120)}
+            onChange={e => { setInfo(i => ({ ...i, name: e.target.value, kvCode: r.isNew && i.kvName && e.target.value !== i.kvName ? '' : i.kvCode })); setNmOpen(true); setNmHi(0); }}
+            onKeyDown={e => {
+              if (!nmOpen || !kvSugg.length) return;
+              if (e.key === 'ArrowDown') { e.preventDefault(); setNmHi(h => Math.min(h + 1, kvSugg.length - 1)); }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setNmHi(h => Math.max(h - 1, 0)); }
+              else if (e.key === 'Enter') { e.preventDefault(); pickKv(kvSugg[nmHi]); }
+              else if (e.key === 'Escape') setNmOpen(false);
+            }} />
+          {nmOpen && !info.kvCode && kvSugg.length > 0 && (
+            <div className="mlq-sugg" role="listbox">
+              <div className="mlq-sh">Món đang bán trên KiotViet</div>
+              {kvSugg.map((x, k) => (
+                <button key={x.code} type="button" role="option" aria-selected={k === nmHi} className={k === nmHi ? 'on' : ''}
+                  onMouseEnter={() => setNmHi(k)} onMouseDown={e => { e.preventDefault(); pickKv(x); }}>
+                  <b>{x.name}</b><small>{[x.group, x.price ? mlMoney(x.price) : '', x.code].filter(Boolean).join(' · ')}</small>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <select value={info.cat} onChange={e => setInfo(i => ({ ...i, cat: e.target.value }))} aria-label="Nhóm">
+          {catOpts.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <input className="mlq-pr" inputMode="numeric" value={info.priceTxt} placeholder="Giá (29k)" aria-label="Giá bán"
+          onChange={e => setInfo(i => ({ ...i, priceTxt: e.target.value }))}
+          onBlur={() => setInfo(i => ({ ...i, priceTxt: mlParsePrice(i.priceTxt) ? numFmt(mlParsePrice(i.priceTxt)) : '' }))} />
       </div>
+      <div className="mlq-top">
+        <span className={'mlq-kv' + (info.kvCode ? ' on' : '')}>{info.kvCode ? 'KiotViet ' + info.kvCode : 'Chưa gắn mã KiotViet'}</span>
+        <span className="mlq-cost">Vốn <b>{mlMoney(cost)}</b>{price ? <> · <b>{mlPct(cost / price * 100)}</b></> : null}</span>
+      </div>
+      {!mats.length && !btps.length && (
+        <div className="mlq-warn">Danh mục nguyên liệu đang trống — thêm NVL trước thì mới chọn được định lượng.
+          {go && <button type="button" onClick={() => go('mats')}>Mở Danh mục nguyên liệu</button>}</div>
+      )}
       <div className="mlq">
         {ML_SECS.map((S, si) => {
           const list = items.filter(x => mlSec(x) === S.id);
@@ -43075,9 +43174,9 @@ function MlInlineEdit({ r, onClose, onOpenFull }) {
         })}
       </div>
       <div className="mlq-foot">
-        <button className="mlq-link" onClick={onOpenFull}>Xem chi tiết</button>
+        {r.isNew ? <span style={{ marginRight: 'auto' }} /> : <button className="mlq-link" onClick={onOpenFull}>Xem chi tiết</button>}
         <button className="btn btn-o btn-sm" onClick={onClose}>Huỷ</button>
-        <button className="btn btn-p btn-sm" onClick={save}><Ic.check size={14} /> Lưu</button>
+        <button className="btn btn-p btn-sm" onClick={save}><Ic.check size={14} /> {r.isNew ? 'Thêm món' : 'Lưu'}</button>
       </div>
     </div>
   );
@@ -43091,14 +43190,16 @@ const ML_GRP_PAL = [
   ['#D9E9F7', '#1E4B73'], ['#F6EEC4', '#6A5410'], ['#F4D9E8', '#72204E'], ['#DDEFEF', '#1E5A5A'],
 ];
 const mlGrpColor = (cat, cats) => { const i = Math.max(0, (cats || []).indexOf(cat || '')); return ML_GRP_PAL[i % ML_GRP_PAL.length]; };
-function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoard, onImport, onNew, onFromSales }) {
+function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoard, onImport, onNew, onFromSales, initEdit }) {
   const { recipes: allRcp, saveRecipe, toast } = useApp();
-  const [editId, setEditId] = useState(null);
+  const [editId, setEditId] = useState(() => (initEdit && initEdit !== '__new' ? initEdit : null));
+  /* Thẻ món mới đang nhập (chưa lưu) — hiện đầu Bảng tổng hợp */
+  const [newR, setNewR] = useState(() => (initEdit === '__new' ? { id: uid('R'), isNew: true, items: [], steps: [] } : null));
   const [drag, setDrag] = useState(null);
   const btpSet = new Set((allRcp || []).filter(isBtp).map(b => b.code).filter(Boolean));
   const [cf, setCf] = useState('all');
   /* Thẻ (lưới card màu) | Bảng (mọi công thức trên một màn, bấm món để xem chi tiết) — nhớ lựa chọn trên máy này */
-  const [mode, setMode0] = useState(() => { try { return localStorage.getItem('ml_mode') || 'cards'; } catch (e) { return 'cards'; } });
+  const [mode, setMode0] = useState(() => { if (initEdit) return 'board'; try { return localStorage.getItem('ml_mode') || 'cards'; } catch (e) { return 'cards'; } });
   const setMode = (m) => { setMode0(m); try { localStorage.setItem('ml_mode', m); } catch (e) {} };
   const rootRef = useRef(null);
   const fullScreen = () => { const el = rootRef.current; if (el && el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
@@ -43127,6 +43228,11 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
     .sort((a, b) => catKeys.indexOf(a.cat || '') - catKeys.indexOf(b.cat || '') || ordOf(a) - ordOf(b) || rcpOrder(a, b));
   const groups = flow.length ? [{ k: '_', name: '', items: flow }] : [];
   const gc = (r) => mlGrpColor(r.cat || '', catKeys);
+  /* Thêm món / sửa món chưa có công thức: luôn mở trong Bảng tổng hợp, sửa tại chỗ — không popup, không màn riêng */
+  const startNew = () => { setMode('board'); setEditId(null); setNewR({ id: uid('R'), isNew: true, items: [], steps: [], cat: cf !== 'all' && cf !== '_empty' ? cf : (catsIn[0] || RCP_CATS[0]) }); };
+  const editHere = (id) => { setMode('board'); setNewR(null); setEditId(id); };
+  const pend = newR || (editId && !flow.some(r => r.id === editId) ? (allRcp || []).find(r => r.id === editId) : null);
+  const closePend = () => { setNewR(null); setEditId(null); };
   /* Kéo ⋮⋮ để dời món: thả lên món khác thì chen vào trước/sau món đó; thả sang nhóm khác thì đổi nhóm.
      Chỉ ghi những món đổi thứ tự / đổi nhóm. */
   const startDrag = (ev, id) => {
@@ -43169,7 +43275,6 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
           <h2>Công thức</h2>
           <p>{nReady} món đủ công thức, {nDraft} món đang dở, {nEmpty} món chưa có</p>
         </div>
-        {admin && <MlQuickInput onWhite onSubmit={onAdd} />}
       </div>
       <div className="ml-tools">
         <button className={'ml-chip' + (cf === 'all' ? ' on' : '')} onClick={() => setCf('all')}>Tất cả <b>{drinks.length}</b></button>
@@ -43185,8 +43290,8 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
         <label className="ml-search"><Ic.search size={16} /><input aria-label="Tìm món" value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm món…" /></label>
         <button className="ml-chip" onClick={onMenuBoard}><Ic.menu size={15} /> Xem Menu</button>
         {admin && <button className="ml-chip" onClick={onImport}><Ic.upload size={15} /> Nhập Excel</button>}
-        {admin && <button className="ml-chip" onClick={onFromSales} title="Chọn món từ số bán KiotViet (trang Xuất bán) — tự gắn mã, nhóm, giá"><Ic.plus size={15} /> Từ hàng xuất bán</button>}
-        {admin && <button className="ml-chip" onClick={onNew} title="Tự gõ món mới: tên, nhóm, giá, mã KiotViet, định lượng"><Ic.plus size={15} /> Món mới</button>}
+        {admin && <button className="ml-chip on" onClick={startNew} title="Thêm món ngay trong Bảng tổng hợp: tên (gợi ý món đang bán KiotViet), nhóm, giá, chọn NVL/BTP và định lượng"><Ic.plus size={15} /> Thêm món</button>}
+        {admin && <button className="ml-chip" onClick={onFromSales} title="Tick chọn nhiều món đang bán trên KiotViet để tạo một lần">Lấy hàng loạt từ xuất bán</button>}
         {mode === 'board' && <button className="ml-chip ml-fs" onClick={fullScreen} title="Toàn màn hình (Esc để thoát)">⤢ Toàn màn hình</button>}
         {!!empties.length && (
           <details className="ml-dd" ref={ddRef}>
@@ -43195,7 +43300,7 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
               {empties.map(r => (
                 <button key={r.id} type="button" disabled={!admin}
                   title={admin ? 'Gõ công thức cho món này' : ''}
-                  onClick={() => { if (ddRef.current) ddRef.current.open = false; onAdd(r.name + (r.price ? ' ' + Math.round(r.price / 1000) + 'k' : '') + ': ', r.id); }}>
+                  onClick={() => { if (ddRef.current) ddRef.current.open = false; editHere(r.id); }}>
                   <b>{r.name || 'Chưa đặt tên'}</b><small>{[r.cat, r.price ? mlMoney(r.price) : ''].filter(Boolean).join(' · ')}</small>
                   {admin && <i>Gõ công thức</i>}
                 </button>
@@ -43204,6 +43309,13 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
           </details>
         )}
       </div>
+      {pend && (
+        <div className="ml-board ml-pend">
+          <div data-dish={pend.id} className="ml-bc editing" style={{ '--g': gc(newR ? { cat: newR.cat } : pend)[0], '--gi': gc(newR ? { cat: newR.cat } : pend)[1] }}>
+            <MlInlineEdit key={pend.id} r={pend} onClose={closePend} onOpenFull={() => { closePend(); onOpen(pend.id); }} />
+          </div>
+        </div>
+      )}
       {groups.length ? groups.map(g => (
         <section key={g.k} className="ml-grp">
           {mode === 'board' ? (
@@ -43239,6 +43351,7 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
                   </div>
                 );
               })}
+              {admin && !pend && <button type="button" className="ml-bc ml-bc-add" onClick={startNew}><Ic.plus size={18} /> Thêm món</button>}
             </div>
           ) : (
             <div className="ml-grid">
@@ -43262,29 +43375,28 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
           )}
         </section>
       )) : (
-        !drinks.length && admin ? (
+        pend ? null : !drinks.length && admin ? (
           <div className="mfs-start">
             <h3>Chưa có món nào — tạo món theo một trong hai cách</h3>
             <div className="mfs-opts">
+              <button type="button" onClick={startNew}>
+                <b>Thêm món</b>
+                <span>Thêm thẳng vào Bảng tổng hợp. Gõ tên để chọn món đang bán trên KiotViet (tự điền nhóm, giá, gắn mã) hoặc đặt tên món mới, rồi chọn NVL / BTP và định lượng ngay trong khung.</span>
+                <i>Thêm món →</i>
+              </button>
               <button type="button" onClick={onFromSales}>
-                <b>Từ hàng xuất bán</b>
-                <span>Lấy danh sách món đang bán trên KiotViet (đã nạp ở trang Xuất bán). Tự điền tên, nhóm, giá và gắn mã — tick chọn rồi tạo hàng loạt.</span>
+                <b>Lấy hàng loạt từ xuất bán</b>
+                <span>Tick chọn nhiều món đang bán trên KiotViet (trang Xuất bán) để tạo một lần, sau đó bấm từng món điền định lượng.</span>
                 <i>Chọn món đang bán →</i>
               </button>
-              <button type="button" onClick={onNew}>
-                <b>Món mới</b>
-                <span>Món chưa bán / chưa có trên KiotViet. Tự gõ tên, nhóm, giá, định lượng — có thể gắn mã KiotViet sau.</span>
-                <i>Tạo món mới →</i>
-              </button>
             </div>
-            <p>Hoặc gõ nhanh một dòng ở ô trên, ví dụ “Bạc Xỉu 38k: sd 30, st 60”.</p>
           </div>
         ) : empties.length && admin ? (
           <div className="mfs-start">
-            <h3>{empties.length} món chưa có công thức — bấm món để gõ định lượng</h3>
+            <h3>{empties.length} món chưa có công thức — bấm món để chọn nguyên liệu và định lượng</h3>
             <div className="mfs-todo">
               {empties.map(r => (
-                <button key={r.id} type="button" onClick={() => onAdd(r.name + (r.price ? ' ' + Math.round(r.price / 1000) + 'k' : '') + ': ', r.id)}>
+                <button key={r.id} type="button" onClick={() => editHere(r.id)}>
                   <b>{r.name || 'Chưa đặt tên'}</b><small>{[r.cat, r.price ? mlMoney(r.price) : '', r.kvCode].filter(Boolean).join(' · ')}</small>
                 </button>
               ))}
@@ -43332,7 +43444,6 @@ function MlView({ r, list, admin, onPick, onBack, onAdd, onEdit, onBar, onPlayer
         <button className="ml-back" onClick={onBack}><Ic.chevron size={18} /> Thực đơn</button>
         <span className="ml-logo">HiHế</span>
         <span className="ml-t ml-w">Công thức</span>
-        {admin && <MlQuickInput onSubmit={onAdd} placeholder="Gõ món mới…" />}
       </div>
       <div className="ml-body">
         <div className="ml-txt ml-re" key={r.id}>
@@ -43717,24 +43828,7 @@ function MlFromSales({ onClose }) {
   const { sales, recipes, cfg, saveRecipe, user, toast, go } = useApp();
   const [q, setQ] = useState('');
   const [pick, setPick] = useState({});
-  const goods = stkGoodsMap(cfg);
-  const haveKv = new Set((recipes || []).filter(r => !isBtp(r) && r.kvCode).map(r => String(r.kvCode).trim().toUpperCase()));
-  const haveNm = new Set((recipes || []).filter(r => !isBtp(r)).map(r => mlKey(r.name)));
-  const all = (() => {
-    const o = {};
-    Object.values(sales || {}).forEach(d => Object.keys((d || {}).items || {}).forEach(c => {
-      const it = d.items[c] || {}, k = String(c).trim().toUpperCase();
-      if (!k || goods[k]) return;
-      const x = o[k] || (o[k] = { code: String(c).trim(), name: '', group: '', qty: 0, amount: 0 });
-      if (it.name && !x.name) x.name = String(it.name).trim();
-      if (it.group && !x.group) x.group = String(it.group).trim();
-      x.qty += +it.qty || 0; x.amount += +it.amount || 0;
-    }));
-    return Object.values(o).filter(x => x.name).map(x => ({
-      ...x, price: x.qty > 0 ? Math.round(x.amount / x.qty / 1000) * 1000 : 0,
-      has: haveKv.has(x.code.toUpperCase()) || haveNm.has(mlKey(x.name)),
-    }));
-  })();
+  const all = mlSalesItems(sales, recipes, cfg);
   const qq = mlKey(q);
   const shown = all.filter(x => !qq || mlKey(x.name).includes(qq) || mlKey(x.code).includes(qq) || mlKey(x.group).includes(qq));
   const groups = [...new Set(shown.map(x => x.group || 'Khác'))].sort((a, b) => a.localeCompare(b, 'vi'))
@@ -43751,7 +43845,7 @@ function MlFromSales({ onClose }) {
       name: x.name, kvCode: x.code, kvName: x.name, cat: x.group || RCP_CATS[0], price: x.price || 0,
       size: 'M', glass: 'tall', desc: '', at, by: user.id,
     }));
-    toast('Đã tạo ' + sel.length + ' món từ hàng xuất bán — mở "Chưa có công thức" để gõ định lượng');
+    toast('Đã tạo ' + sel.length + ' món từ hàng xuất bán — bấm từng món để chọn nguyên liệu và định lượng');
     onClose();
   };
   return (
@@ -43762,7 +43856,7 @@ function MlFromSales({ onClose }) {
         <button className="btn btn-p" disabled={!nPick} onClick={doCreate}><Ic.plus size={15} /> Tạo {nPick || ''} món</button>
       </>}>
       {!all.length ? (
-        <Empty title="Chưa có số bán nào" desc={<>Vào trang <b>Xuất bán</b> nạp file bán hàng KiotViet (hoặc chờ robot đồng bộ), rồi quay lại đây chọn món. Hoặc dùng <b>Món mới</b> để tự gõ.</>}
+        <Empty title="Chưa có số bán nào" desc={<>Vào trang <b>Xuất bán</b> nạp file bán hàng KiotViet (hoặc chờ robot đồng bộ), rồi quay lại đây chọn món. Hoặc bấm <b>Thêm món</b> trên Bảng tổng hợp để tự nhập.</>}
           action={go && <button className="btn btn-p" onClick={() => { onClose(); go('sales'); }}>Mở trang Xuất bán</button>} />
       ) : (<>
         <div className="mfs-bar">
@@ -43823,11 +43917,12 @@ function RecipeView() {
   useEffect(() => { window.scrollTo && window.scrollTo(0, 0); }, [scr.m]);
   const withRecipe = drinks.filter(r => (r.items || []).length);
   const onSaved = (rec, extra) => { setSaved({ id: rec.id, name: rec.name, extra }); setScr({ m: 'view', id: rec.id }); };
-  const toAdd = (text, base) => setScr({ m: 'add', text: text || '', base: base || null });
+  /* Thêm món / gõ công thức món trống: về Bảng tổng hợp, mở khung sửa tại chỗ (màn gõ một dòng đã bỏ) */
+  const toAdd = (text, base) => setScr({ m: 'menu', edit: base || '__new' });
 
   return (
     <div className="grid" style={{ gap: 14 }}>
-      {scr.m === 'menu' && <MlMenu drinks={drinks} admin={admin}
+      {scr.m === 'menu' && <MlMenu key={scr.edit || 'menu'} initEdit={scr.edit} drinks={drinks} admin={admin}
         onOpen={id => setScr({ m: 'view', id })} onAdd={toAdd} onEditQuick={id => setScr({ m: 'edit', id })}
         onMenuBoard={() => setMenu(true)} onImport={() => setImp(true)} onNew={() => setEdit({ item: null })} onFromSales={() => setFromSales(true)} />}
       {scr.m === 'view' && cur && <MlView r={cur} admin={admin}
@@ -43835,8 +43930,6 @@ function RecipeView() {
         onPick={id => setScr({ m: 'view', id })} onBack={() => setScr({ m: 'menu' })} onAdd={toAdd}
         onEdit={() => (cur.items || []).length ? setScr({ m: 'edit', id: cur.id }) : toAdd(cur.name + (cur.price ? ' ' + Math.round(cur.price / 1000) + 'k' : '') + ': ', cur.id)}
         onBar={() => setBar(cur.id)} onPlayer={() => setPlay(cur.id)} onFull={() => setEdit({ item: cur })} />}
-      {scr.m === 'add' && <MlAdd key={scr.text + (scr.base || '')} init={scr.text} baseId={scr.base}
-        onCancel={() => setScr(scr.base && find(scr.base) && (find(scr.base).items || []).length ? { m: 'view', id: scr.base } : { m: 'menu' })} onSaved={onSaved} />}
       {scr.m === 'edit' && cur && <MlEdit key={cur.id} r={cur} onCancel={() => setScr({ m: 'view', id: cur.id })} onSaved={onSaved} />}
 
       {br && <MlBar r={br} onClose={() => setBar(null)} />}
