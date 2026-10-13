@@ -9060,6 +9060,79 @@ const ATT_IMPORT_ALIAS = {
   outTime: ['gio ra', 'out', 'checkout', 'gio ket thuc'],
   branch: ['chi nhanh', 'branch', 'ma chi nhanh'],
 };
+/* ---- Nhật ký vào/ra ca của app cũ: mỗi dòng một lượt bấm (Ngày · Giờ · Vào ca/Ra ca · Tên nhân viên) ----
+   Không có Mã NV nên khớp theo TÊN (bỏ dấu, không phân biệt hoa thường). File có thể không có dòng tiêu đề.
+   Ghép từng lượt "Vào ca" với lượt "Ra ca" kế tiếp của cùng người (ra ca qua nửa đêm vẫn ghép đúng,
+   tối đa 20 giờ) thành một bản ghi công; lượt lẻ thì báo ra để người nhập tự xử lý. */
+const PUNCH_DATE_RE = /^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{4}$/;
+const PUNCH_TIME_RE = /^\d{1,2}:\d{2}(:\d{2})?$/;
+const punchKind = (v) => {
+  const t = noAccent(String(v || '')).toLowerCase();
+  if (/vao|check ?in|\bin\b|bat dau/.test(t)) return 'in';
+  if (/\bra\b|ket thuc|check ?out|\bout\b|tan ca/.test(t)) return 'out';
+  return '';
+};
+const parsePunchLog = (head, raw, employees) => {
+  const all = [head, ...raw];
+  /* Đoán cột theo nội dung của các dòng đầu: cột ngày, cột giờ, cột Vào/Ra, còn lại là tên */
+  const sample = all.slice(0, 12);
+  const width = Math.max(...all.map(r => r.length));
+  const score = (fn) => Array.from({ length: width }, (_, c) => sample.filter(r => fn(String(r[c] == null ? '' : r[c]).trim())).length);
+  const best = (arr, skip) => arr.map((v, i) => [v, i]).filter(([, i]) => !skip.includes(i)).sort((a, b) => b[0] - a[0])[0];
+  const cd = best(score(v => PUNCH_DATE_RE.test(v) || !!toDateStr(v)), []);
+  const ct = best(score(v => PUNCH_TIME_RE.test(v)), [cd[1]]);
+  const ck = best(score(v => !!punchKind(v)), [cd[1], ct[1]]);
+  const cn = best(score(v => /[a-zA-ZÀ-ỹ]{2,}/.test(v) && !punchKind(v)), [cd[1], ct[1], ck[1]]);
+  if (!cd[0] || !ct[0] || !ck[0] || !cn || !cn[0]) return null;
+  /* Dòng đầu là dữ liệu (không có tiêu đề) thì giữ lại, có tiêu đề thì bỏ */
+  const first = all[0];
+  const body = (PUNCH_DATE_RE.test(String(first[cd[1]] || '').trim()) ? all : raw);
+  const norm = (x) => noAccent(String(x || '')).toLowerCase().replace(/\s+/g, ' ').trim();
+  const byName = {};
+  employees.forEach(e => { const k = norm(e.name); (byName[k] = byName[k] || []).push(e); });
+  const punches = body.map((r, i) => {
+    const date = toDateStr(r[cd[1]]);
+    const time = String(r[ct[1]] || '').trim().slice(0, 5).replace(/^(\d):/, '0$1:');
+    const kind = punchKind(r[ck[1]]);
+    const name = String(r[cn[1]] || '').trim();
+    const hits = byName[norm(name)] || [];
+    const act = hits.filter(e => e.status !== 'off');
+    return { i, date, time, kind, name, emp: (act.length === 1 ? act[0] : hits.length === 1 ? hits[0] : null), amb: act.length > 1 };
+  });
+  const out = [];
+  const mk = (p, inTime, outTime, extra) => {
+    const errs = [];
+    if (!p.emp) errs.push(p.amb ? 'trùng tên nhiều nhân viên' : 'không thấy nhân viên tên này');
+    if (!p.date) errs.push('ngày không hợp lệ');
+    return { idx: out.length, code: p.emp ? (p.emp.code || '') : '', name: p.name, date: p.date, shiftCode: '', inTime, outTime, branchCode: '',
+      emp: p.emp, shift: null, branch: null, errs: [...errs, ...(extra || [])] };
+  };
+  const at = (p) => new Date(p.date + 'T' + p.time + ':00').getTime();
+  const bad = punches.filter(p => !p.date || !PUNCH_TIME_RE.test(p.time) || !p.kind);
+  bad.forEach(p => out.push(mk(p, p.kind === 'in' ? p.time : '', p.kind === 'out' ? p.time : '', ['dòng không đọc được giờ / loại Vào-Ra'])));
+  const good = punches.filter(p => !bad.includes(p));
+  const groups = {};
+  good.forEach(p => { const k = p.emp ? p.emp.id : '?' + norm(p.name); (groups[k] = groups[k] || []).push(p); });
+  Object.values(groups).forEach(list => {
+    list.sort((a, b) => at(a) - at(b));
+    let open = null;
+    list.forEach(p => {
+      if (p.kind === 'in') {
+        if (open) out.push(mk(open, open.time, '', ['vào ca nhưng không có lượt ra ca']));
+        open = p;
+      } else if (open && at(p) - at(open) > 0 && at(p) - at(open) <= 20 * 3600e3) {
+        out.push(mk(open, open.time, p.time)); open = null;
+      } else {
+        out.push(mk(p, '', p.time, ['có giờ ra nhưng không có giờ vào']));
+      }
+    });
+    /* Lượt vào cuối cùng chưa có ra: có thể đang trong ca — vẫn nhập, ô hiện "thiếu giờ ra" */
+    if (open) out.push(mk(open, open.time, ''));
+  });
+  out.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.inTime || a.outTime).localeCompare(b.inTime || b.outTime));
+  out.forEach((r, i) => { r.idx = i; });
+  return out;
+};
 function ImportAttModal({ onClose }) {
   const { cfg, employees, att, sched, saveAtt, user, toast } = useApp();
   const fileRef = useRef(null);
@@ -9074,7 +9147,14 @@ function ImportAttModal({ onClose }) {
       const { head, rows: raw } = await readTable(file);
       const col = {};
       Object.keys(ATT_IMPORT_ALIAS).forEach(k => { col[k] = guessCol(head, ATT_IMPORT_ALIAS[k]); });
-      if (col.code < 0 || col.date < 0) { setBusy(false); setRows(null); return toast('File thiếu cột "Mã NV" hoặc "Ngày" — dùng đúng file tải từ nút Excel thiếu công'); }
+      if (col.code < 0 || col.date < 0) {
+        /* Không có cột Mã NV: thử đọc như nhật ký vào/ra ca theo tên (file của app cũ) */
+        const pr = parsePunchLog(head, raw, employees);
+        setBusy(false);
+        if (pr && pr.length) { setRows(pr); return; }
+        setRows(null);
+        return toast('Không đọc được file — cần cột Mã NV + Ngày + Giờ vào/ra, hoặc nhật ký Ngày · Giờ · Vào ca/Ra ca · Tên');
+      }
       const timeRe = /^\d{1,2}:\d{2}$/;
       const parsed = raw.map((row, idx) => {
         const code = String(row[col.code] || '').trim();
@@ -9119,9 +9199,15 @@ function ImportAttModal({ onClose }) {
       const asg = r.shift ? assigns.find(a => a.shift.id === r.shift.id) : assigns[0];
       const shiftId = r.shift ? r.shift.id : (asg ? asg.shift.id : '');
       const branchId = r.branch ? r.branch.id : (asg ? asg.branchId : r.emp.branches[0]);
-      const key = shiftId ? attKeyForShift({ [empId]: draft[empId] }, empId, r.date, shiftId) : nextAttKey({ [empId]: draft[empId] }, empId, r.date);
+      /* Đã có đúng lượt này (cùng ngày, cùng giờ vào — hoặc cùng giờ ra nếu chỉ có giờ ra) thì ghi đè lên đó,
+         nhập lại cùng một file bao nhiêu lần cũng không đẻ thêm bản ghi trùng */
+      const inIso = r.inTime ? new Date(r.date + 'T' + r.inTime + ':00').toISOString() : null;
+      const outIso0 = r.outTime ? new Date(r.date + 'T' + r.outTime + ':00').toISOString() : null;
+      const same = Object.keys(draft[empId]).find(k => k.split('~')[0] === r.date && draft[empId][k] &&
+        ((inIso && draft[empId][k].inAt === inIso) || (!inIso && outIso0 && !draft[empId][k].inAt && draft[empId][k].outAt === outIso0)));
+      const key = same || (shiftId ? attKeyForShift({ [empId]: draft[empId] }, empId, r.date, shiftId) : nextAttKey({ [empId]: draft[empId] }, empId, r.date));
       const cur = draft[empId][key] || {};
-      const inAt = r.inTime ? new Date(r.date + 'T' + r.inTime + ':00').toISOString() : (cur.inAt || null);
+      const inAt = r.inTime ? inIso : (cur.inAt || null);
       let outAt = r.outTime ? new Date(r.date + 'T' + r.outTime + ':00').toISOString() : (cur.outAt || null);
       if (inAt && outAt && outAt <= inAt) outAt = new Date(new Date(outAt).getTime() + 86400000).toISOString();
       const sh = shiftOf(shiftId);
@@ -9142,7 +9228,7 @@ function ImportAttModal({ onClose }) {
   };
 
   return (
-    <Modal wide title="Nhập Excel bổ sung công hàng loạt" sub="Đọc file .xlsx/.csv có cột Mã NV, Ngày, Mã ca, Giờ vào, Giờ ra" onClose={onClose}
+    <Modal wide title="Nhập Excel bổ sung công hàng loạt" sub="File có cột Mã NV, Ngày, Mã ca, Giờ vào, Giờ ra — hoặc nhật ký Ngày · Giờ · Vào ca/Ra ca · Tên nhân viên" onClose={onClose}
       footer={<>
         <button className="btn btn-o" onClick={onClose}>Hủy</button>
         <button className="btn btn-p" disabled={!ok.length} onClick={apply}><Ic.check size={15} /> Áp dụng {ok.length ? '(' + ok.length + ' dòng)' : ''}</button>
@@ -9167,7 +9253,7 @@ function ImportAttModal({ onClose }) {
                 {rows.map(r => (
                   <tr key={r.idx}>
                     <td className="mono">{r.code}</td>
-                    <td>{r.emp ? r.emp.name : <span style={{ color: 'var(--red)' }}>—</span>}</td>
+                    <td>{r.emp ? r.emp.name : <span style={{ color: 'var(--red)' }}>{r.name || '—'}</span>}</td>
                     <td className="mono">{r.date || <span style={{ color: 'var(--red)' }}>{r.date === '' ? '(trống)' : 'sai'}</span>}</td>
                     <td>{r.shiftCode || <span className="hint">(theo lịch xếp)</span>}</td>
                     <td className="mono">{r.inTime || '—'}</td>
@@ -9182,6 +9268,8 @@ function ImportAttModal({ onClose }) {
       )}
       <div className="hint" style={{ marginTop: 10 }}>
         Bỏ trống cột Mã ca thì hệ thống tự khớp theo ca đã xếp lịch của người đó trong ngày (ca đầu tiên nếu có nhiều ca).
+        File nhật ký theo tên: mỗi lượt "Vào ca" được ghép với lượt "Ra ca" kế tiếp của cùng người (ra ca sau nửa đêm vẫn đúng).
+        Nhập lại cùng một file không tạo bản ghi trùng.
         Chỉ những dòng hợp lệ mới được áp dụng; các bản ghi được đánh dấu "bổ sung" kèm người nhập và thời điểm.
       </div>
     </Modal>
