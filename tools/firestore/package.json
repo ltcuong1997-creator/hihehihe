@@ -1,0 +1,10 @@
+{
+  "name": "hihe-firestore-tools",
+  "private": true,
+  "description": "Công cụ ghi thẳng dữ liệu vào Firestore của app Hí Hế (chạy tay, không chạy lúc deploy)",
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "12.7.0",
+    "xlsx": "0.18.5"
+  }
+}
