@@ -54032,9 +54032,19 @@ function MatDetail({ idx, onClose, onGo }) {
 function MatView() {
   /* Cần công thức để biết mỗi nguyên liệu đang nằm trong món nào (xem MatUsedIn) */
   useNeed('rcp');
-  const { cfg, saveCfg, user } = useApp();
+  const { cfg, saveCfg, user, recipes, delRecipe, toast } = useApp();
   const admin = roleOf(user.role).manage || user.role === 'ADMIN';
   const items = cfg.items || [];
+  /* Làm lại từ đầu: xoá SẠCH danh mục NVL + mọi BTP + mọi công thức món. Chỉ ADMIN, hỏi xác nhận 2 lần. */
+  const wipeAll = async () => {
+    const rc = recipes || [];
+    const nB = rc.filter(isBtp).length, nD = rc.length - nB;
+    if (!(await zsAsk('XOÁ SẠCH để làm lại từ đầu?\n\n• ' + items.length + ' nguyên vật liệu\n• ' + nB + ' bán thành phẩm (BTP)\n• ' + nD + ' công thức món\n\nXoá xong KHÔNG khôi phục được.'))) return;
+    if (!(await zsAsk('Xác nhận lần cuối: xoá vĩnh viễn ' + items.length + ' NVL, ' + nB + ' BTP và ' + nD + ' công thức?'))) return;
+    saveCfg({ items: [] });
+    rc.forEach(r => delRecipe(r.id));
+    toast('Đã xoá ' + items.length + ' NVL, ' + nB + ' BTP, ' + nD + ' công thức');
+  };
   const [q, setQ] = useState('');
   const [gf, setGf] = useState('all');
   const [open, setOpen] = useState(null);
@@ -54067,6 +54077,7 @@ function MatView() {
             <input className="inp" style={{ width: 190 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm tên, mã, thương hiệu…" />
             {admin && <button className="btn btn-o" onClick={() => setImp(true)}><Ic.upload size={15} /> Nhập danh sách</button>}
             {admin && <button className="btn btn-o" onClick={() => setBom(true)}><Ic.sheet size={15} /> Nạp bộ BOM</button>}
+            {user.role === 'ADMIN' && (items.length > 0 || (recipes || []).length > 0) && <button className="btn btn-r" onClick={wipeAll} title="Xoá sạch NVL + BTP + công thức món"><Ic.trash size={15} /> Xoá toàn bộ</button>}
             {admin && <button className="btn btn-p" onClick={() => {
               let seq = items.reduce((a, i2) => Math.max(a, +(String(i2.code || '').match(/(\d+)$/) || [0, 0])[1] || 0), 0);
               saveCfg({ items: [...items, { code: 'NVL' + String(seq + 1).padStart(3, '0'), name: 'Nguyên liệu mới', unit: '', group: '', price: 0 }] });
