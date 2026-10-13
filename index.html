@@ -5492,8 +5492,18 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .mlq-nm .mlq-sugg button small{white-space:normal}
 .mlq-sh{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--txt-3);padding:4px 8px 2px}
 .mlq-pr{text-align:right;font-weight:700}
-.mlq-kv{flex:1;font-size:11.5px;color:var(--txt-3)}
-.mlq-kv.on{color:#1F5E3A;font-weight:600}
+.mlq-kv{position:relative;flex:1;display:grid;grid-template-columns:auto minmax(0,150px) minmax(0,1fr);align-items:center;gap:6px;font-size:11.5px;color:var(--txt-3)}
+.mlq-kv>span{font-weight:700;color:var(--txt-2)}
+.mlq-kv input{height:28px;border:1.5px solid var(--line);border-radius:8px;padding:0 8px;font:600 12.5px var(--mono,monospace);background:#fff;min-width:0}
+.mlq-kv input:focus{border-color:var(--brand);outline:none}
+.mlq-kv em{font-style:normal;line-height:1.3;min-width:0}
+.mlq-kv.on em{color:#1F5E3A;font-weight:600}
+.mlq-kv.bad em{color:var(--red,#C0392B);font-weight:700}
+.mlq-kv.bad input{border-color:var(--red,#C0392B)}
+.mlq-kv .mlq-sugg{position:absolute;left:0;top:100%;z-index:20;width:min(340px,calc(100vw - 40px))}
+.mlq-kv .mlq-sugg button{flex-direction:column;align-items:flex-start;gap:1px}
+.mlq-kv .mlq-sugg button b{flex:none;width:100%}
+.ml-bc-nokv{font-size:10.5px;font-weight:700;color:#A3171E;background:#FDE8E8;border-radius:999px;padding:1px 7px;margin:0 9px 6px;align-self:flex-start}
 .mlq-warn{font-size:12.5px;background:#FFF4E5;color:#7A4A00;border-radius:9px;padding:7px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .mlq-warn button{border:0;background:#7A4A00;color:#fff;border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
 .ml-pend{margin-top:14px}
@@ -5502,7 +5512,7 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-bc.ml-bc-add:hover{border-color:var(--brand) !important;color:var(--brand)}
 @media (hover:none){.ml-bc-g{display:none}}
 @media (max-width:640px){.ml-bc:not(.editing) .ml-bc-h{flex-wrap:wrap;row-gap:0}.ml-bc:not(.editing) .ml-bc-h b{flex:1 1 calc(100% - 52px)}.ml-bc:not(.editing) .ml-bc-h i{flex-basis:100%;text-align:right;font-size:11.5px}}
-@media (max-width:640px){.mlq-info{grid-template-columns:1fr 1fr}.mlq-nm{grid-column:1 / -1}.ml-pend .ml-bc.editing{grid-column:1 / -1}}
+@media (max-width:640px){.mlq-kv{grid-template-columns:auto minmax(0,1fr)}.mlq-kv em{grid-column:1 / -1}.mlq-info{grid-template-columns:1fr 1fr}.mlq-nm{grid-column:1 / -1}.ml-pend .ml-bc.editing{grid-column:1 / -1}}
 .mfs-start{padding:22px 4px 8px;text-align:center}
 .mfs-start h3{font:700 16px K2D,sans-serif;margin:0 0 12px}
 .mfs-start p{font-size:13px;color:#6B655C;margin:12px 0 0}
@@ -43087,7 +43097,9 @@ const mlParsePrice = (v) => { const n = +String(v || '').replace(/[^\d]/g, '') |
    r.isNew = thẻ món mới chưa lưu. */
 function MlInlineEdit({ r, onClose, onOpenFull }) {
   useNeed('sales');
-  const { recipes, cfg, saveRecipe, user, toast, sales, go } = useApp();
+  const { recipes, cfg, saveRecipe, saveCfg, user, toast, sales, go } = useApp();
+  const [newCat, setNewCat] = useState(null);   /* đang gõ tên nhóm mới (null = không) */
+  const [kvOpen, setKvOpen] = useState(false);
   const [info, setInfo] = useState(() => ({ name: r.name || '', cat: r.cat || RCP_CATS[0], priceTxt: r.price ? numFmt(r.price) : '', kvCode: r.kvCode || '', kvName: r.kvName || '' }));
   const [nmOpen, setNmOpen] = useState(false);
   const [nmHi, setNmHi] = useState(0);
@@ -43095,7 +43107,21 @@ function MlInlineEdit({ r, onClose, onOpenFull }) {
   const kvAll = mlSalesItems(sales, (recipes || []).filter(x => x.id !== r.id), cfg);
   const kvSugg = (() => { const k = mlKey(info.name); return kvAll.filter(x => !x.has && (!k || mlKey(x.name).includes(k) || mlKey(x.code).includes(k))).sort((a, b) => b.qty - a.qty).slice(0, 8); })();
   const pickKv = (x) => { if (!x) return; setInfo(i => ({ ...i, name: x.name, cat: x.group || i.cat, priceTxt: x.price ? numFmt(x.price) : i.priceTxt, kvCode: x.code, kvName: x.name })); setNmOpen(false); };
-  const catOpts = [...new Set([...RCP_CATS, ...(recipes || []).filter(x => !isBtp(x)).map(x => x.cat), info.cat].filter(Boolean))];
+  /* Nhóm thực đơn = nhóm mặc định + nhóm tự tạo (cfg.menuCats) + nhóm các món đang dùng */
+  const catOpts = [...new Set([...RCP_CATS, ...((cfg || {}).menuCats || []), ...(recipes || []).filter(x => !isBtp(x)).map(x => x.cat), info.cat].filter(Boolean))];
+  const addCat = () => {
+    const c = String(newCat || '').trim();
+    if (!c) return setNewCat(null);
+    const hit = catOpts.find(x => mlKey(x) === mlKey(c));
+    if (!hit) saveCfg({ menuCats: [...((cfg || {}).menuCats || []), c] });
+    setInfo(i => ({ ...i, cat: hit || c })); setNewCat(null);
+    if (!hit) toast('Đã tạo nhóm ' + c);
+  };
+  /* Mã KiotViet: gõ mã hoặc tên để chọn món đang bán; mã đã gắn cho món khác thì cảnh báo */
+  const kvAllRaw = mlSalesItems(sales, [], cfg);
+  const kvDup = info.kvCode && (recipes || []).find(x => !isBtp(x) && x.id !== r.id && String(x.kvCode || '').trim().toUpperCase() === info.kvCode.trim().toUpperCase());
+  const kvHit = info.kvCode && kvAllRaw.find(x => x.code.toUpperCase() === info.kvCode.trim().toUpperCase());
+  const kvList = (() => { const k = mlKey(info.kvCode); return kvAllRaw.filter(x => !k || mlKey(x.code).includes(k) || mlKey(x.name).includes(k)).sort((a, b) => a.has - b.has || b.qty - a.qty).slice(0, 8); })();
   const mats = (cfg.items || []).filter(c => (c.name || '').trim());
   const btps = (recipes || []).filter(x => isBtp(x) && (x.name || '').trim() && x.id !== r.id);
   const btpCodes = new Set(btps.map(b => b.code).filter(Boolean));
@@ -43152,6 +43178,7 @@ function MlInlineEdit({ r, onClose, onOpenFull }) {
     if (!name) return toast('Nhập tên món');
     if ((recipes || []).some(x => !isBtp(x) && x.id !== r.id && mlKey(x.name) === mlKey(name))) return toast('Đã có món “' + name + '”');
     if (items.some(x => !String(x.name || '').trim())) return toast('Có nguyên liệu chưa có tên');
+    if (kvDup) return toast('Mã KiotViet ' + info.kvCode + ' đang gắn cho “' + kvDup.name + '” — mỗi mã chỉ gắn 1 món');
     const its = mlBySec(items);
     const { steps, simple } = mlStepsMerge(r, its);
     const { isNew, ...base } = r;
@@ -43208,15 +43235,39 @@ function MlInlineEdit({ r, onClose, onOpenFull }) {
             </div>
           )}
         </div>
-        <select value={info.cat} onChange={e => setInfo(i => ({ ...i, cat: e.target.value }))} aria-label="Nhóm">
-          {catOpts.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+        {newCat != null ? (
+          <input autoFocus value={newCat} placeholder="Tên nhóm mới" aria-label="Tên nhóm mới"
+            onChange={e => setNewCat(e.target.value)} onBlur={addCat}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } else if (e.key === 'Escape') setNewCat(null); }} />
+        ) : (
+          <select value={info.cat} onChange={e => (e.target.value === '__new' ? setNewCat('') : setInfo(i => ({ ...i, cat: e.target.value })))} aria-label="Nhóm">
+            {catOpts.map(c => <option key={c} value={c}>{c}</option>)}
+            <option value="__new">+ Tạo nhóm mới…</option>
+          </select>
+        )}
         <input className="mlq-pr" inputMode="numeric" value={info.priceTxt} placeholder="Giá (29k)" aria-label="Giá bán"
           onChange={e => setInfo(i => ({ ...i, priceTxt: e.target.value }))}
           onBlur={() => setInfo(i => ({ ...i, priceTxt: mlParsePrice(i.priceTxt) ? numFmt(mlParsePrice(i.priceTxt)) : '' }))} />
       </div>
       <div className="mlq-top">
-        <span className={'mlq-kv' + (info.kvCode ? ' on' : '')}>{info.kvCode ? 'KiotViet ' + info.kvCode : 'Chưa gắn mã KiotViet'}</span>
+        <label className={'mlq-kv' + (info.kvCode && !kvDup ? ' on' : '') + (kvDup ? ' bad' : '')}>
+          <span>Mã KiotViet</span>
+          <input value={info.kvCode} placeholder="SP000… (gõ mã hoặc tên)" aria-label="Mã KiotViet" spellCheck={false}
+            onFocus={() => setKvOpen(true)} onBlur={() => setTimeout(() => setKvOpen(false), 120)}
+            onChange={e => { setInfo(i => ({ ...i, kvCode: e.target.value, kvName: '' })); setKvOpen(true); }}
+            onKeyDown={e => { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); setKvOpen(false); } }} />
+          {kvOpen && kvList.length > 0 && (
+            <div className="mlq-sugg" role="listbox">
+              <div className="mlq-sh">Món đang bán trên KiotViet</div>
+              {kvList.map(x => (
+                <button key={x.code} type="button" role="option" onMouseDown={e => { e.preventDefault(); setInfo(i => ({ ...i, kvCode: x.code, kvName: x.name, name: i.name || x.name })); setKvOpen(false); }}>
+                  <b>{x.code} · {x.name}</b><small>{[x.group, x.price ? mlMoney(x.price) : '', x.has ? 'đã gắn cho món khác' : ''].filter(Boolean).join(' · ')}</small>
+                </button>
+              ))}
+            </div>
+          )}
+          <em>{kvDup ? 'Mã này đang gắn cho “' + kvDup.name + '”' : info.kvCode ? (kvHit ? '✓ ' + kvHit.name : 'Chưa thấy mã này trong số bán') : 'Chưa gắn — bán ra sẽ không trừ kho'}</em>
+        </label>
         <span className="mlq-cost">Vốn <b>{mlMoney(cost)}</b>{price ? <> · <b>{mlPct(cost / price * 100)}</b></> : null}</span>
       </div>
       {!mats.length && !btps.length && (
@@ -43432,6 +43483,7 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
                       })}
                     </span>
                     {cost ? <span className="ml-bc-f">Vốn {mlMoney(cost)}{r.price ? ' · ' + mlPct(cost / r.price * 100) : ''}</span> : null}
+                    {admin && !r.kvCode && <span className="ml-bc-nokv" title="Chưa gắn mã KiotViet — bán ra sẽ không trừ kho. Bấm món để gắn.">Chưa gắn mã KiotViet</span>}
                   </div>
                 );
               })}
