@@ -17106,7 +17106,8 @@ const REV_CH_X = ['#8B5CF6', '#DB2777', '#65A30D', '#0891B2'];
 const revChKey = (name, hasTable) => {
   const n = noAccent(String(name || '')).toLowerCase().trim();
   if (/grab/.test(n)) return 'grab';
-  if (/shopee|now ?food/.test(n)) return 'shopee';
+  /* KiotViet đặt tên kênh ShopeeFood là "Now" (tên cũ của ShopeeFood) */
+  if (/shopee|now ?food|^now\b/.test(n)) return 'shopee';
   if (/be ?food|^be$/.test(n)) return 'be';
   if (/mang ve|mang di|take ?away/.test(n)) return 'take';
   if (/tai cho|tai quan|dine/.test(n)) return 'dine';
@@ -23615,12 +23616,15 @@ function RevSource({ mo, brs, revenue }) {
       const ch = has ? r.ch : { na: r.amount || 0 };
       const cn = has ? (r.chN || {}) : { na: r.invoices || 0 };
       if (!has && (r.amount || 0) > 0) naDays[r.date] = 1;
-      Object.keys(ch).forEach(k => {
-        const a = +ch[k] || 0;
-        tot[k] = (tot[k] || 0) + a; cnt[k] = (cnt[k] || 0) + (+cn[k] || 0);
+      /* Kênh lạ đã lưu dưới khoá o_… (vd "Now" trước khi app biết đó là ShopeeFood): xếp lại theo luật
+         hiện tại từ tên kênh, để số cũ gộp đúng vào ShopeeFood thay vì đứng riêng một kênh "now" */
+      Object.keys(ch).forEach(k0 => {
+        const k = k0.startsWith('o_') ? revChKey((r.chL || {})[k0] || k0.slice(2), false) : k0;
+        const a = +ch[k0] || 0;
+        tot[k] = (tot[k] || 0) + a; cnt[k] = (cnt[k] || 0) + (+cn[k0] || 0);
         const d = day[r.date] || (day[r.date] = {}); d[k] = (d[k] || 0) + a;
       });
-      Object.assign(lbl, r.chL || {});
+      Object.keys(r.chL || {}).forEach(k0 => { lbl[revChKey(r.chL[k0], false)] = r.chL[k0]; });
       all += r.amount || 0; inv += r.invoices || 0;
       cash += r.cash || 0; bank += r.bank || 0; wal += r.wallet || 0;
     });
