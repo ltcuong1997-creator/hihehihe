@@ -42838,14 +42838,14 @@ const mlStepsMerge = (r, items) => {
   if (si < 0) steps.push(...extra); else steps.splice(si, 0, ...extra);
   return { steps, simple };
 };
-/* Một món gồm 3 phần: Kết cấu (NVL/BTP) · Đá viên · Topping. Ghi `sec` khi thêm từ hộp sửa nhanh;
-   dòng cũ chưa có `sec` thì đoán theo loại nguyên liệu (đá → Đá viên; topping/kem phủ/trang trí → Topping). */
+/* Một món gồm 2 phần: Kết cấu (NVL/BTP, kể cả đá) · Topping. Ghi `sec` khi thêm từ khung sửa;
+   dòng cũ chưa có `sec` thì đoán theo loại nguyên liệu (topping/kem phủ/trang trí → Topping).
+   Phần "Đá viên" riêng đã bỏ — dòng đá (kể cả dòng từng ghi sec 'ice') nằm trong Kết cấu. */
 const ML_SECS = [
   { id: 'base', l: 'Kết cấu món', hint: 'NVL / BTP làm nên món' },
-  { id: 'ice', l: 'Đá viên', hint: 'lượng đá cho 1 ly' },
   { id: 'top', l: 'Topping', hint: 'trân châu, thạch, kem phủ…' },
 ];
-const mlSec = (x) => x.sec || ((x.kind === 'ice' || mlIng(x).ice) ? 'ice' : (['topping', 'foam', 'garnish'].includes(x.kind) ? 'top' : 'base'));
+const mlSec = (x) => (x.sec === 'top' || (!x.sec && ['topping', 'foam', 'garnish'].includes(x.kind))) ? 'top' : 'base';
 const mlBySec = (items) => ML_SECS.flatMap(S => (items || []).filter(x => mlSec(x) === S.id));
 function MlInlineEdit({ r, onClose, onOpenFull }) {
   const { recipes, cfg, saveRecipe, user, toast } = useApp();
@@ -42888,9 +42888,8 @@ function MlInlineEdit({ r, onClose, onOpenFull }) {
       it = { id, sku: sg.code, name: sg.name, qty: 0, unit: u, kind: rcpGuessKind(sg.name, sg.src.unit), color: '', cost: per == null ? 0 : per, noConv: per == null };
     }
     it.sec = sec;
-    if (sec === 'ice') it.kind = 'ice';
-    else if (sec === 'top' && !['topping', 'foam', 'garnish'].includes(it.kind)) it.kind = 'topping';
-    else if (sec === 'base' && ['ice', 'topping', 'foam', 'garnish'].includes(it.kind)) it.kind = rcpGuessKind('', it.unit);
+    if (sec === 'top' && !['topping', 'foam', 'garnish'].includes(it.kind)) it.kind = 'topping';
+    else if (sec === 'base' && ['topping', 'foam', 'garnish'].includes(it.kind)) it.kind = rcpGuessKind('', it.unit);
     setItems(a => mlBySec([...a, it]));
     setAdd({ sec, q: '' }); setHi(0); setFocusId(id);
   };
@@ -42944,7 +42943,7 @@ function MlInlineEdit({ r, onClose, onOpenFull }) {
               {list.map(row)}
               <div className="mlq-add">
                 <input value={add.sec === S.id ? add.q : ''} aria-label={'Thêm vào ' + S.l}
-                  placeholder={S.id === 'ice' ? '+ Đá viên — gõ "đá"…' : S.id === 'top' ? '+ Thêm topping — gõ tên…' : '+ Thêm NVL / BTP — gõ tên hoặc mã…'}
+                  placeholder={S.id === 'top' ? '+ Thêm topping — gõ tên…' : '+ Thêm NVL / BTP — gõ tên hoặc mã…'}
                   onFocus={() => { if (add.sec !== S.id) { setAdd({ sec: S.id, q: '' }); setHi(0); } }}
                   onChange={e => { setAdd({ sec: S.id, q: e.target.value }); setHi(0); }}
                   onKeyDown={e => {
