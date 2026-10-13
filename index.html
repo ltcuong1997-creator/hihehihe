@@ -1525,6 +1525,9 @@ tr.sch-over-dn td{box-shadow:inset 0 -3px 0 var(--brand)}
 .sch-chip.sch-reg{background:transparent;color:var(--txt-3);border:1px dashed var(--txt-3);opacity:.7;font-weight:600}
 .sch-plus{color:#C9C0B8;font-size:18px;font-weight:300}
 .sch-c.can:hover .sch-plus{color:var(--brand)}
+.sch-off{display:inline-block;padding:3px 9px;border-radius:8px;background:#F1ECE6;color:#A89A8E;font-size:11px;font-weight:800;letter-spacing:.04em}
+.sch-c.can:hover .sch-off{background:var(--brand-wash);color:var(--brand)}
+.sch-lg i.off{background:#F1ECE6}
 .sch-lg{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--txt-3)}
 .sch-lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
 .sch-lg i.reg{border:1px dashed var(--txt-3);background:transparent}
@@ -15491,7 +15494,7 @@ function EmpDayModal({ branchId, date, emp, shifts, onClose }) {
       if (!want && has) saveSchedule(branchId, date, s.id, cur.filter(x => x !== emp.id));
     });
     const dd = date.split('-').reverse().join('/');
-    toast(!ids.length ? emp.name + ' nghỉ ngày ' + dd
+    toast(!ids.length ? emp.name + ' OFF ngày ' + dd
       : 'Đã xếp ' + emp.name + ' · ' + shifts.filter(s => ids.includes(s.id)).map(s => s.code).join(' + ') + ' ngày ' + dd);
     onClose();
   };
@@ -15499,7 +15502,7 @@ function EmpDayModal({ branchId, date, emp, shifts, onClose }) {
     <Modal title={emp.name} onClose={onClose}
       sub={branchOf(branchId).name + ' · ' + WD[wd] + ' ' + date.split('-').reverse().join('/')}
       footer={<>
-        <button className="btn btn-o" style={{ marginRight: 'auto' }} onClick={() => save([])}>Nghỉ cả ngày</button>
+        <button className="btn btn-o" style={{ marginRight: 'auto' }} onClick={() => save([])}>OFF cả ngày</button>
         <button className="btn btn-o" onClick={onClose}>Hủy</button>
         <button className="btn btn-p" onClick={() => save(picked)}><Ic.check size={15} /> Lưu</button>
       </>}>
@@ -15531,6 +15534,139 @@ function EmpDayModal({ branchId, date, emp, shifts, onClose }) {
   );
 }
 
+/* ---- Ảnh lịch tuần để dán Zalo ----
+   Vẽ thẳng lên canvas (không cần thư viện chụp màn hình): đầu ảnh có tiêu đề + khoảng ngày + tên chi nhánh,
+   bảng nhân viên × 7 ngày, ô không có ca ghi OFF, cuối ảnh là chú thích giờ từng ca. Vẽ ở tỉ lệ 2x cho nét. */
+function drawWeekSchedImg({ branch, days, rows, shifts, sched, bid, cfg }) {
+  const S = 2, PAD = 22, NAME_W = 190, DAY_W = 112, HEAD_H = 104, TH_H = 50, CHIP_H = 34, CHIP_GAP = 4;
+  const W = PAD * 2 + NAME_W + DAY_W * 7;
+  const font = (getComputedStyle(document.body).fontFamily || 'system-ui, sans-serif');
+  const F = (w, px) => w + ' ' + px + 'px ' + font;
+  const C = { brand: '#18484A', brandDk: '#123A3B', wash: '#E8F1F0', ink: '#2E2019', ink3: '#8A7B70', line: '#EADFD3', zebra: '#FBF7F3', off: '#F1ECE6', offTx: '#A89A8E', sun: '#FFF4EE' };
+  const cellOf = (e, d) => shifts.filter(s => (sched[schedKey(bid, dKey(d), s.id)] || []).includes(e.id));
+  const rowH = rows.map(e => Math.max(1, ...days.map(d => cellOf(e, d).length)) * (CHIP_H + CHIP_GAP) + 12);
+  const bodyH = rowH.reduce((a, b) => a + b, 0) || 50;
+  const LEG_H = 30 + Math.ceil(shifts.length / 4) * 22 + 4;
+  const H = HEAD_H + 14 + TH_H + bodyH + LEG_H + PAD;
+  const cv = document.createElement('canvas');
+  cv.width = W * S; cv.height = H * S;
+  const g = cv.getContext('2d');
+  g.scale(S, S);
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  const fit = (t, max) => { t = String(t || ''); if (g.measureText(t).width <= max) return t; while (t && g.measureText(t + '…').width > max) t = t.slice(0, -1); return t + '…'; };
+  const yr = (k) => k.slice(8, 10) + '/' + k.slice(5, 7) + '/' + k.slice(0, 4);
+  /* nền */
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  /* đầu ảnh */
+  g.fillStyle = C.brand; g.fillRect(0, 0, W, HEAD_H);
+  g.fillStyle = C.brandDk; g.fillRect(0, HEAD_H - 6, W, 6);
+  g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+  g.fillStyle = '#fff'; g.font = F(800, 28); g.fillText('LỊCH LÀM VIỆC TUẦN', PAD, 46);
+  g.font = F(600, 17); g.fillStyle = '#CFE3E1';
+  g.fillText('Từ ' + yr(dKey(days[0])) + ' đến ' + yr(dKey(days[6])), PAD, 76);
+  g.font = F(800, 20); g.textAlign = 'right';
+  const bn = fit(branch.name, W / 2 - PAD);
+  const bw = g.measureText(bn).width + 32;
+  g.fillStyle = '#fff'; rr(W - PAD - bw, 30, bw, 42, 21); g.fill();
+  g.fillStyle = C.brand; g.fillText(bn, W - PAD - 16, 58);
+  /* hàng tiêu đề ngày */
+  let y = HEAD_H + 14;
+  const x0 = PAD, xd = PAD + NAME_W;
+  g.fillStyle = C.wash; rr(x0, y, W - PAD * 2, TH_H, 10); g.fill();
+  g.fillStyle = C.brand; g.font = F(800, 14); g.textAlign = 'left';
+  g.fillText('Nhân viên (' + rows.length + ')', x0 + 12, y + 30);
+  g.textAlign = 'center';
+  days.forEach((d, i) => {
+    const cx = xd + i * DAY_W + DAY_W / 2, k = dKey(d), hol = holidayOf(cfg, k);
+    g.fillStyle = d.getDay() === 0 ? '#C0392B' : C.brand; g.font = F(800, 15);
+    g.fillText(WD[d.getDay()] + (hol ? ' · Lễ' : ''), cx, y + 22);
+    g.fillStyle = C.ink3; g.font = F(600, 12.5);
+    g.fillText(pad(d.getDate()) + '/' + pad(d.getMonth() + 1), cx, y + 40);
+  });
+  y += TH_H;
+  /* thân bảng */
+  rows.forEach((e, ri) => {
+    const h = rowH[ri];
+    if (ri % 2) { g.fillStyle = C.zebra; g.fillRect(x0, y, W - PAD * 2, h); }
+    days.forEach((d, i) => { if (d.getDay() === 0 && !(ri % 2)) { g.fillStyle = C.sun; g.fillRect(xd + i * DAY_W, y, DAY_W, h); } });
+    const away = !(e.branches || []).includes(bid);
+    g.textAlign = 'left'; g.fillStyle = C.ink; g.font = F(700, 14.5);
+    g.fillText(fit(e.name, NAME_W - 20), x0 + 12, y + h / 2 - 2);
+    g.fillStyle = away ? '#7C3AED' : C.ink3; g.font = F(600, 11.5);
+    g.fillText(fit(away ? 'Hỗ trợ · ' + branchOf((e.branches || [])[0]).code : posOf(e.posId).name, NAME_W - 20), x0 + 12, y + h / 2 + 14);
+    days.forEach((d, i) => {
+      const got = cellOf(e, d), cx = xd + i * DAY_W;
+      g.textAlign = 'center';
+      if (!got.length) {
+        g.fillStyle = C.off; rr(cx + 8, y + h / 2 - 15, DAY_W - 16, 30, 8); g.fill();
+        g.fillStyle = C.offTx; g.font = F(800, 13); g.fillText('OFF', cx + DAY_W / 2, y + h / 2 + 5);
+        return;
+      }
+      const top = y + (h - got.length * (CHIP_H + CHIP_GAP) + CHIP_GAP) / 2;
+      got.forEach((s, j) => {
+        const cy = top + j * (CHIP_H + CHIP_GAP), col = s.color || C.brand;
+        g.fillStyle = col + '22'; rr(cx + 6, cy, DAY_W - 12, CHIP_H, 8); g.fill();
+        g.strokeStyle = col; g.lineWidth = 1.2; g.stroke();
+        g.fillStyle = col; g.font = F(800, 13); g.fillText(fit(s.code, DAY_W - 20), cx + DAY_W / 2, cy + 15);
+        g.fillStyle = C.ink; g.font = F(600, 10.5); g.fillText(s.start + '–' + s.end, cx + DAY_W / 2, cy + 28);
+      });
+    });
+    y += h;
+    g.strokeStyle = C.line; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, y); g.lineTo(W - PAD, y); g.stroke();
+  });
+  if (!rows.length) { g.fillStyle = C.ink3; g.font = F(600, 14); g.textAlign = 'center'; g.fillText('Chưa có nhân viên', W / 2, y + 30); y += 50; }
+  /* vạch cột ngày */
+  g.strokeStyle = C.line; g.lineWidth = 1;
+  for (let i = 0; i <= 7; i++) { const x = xd + i * DAY_W; g.beginPath(); g.moveTo(x, HEAD_H + 14 + TH_H); g.lineTo(x, y); g.stroke(); }
+  /* chú thích ca */
+  y += 26; g.textAlign = 'left';
+  shifts.forEach((s, i) => {
+    const lx = PAD + (i % 4) * ((W - PAD * 2) / 4), ly = y + Math.floor(i / 4) * 22;
+    g.fillStyle = s.color || C.brand; rr(lx, ly - 10, 12, 12, 3); g.fill();
+    g.fillStyle = C.ink; g.font = F(700, 12.5);
+    g.fillText(fit(s.code + ' · ' + s.name + ' ' + s.start + '–' + s.end, (W - PAD * 2) / 4 - 24), lx + 18, ly);
+  });
+  y += Math.ceil(shifts.length / 4) * 22 + 4;
+  g.fillStyle = C.ink3; g.font = F(600, 11.5);
+  g.fillText('OFF = nghỉ · Cập nhật lúc ' + fmtTime(new Date()) + ' ngày ' + yr(todayKey()), PAD, y);
+  return cv;
+}
+
+function SchedImgModal({ canvas, fileName, onClose }) {
+  const { toast } = useApp();
+  const url = useMemo(() => canvas.toDataURL('image/png'), [canvas]);
+  const blobP = () => new Promise(res => canvas.toBlob(res, 'image/png'));
+  const canShare = (() => { try { return !!(navigator.canShare && navigator.canShare({ files: [new File([new Blob()], 'a.png', { type: 'image/png' })] })); } catch (e) { return false; } })();
+  const dl = () => { const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove(); };
+  /* ClipboardItem nhận thẳng Promise để Safari iPhone không mất "lượt bấm" trong lúc chờ tạo ảnh */
+  const copy = async () => {
+    try {
+      if (!navigator.clipboard || !window.ClipboardItem) throw new Error('no-clip');
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP() })]);
+      toast('Đã copy ảnh — qua Zalo bấm dán (Ctrl+V) là xong');
+    } catch (e) {
+      if (canShare) return share();
+      dl(); toast('Máy này không cho copy ảnh — đã tải ảnh về, gửi ảnh đó qua Zalo nhé');
+    }
+  };
+  const share = async () => {
+    try {
+      const b = await blobP();
+      await navigator.share({ files: [new File([b], fileName, { type: 'image/png' })] });
+    } catch (e) { if (e && e.name !== 'AbortError') toast('Không mở được khung chia sẻ — thử Copy ảnh hoặc Tải về'); }
+  };
+  return (
+    <Modal title="Ảnh lịch tuần" sub="Copy rồi dán thẳng vào Zalo" onClose={onClose} wide
+      footer={<>
+        <button className="btn btn-o" style={{ marginRight: 'auto' }} onClick={dl}><Ic.upload size={15} style={{ transform: 'rotate(180deg)' }} /> Tải về</button>
+        {canShare && <button className="btn btn-o" onClick={share}><Ic.send size={15} /> Gửi</button>}
+        <button className="btn btn-p" onClick={copy}><Ic.clip size={15} /> Copy ảnh</button>
+      </>}>
+      <img src={url} alt="Lịch làm việc tuần" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 10, border: '1px solid var(--line)' }} />
+    </Modal>
+  );
+}
+
 function ScheduleView() {
   const { user, cfg, sched, employees, reg, saveCfg, toast, needSchedRange, revenue, fetchRevRange } = useApp();
   const canEditSched = canSchedule(user);
@@ -15538,6 +15674,7 @@ function ScheduleView() {
   const [wk, setWk] = useState(0);
   const [bid, setBid] = useState(user.branches[0]);
   const [open, setOpen] = useState(null);
+  const [imgCv, setImgCv] = useState(null);
   const days = useMemo(() => {
     const base = new Date(); base.setDate(base.getDate() + wk * 7);
     const mon = new Date(base); mon.setDate(base.getDate() - ((base.getDay() + 6) % 7));
@@ -15736,6 +15873,12 @@ function ScheduleView() {
                 {cfg.branches.filter(b => user.branches.includes(b.id)).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             )}
+            {shifts.length > 0 && (
+              <button className="btn btn-p btn-sm" title="Tạo ảnh lịch tuần để copy dán qua Zalo"
+                onClick={() => setImgCv(drawWeekSchedImg({ branch: branchOf(bid), days, rows: rowEmps, shifts, sched, bid, cfg }))}>
+                <Ic.clip size={14} /> Ảnh lịch tuần
+              </button>
+            )}
             <button className="btn btn-o btn-sm" onClick={() => setWk(w => w - 1)}>Tuần trước</button>
             <button className="btn btn-o btn-sm" onClick={() => setWk(0)}>Tuần này</button>
             <button className="btn btn-o btn-sm" onClick={() => setWk(w => w + 1)}>Tuần sau</button>
@@ -15801,7 +15944,7 @@ function ScheduleView() {
                             title={canEditSched ? 'Bấm để chọn ca cho ' + e.name : ''}>
                             {got.map(s => <span key={s.id} className="sch-chip" style={{ background: s.color + '22', color: s.color, borderColor: s.color }}>{s.code}</span>)}
                             {!got.length && regd.map(s => <span key={s.id} className="sch-chip sch-reg" title="Đã đăng ký — chưa xếp">{s.code}</span>)}
-                            {!got.length && !regd.length && canEditSched && <span className="sch-plus">+</span>}
+                            {!got.length && !regd.length && <span className="sch-off">OFF</span>}
                           </td>
                         );
                       })}
@@ -15825,6 +15968,7 @@ function ScheduleView() {
             <div className="sch-lg">
               {shifts.map(s => <span key={s.id}><i style={{ background: s.color }} />{s.code} {s.start}–{s.end}</span>)}
               <span><i className="reg" />viền nét đứt = đã đăng ký, chưa xếp</span>
+              <span><i className="off" />OFF = không có ca (nghỉ)</span>
             </div>
           )}
         </div>
@@ -15894,6 +16038,7 @@ function ScheduleView() {
         </div>
       )}
 
+      {imgCv && <SchedImgModal canvas={imgCv} fileName={'lich-tuan-' + branchOf(bid).code + '-' + dKey(days[0]) + '.png'} onClose={() => setImgCv(null)} />}
       {open && <EmpDayModal branchId={bid} date={open.date} emp={open.emp} shifts={shifts} onClose={() => setOpen(null)} />}
     </div>
   );
