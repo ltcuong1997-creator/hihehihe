@@ -5440,6 +5440,39 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-menu .ml-type{min-height:42px;padding:3px 3px 3px 14px}
 .ml-menu .ml-type input{font:500 14px K2D,sans-serif;padding:6px 0}
 .ml-menu .ml-type .ml-pill{min-height:36px;padding:0 14px;font-size:13.5px}
+/* Màn chi tiết + form Sửa công thức: cùng font K2D, chữ/dòng/ly gọn như Bảng tổng hợp */
+.ml-stage,.ml-stage button,.ml-stage input,.ml-stage select,.mlq,.mlq button,.mlq input,.mlq select{font-family:K2D,system-ui,sans-serif}
+.ml-stage .ml-top .ml-t{font:700 16px K2D,sans-serif;letter-spacing:0}
+.ml-stage .ml-type{min-height:40px;padding:3px 3px 3px 14px}
+.ml-stage .ml-type input{font:500 14px K2D,sans-serif;padding:6px 0}
+.ml-stage .ml-type .ml-pill{min-height:34px}
+.ml-stage .ml-name{font:700 clamp(22px,3.2cqw,32px)/1.15 K2D,sans-serif;letter-spacing:0;max-width:18ch;margin:2px 0 8px}
+.ml-stage .ml-sub{font-size:13px;font-weight:600}
+.ml-stage .ml-lines li{padding:4px 0}
+.ml-stage .ml-lines .q{font:700 16px K2D,sans-serif;letter-spacing:0;min-width:76px}
+.ml-stage .ml-lines .q small{font-size:11px;font-weight:500;opacity:.75}
+.ml-stage .ml-lines .t{font-size:14px}
+.ml-stage .ml-pk{font-size:12.5px}
+.ml-stage .ml-ename{font:700 clamp(20px,2.8cqw,28px)/1.2 K2D,sans-serif;letter-spacing:0;border-bottom-width:2px;padding:2px 0 6px;margin:8px 0 10px;max-width:600px}
+.ml-stage .ml-rows{gap:5px;max-width:600px}
+.ml-stage .ml-row{min-height:42px;padding:3px 6px;gap:6px;border-radius:12px}
+.ml-stage .ml-grip{width:24px;height:32px;font-size:14px}
+.ml-stage .ml-row .n{font-size:12px;width:14px}
+.ml-stage .ml-step button{width:30px;height:30px}
+.ml-stage .ml-step input{font:700 16px K2D,sans-serif;letter-spacing:0;width:58px}
+.ml-stage .ml-step span{font-size:12px;margin:0 4px 0 3px}
+.ml-stage .ml-row .t{font-size:14px}
+.ml-stage .ml-row .t em{font-size:11px}
+.ml-stage .ml-x{width:30px;height:30px}
+.ml-stage .ml-row.add{padding-left:12px;border-width:1.5px}
+.ml-stage .ml-row.add input{font:500 14px K2D,sans-serif;min-height:34px}
+.ml-stage .ml-sel,.ml-stage .ml-price{min-height:34px;font-size:13px}
+.ml-stage .ml-price input{font:700 13px K2D,sans-serif}
+.ml-stage .ml-seg button{min-height:30px;font-size:12.5px;padding:0 12px}
+.ml-stage .ml-sug{min-height:32px;font-size:12.5px;padding:0 12px}
+.mlq-top>b{font:700 14px K2D,sans-serif}
+.ml-stage .ml-top{position:relative;z-index:2}
+.ml-stage .ml-disc.ml-w{margin-top:28px}
 .mlq-sec{border:1px solid var(--line-soft);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:4px}
 .mlq-sec h4{margin:0 0 2px;font-size:13px;display:flex;align-items:center;gap:7px}
 .mlq-sec h4 i{font-style:normal;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;color:#fff;background:#4FA36B}
@@ -43241,7 +43274,7 @@ function MlView({ r, list, admin, onPick, onBack, onAdd, onEdit, onBar, onPlayer
               {its.map((x, i) => (
                 <li key={x.id} className="ml-anim" style={{ animationDelay: (110 + i * 70) + 'ms' }}>
                   <span className="n">{i + 1}</span>
-                  <span className="q">{numFmt(+x.qty || 0)}<small>{x.unit}</small></span>
+                  <span className="q">{numFmt(+x.qty || 0)}<small>{mlUShort(x.unit)}</small></span>
                   <span className="t">{x.name}{mlNoStock(x) && <em>{mlNoStockL(x)}</em>}</span>
                 </li>
               ))}
@@ -43343,7 +43376,7 @@ function MlAdd({ init, baseId, onCancel, onSaved }) {
             {full.map((x, i) => (
               <li key={i} className="ml-anim" style={{ animation: 'mlUp18 .4s ease-out backwards' }}>
                 <span className="n">{i + 1}</span>
-                <span className="q">{numFmt(x.qty)}<small>{x.unit}</small></span>
+                <span className="q">{numFmt(x.qty)}<small>{mlUShort(x.unit)}</small></span>
                 <span className="t">{x.name}{mlNoStock(x) && <em>{mlNoStockL(x)}</em>}</span>
               </li>
             ))}
@@ -43366,7 +43399,7 @@ function MlAdd({ init, baseId, onCancel, onSaved }) {
             {same && <span className="ml-sug warn info">Đã có món “{same.name}” — lưu sẽ thay công thức món đó</span>}
           </div>
         </div>
-        <div className="ml-disc ml-w"><MlCup w={300} h={430} layers={mlLayers(full)} ice={mlHasIce(full)} slots={6} big={!!L} /></div>
+        <div className="ml-disc ml-w"><MlCup w={190} h={272} layers={mlLayers(full)} ice={mlHasIce(full)} slots={6} big={!!L} /></div>
       </div>
     </div>
   );
@@ -43491,7 +43524,7 @@ function MlEdit({ r, onCancel, onSaved }) {
                   <button aria-label={'Bớt ' + x.name} disabled={isL} onClick={() => upd(i, { qty: Math.max(0, (+items[i].qty || 0) - stepOf(items[i])) })}><Ic.minus size={16} /></button>
                   <input inputMode="decimal" aria-label={'Định lượng ' + x.name} value={isL ? x.qty : (x.qty === 0 ? '' : x.qty)} readOnly={isL}
                     onChange={e => upd(i, { qty: +String(e.target.value).replace(',', '.').replace(/[^\d.]/g, '') || 0 })} />
-                  <span>{x.unit}</span>
+                  <span>{mlUShort(x.unit)}</span>
                   <button aria-label={'Thêm ' + x.name} disabled={isL} onClick={() => upd(i, { qty: (+items[i].qty || 0) + stepOf(items[i]) })}><Ic.plus size={16} /></button>
                 </div>
                 <span className="t">{x.name}{mlNoStock(x) && <em>{mlNoStockL(x)}</em>}</span>
@@ -43506,7 +43539,7 @@ function MlEdit({ r, onCancel, onSaved }) {
             {pr ? <> bằng <b>{mlPct(cost / pr * 100)}</b> giá bán</> : ', chưa có giá bán'}</p>
           {isL && <p className="ml-cost" style={{ fontSize: 14, marginTop: 4 }}>Lưu ở size L sẽ {Lr ? 'cập nhật món “' + Lr.name + '”' : 'tạo món mới “' + mlLName(name) + '”'} với định lượng ×1,3 (đổi định lượng ở size M).</p>}
         </div>
-        <div className="ml-disc ml-w" style={{ alignSelf: 'center' }}><MlCup w={290} h={420} layers={mlLayers(shown)} ice={mlHasIce(shown)} slots={6} big={isL} /></div>
+        <div className="ml-disc ml-w" style={{ alignSelf: 'center' }}><MlCup w={190} h={272} layers={mlLayers(shown)} ice={mlHasIce(shown)} slots={6} big={isL} /></div>
       </div>
     </div>
   );
