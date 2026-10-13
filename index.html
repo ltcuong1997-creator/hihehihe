@@ -5475,6 +5475,36 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-stage .ml-seg button{min-height:30px;font-size:12.5px;padding:0 12px}
 .ml-stage .ml-sug{min-height:32px;font-size:12.5px;padding:0 12px}
 .mlq-top>b{font:700 14px K2D,sans-serif}
+.mfs-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.mfs-bar .inp{flex:1;min-width:180px}
+.mfs-list{max-height:min(56vh,520px);overflow:auto;border:1px solid var(--line);border-radius:12px}
+.mfs-grp+.mfs-grp{border-top:1px solid var(--line)}
+.mfs-gh{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#F6F3EE;cursor:pointer}
+.mfs-gh b{font-size:13.5px}
+.mfs-gh small{font-size:12px;color:var(--txt-3)}
+.mfs-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto 84px;align-items:center;gap:10px;padding:6px 12px;border-top:1px dotted #EEE9E1;cursor:pointer;font-size:13.5px}
+.mfs-row:hover{background:#FBFAF7}
+.mfs-row.on{background:var(--brand-wash,#EAF4F1)}
+.mfs-row.has{opacity:.5;cursor:default}
+.mfs-row .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.mfs-row .nm small{font-weight:500;color:var(--txt-3);margin-left:6px;font-size:11.5px}
+.mfs-row .qt{font-size:12px;color:var(--txt-3);white-space:nowrap}
+.mfs-row .pr{font-size:12.5px;font-weight:700;text-align:right;white-space:nowrap}
+.mfs-start{padding:22px 4px 8px;text-align:center}
+.mfs-start h3{font:700 16px K2D,sans-serif;margin:0 0 12px}
+.mfs-start p{font-size:13px;color:#6B655C;margin:12px 0 0}
+.mfs-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;max-width:760px;margin:0 auto}
+.mfs-opts button{display:flex;flex-direction:column;gap:6px;text-align:left;padding:16px 18px;border-radius:16px;border:1.5px solid #ECE7DF;background:#FBFAF7;cursor:pointer;font:inherit;transition:border-color .15s,box-shadow .15s}
+.mfs-opts button:hover{border-color:var(--brand);box-shadow:0 6px 16px rgba(0,0,0,.06)}
+.mfs-opts b{font:700 15px K2D,sans-serif}
+.mfs-opts span{font-size:13px;color:#5E5A53;line-height:1.45}
+.mfs-opts i{font-style:normal;font-weight:700;font-size:13px;color:var(--brand);margin-top:4px}
+.mfs-todo{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;text-align:left}
+.mfs-todo button{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;border:1.5px dashed #D8D2C8;background:#fff;cursor:pointer;font:inherit;text-align:left}
+.mfs-todo button:hover{border-color:var(--brand);border-style:solid}
+.mfs-todo b{font-size:14px;font-weight:700}
+.mfs-todo small{font-size:12px;color:#7A746B}
+@media (max-width:640px){.mfs-row{grid-template-columns:18px minmax(0,1fr) 72px}.mfs-row .qt{display:none}}
 .ml-stage .ml-top{position:relative;z-index:2}
 .ml-stage .ml-disc.ml-w{margin-top:28px}
 .mlq-sec{border:1px solid var(--line-soft);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:4px}
@@ -6892,6 +6922,16 @@ const printHtml = (html) => {
 /* Chấm công mẫu cho chế độ demo (?demo=1): tháng trước + tháng này tới hôm qua, ca sáng 10:00–18:00,
    nghỉ ngẫu nhiên vài ngày — chỉ để xem bảng lương / phiếu lương có số, không bao giờ ghi lên Firestore. */
 /* Doanh thu mẫu cho ?demo=1: B1, đầu tháng tới hôm nay, chia nguồn như robot KiotViet ghi (ch/chN/lines.s) */
+/* Số bán mẫu cho ?demo=1 (trang Xuất bán / tạo món từ hàng xuất bán): 1 doc B1 tháng này, cấu trúc như robot KiotViet */
+const seedDemoSales = () => {
+  const ym = todayKey().slice(0, 7);
+  const L = [['SP000001', 'Bạc Xỉu', 'Cà phê', 820, 29000], ['SP000002', 'Cà Phê Muối', 'Cà phê', 610, 35000], ['SP000003', 'Trà Sữa Trân Châu', 'Trà sữa', 540, 42000],
+    ['SP000004', 'Phê Nâu', 'Cà phê', 930, 25000], ['SP000005', 'Trà Đào Cam Sả', 'Trà trái cây', 470, 45000], ['SP000006', 'Matcha Latte', 'Trà sữa', 260, 45000],
+    ['SP000007', 'Hồng Trà Sữa', 'Trà sữa', 310, 33000], ['SP000008', 'Trà Vải', 'Trà trái cây', 220, 39000], ['SP000009', 'Thêm trân châu', 'Topping', 380, 7000]];
+  const items = {};
+  L.forEach(([c, name, group, qty, pr]) => { items[c] = { name, unit: 'Ly', group, qty, amount: qty * pr }; });
+  return { ['B1_' + ym]: { id: 'B1_' + ym, branchId: 'B1', ym, items } };
+};
 const seedDemoRev = () => {
   const o = {}, t = todayKey(), mo = t.slice(0, 7);
   const mix = [['dine', .46, 62000], ['take', .24, 48000], ['grab', .18, 95000], ['shopee', .12, 88000]];
@@ -43051,7 +43091,7 @@ const ML_GRP_PAL = [
   ['#D9E9F7', '#1E4B73'], ['#F6EEC4', '#6A5410'], ['#F4D9E8', '#72204E'], ['#DDEFEF', '#1E5A5A'],
 ];
 const mlGrpColor = (cat, cats) => { const i = Math.max(0, (cats || []).indexOf(cat || '')); return ML_GRP_PAL[i % ML_GRP_PAL.length]; };
-function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoard, onImport, onNew }) {
+function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoard, onImport, onNew, onFromSales }) {
   const { recipes: allRcp, saveRecipe, toast } = useApp();
   const [editId, setEditId] = useState(null);
   const [drag, setDrag] = useState(null);
@@ -43145,7 +43185,8 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
         <label className="ml-search"><Ic.search size={16} /><input aria-label="Tìm món" value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm món…" /></label>
         <button className="ml-chip" onClick={onMenuBoard}><Ic.menu size={15} /> Xem Menu</button>
         {admin && <button className="ml-chip" onClick={onImport}><Ic.upload size={15} /> Nhập Excel</button>}
-        {admin && <button className="ml-chip" onClick={onNew} title="Form đầy đủ: bước pha, kiểu ly, ảnh">Form đầy đủ</button>}
+        {admin && <button className="ml-chip" onClick={onFromSales} title="Chọn món từ số bán KiotViet (trang Xuất bán) — tự gắn mã, nhóm, giá"><Ic.plus size={15} /> Từ hàng xuất bán</button>}
+        {admin && <button className="ml-chip" onClick={onNew} title="Tự gõ món mới: tên, nhóm, giá, mã KiotViet, định lượng"><Ic.plus size={15} /> Món mới</button>}
         {mode === 'board' && <button className="ml-chip ml-fs" onClick={fullScreen} title="Toàn màn hình (Esc để thoát)">⤢ Toàn màn hình</button>}
         {!!empties.length && (
           <details className="ml-dd" ref={ddRef}>
@@ -43221,6 +43262,35 @@ function MlMenu({ drinks, admin, onOpen, onQuick, onAdd, onEditQuick, onMenuBoar
           )}
         </section>
       )) : (
+        !drinks.length && admin ? (
+          <div className="mfs-start">
+            <h3>Chưa có món nào — tạo món theo một trong hai cách</h3>
+            <div className="mfs-opts">
+              <button type="button" onClick={onFromSales}>
+                <b>Từ hàng xuất bán</b>
+                <span>Lấy danh sách món đang bán trên KiotViet (đã nạp ở trang Xuất bán). Tự điền tên, nhóm, giá và gắn mã — tick chọn rồi tạo hàng loạt.</span>
+                <i>Chọn món đang bán →</i>
+              </button>
+              <button type="button" onClick={onNew}>
+                <b>Món mới</b>
+                <span>Món chưa bán / chưa có trên KiotViet. Tự gõ tên, nhóm, giá, định lượng — có thể gắn mã KiotViet sau.</span>
+                <i>Tạo món mới →</i>
+              </button>
+            </div>
+            <p>Hoặc gõ nhanh một dòng ở ô trên, ví dụ “Bạc Xỉu 38k: sd 30, st 60”.</p>
+          </div>
+        ) : empties.length && admin ? (
+          <div className="mfs-start">
+            <h3>{empties.length} món chưa có công thức — bấm món để gõ định lượng</h3>
+            <div className="mfs-todo">
+              {empties.map(r => (
+                <button key={r.id} type="button" onClick={() => onAdd(r.name + (r.price ? ' ' + Math.round(r.price / 1000) + 'k' : '') + ': ', r.id)}>
+                  <b>{r.name || 'Chưa đặt tên'}</b><small>{[r.cat, r.price ? mlMoney(r.price) : '', r.kvCode].filter(Boolean).join(' · ')}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) :
         <div style={{ padding: '40px 0' }}>
           <Empty title={drinks.length ? (empties.length ? 'Các món khớp đều chưa có công thức' : 'Không có món nào khớp') : 'Chưa có món nào'}
             desc={empties.length ? 'Mở ô "Chưa có công thức" trên thanh công cụ để gõ công thức.' : (admin ? 'Gõ một dòng ở ô trên để tạo món đầu tiên.' : 'Chờ quản lý dựng công thức.')} />
@@ -43637,6 +43707,96 @@ function MlBar({ r, onClose }) {
   );
 }
 
+/* ===== TẠO MÓN TỪ HÀNG XUẤT BÁN =====
+   Món bán cho khách đã có sẵn trong số bán KiotViet (trang Xuất bán): mã SP, tên, nhóm, số ly, doanh thu.
+   Chọn mã nào thì tạo món đó (chưa có định lượng) và GẮN LUÔN mã KiotViet — để sau khi gõ công thức,
+   số bán tự quy ra NVL. Mã đã có món (trùng mã KiotViet hoặc trùng tên) hiện mờ, không tạo trùng.
+   Mã đã khai là "hàng hoá bán nguyên" (danh mục NVL, kvCodes) thì bỏ qua vì không cần công thức. */
+function MlFromSales({ onClose }) {
+  useNeed('sales');
+  const { sales, recipes, cfg, saveRecipe, user, toast, go } = useApp();
+  const [q, setQ] = useState('');
+  const [pick, setPick] = useState({});
+  const goods = stkGoodsMap(cfg);
+  const haveKv = new Set((recipes || []).filter(r => !isBtp(r) && r.kvCode).map(r => String(r.kvCode).trim().toUpperCase()));
+  const haveNm = new Set((recipes || []).filter(r => !isBtp(r)).map(r => mlKey(r.name)));
+  const all = (() => {
+    const o = {};
+    Object.values(sales || {}).forEach(d => Object.keys((d || {}).items || {}).forEach(c => {
+      const it = d.items[c] || {}, k = String(c).trim().toUpperCase();
+      if (!k || goods[k]) return;
+      const x = o[k] || (o[k] = { code: String(c).trim(), name: '', group: '', qty: 0, amount: 0 });
+      if (it.name && !x.name) x.name = String(it.name).trim();
+      if (it.group && !x.group) x.group = String(it.group).trim();
+      x.qty += +it.qty || 0; x.amount += +it.amount || 0;
+    }));
+    return Object.values(o).filter(x => x.name).map(x => ({
+      ...x, price: x.qty > 0 ? Math.round(x.amount / x.qty / 1000) * 1000 : 0,
+      has: haveKv.has(x.code.toUpperCase()) || haveNm.has(mlKey(x.name)),
+    }));
+  })();
+  const qq = mlKey(q);
+  const shown = all.filter(x => !qq || mlKey(x.name).includes(qq) || mlKey(x.code).includes(qq) || mlKey(x.group).includes(qq));
+  const groups = [...new Set(shown.map(x => x.group || 'Khác'))].sort((a, b) => a.localeCompare(b, 'vi'))
+    .map(g => ({ g, items: shown.filter(x => (x.group || 'Khác') === g).sort((a, b) => b.qty - a.qty) }));
+  const free = (xs) => xs.filter(x => !x.has);
+  const nPick = Object.values(pick).filter(Boolean).length;
+  const toggle = (c, v) => setPick(p => ({ ...p, [c]: v === undefined ? !p[c] : v }));
+  const setMany = (xs, v) => setPick(p => { const n = { ...p }; xs.forEach(x => { n[x.code] = v; }); return n; });
+  const doCreate = () => {
+    const at = new Date().toISOString();
+    const sel = all.filter(x => pick[x.code] && !x.has);
+    sel.forEach(x => saveRecipe({
+      id: uid('R'), items: [], steps: [], ai: {},
+      name: x.name, kvCode: x.code, kvName: x.name, cat: x.group || RCP_CATS[0], price: x.price || 0,
+      size: 'M', glass: 'tall', desc: '', at, by: user.id,
+    }));
+    toast('Đã tạo ' + sel.length + ' món từ hàng xuất bán — mở "Chưa có công thức" để gõ định lượng');
+    onClose();
+  };
+  return (
+    <Modal wide title="Tạo món từ hàng xuất bán" sub="Lấy tên, nhóm, giá và mã KiotViet từ số bán đã nạp ở trang Xuất bán" onClose={onClose}
+      footer={<>
+        <span className="hint" style={{ marginRight: 'auto' }}>{all.length ? 'Đã chọn ' + nPick + ' món' : ''}</span>
+        <button className="btn btn-o" onClick={onClose}>Đóng</button>
+        <button className="btn btn-p" disabled={!nPick} onClick={doCreate}><Ic.plus size={15} /> Tạo {nPick || ''} món</button>
+      </>}>
+      {!all.length ? (
+        <Empty title="Chưa có số bán nào" desc={<>Vào trang <b>Xuất bán</b> nạp file bán hàng KiotViet (hoặc chờ robot đồng bộ), rồi quay lại đây chọn món. Hoặc dùng <b>Món mới</b> để tự gõ.</>}
+          action={go && <button className="btn btn-p" onClick={() => { onClose(); go('sales'); }}>Mở trang Xuất bán</button>} />
+      ) : (<>
+        <div className="mfs-bar">
+          <input className="inp" value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm tên, mã SP, nhóm…" aria-label="Tìm món" />
+          <button className="btn btn-o" onClick={() => setMany(free(shown), true)}>Chọn tất cả ({free(shown).length})</button>
+          {!!nPick && <button className="btn btn-o" onClick={() => setPick({})}>Bỏ chọn</button>}
+        </div>
+        <div className="mfs-list">
+          {groups.map(G => {
+            const fr = free(G.items), allOn = fr.length && fr.every(x => pick[x.code]);
+            return (
+              <section key={G.g} className="mfs-grp">
+                <label className="mfs-gh">
+                  <input type="checkbox" disabled={!fr.length} checked={!!allOn} onChange={e => setMany(fr, e.target.checked)} />
+                  <b>{G.g}</b><small>{G.items.length} mã{fr.length < G.items.length ? ' · ' + (G.items.length - fr.length) + ' đã có món' : ''}</small>
+                </label>
+                {G.items.map(x => (
+                  <label key={x.code} className={'mfs-row' + (x.has ? ' has' : '') + (pick[x.code] ? ' on' : '')}>
+                    <input type="checkbox" disabled={x.has} checked={!!pick[x.code] && !x.has} onChange={() => toggle(x.code)} />
+                    <span className="nm">{x.name}<small>{x.code}</small></span>
+                    <span className="qt">{numFmt(Math.round(x.qty))} đã bán</span>
+                    <span className="pr">{x.has ? 'Đã có món' : (x.price ? mlMoney(x.price) : '')}</span>
+                  </label>
+                ))}
+              </section>
+            );
+          })}
+          {!groups.length && <div className="hint" style={{ padding: 12 }}>Không có mã nào khớp “{q}”.</div>}
+        </div>
+      </>)}
+    </Modal>
+  );
+}
+
 function RecipeView() {
   useNeed('rcp');
   const { recipes, user } = useApp();
@@ -43648,6 +43808,7 @@ function RecipeView() {
   const [edit, setEdit] = useState(null);   /* form đầy đủ RcpEditor: { item } hoặc { item: null } khi tạo mới */
   const [imp, setImp] = useState(false);    /* đang mở popup nhập Excel */
   const [menu, setMenu] = useState(false);  /* đang mở bảng menu khách xem */
+  const [fromSales, setFromSales] = useState(false); /* popup tạo món từ hàng xuất bán */
   const [saved, setSaved] = useState(null); /* toast "Đã lưu …" kèm nút Xem công thức */
   useEffect(() => { if (!saved) return; const h = setTimeout(() => setSaved(null), 6000); return () => clearTimeout(h); }, [saved]);
 
@@ -43668,7 +43829,7 @@ function RecipeView() {
     <div className="grid" style={{ gap: 14 }}>
       {scr.m === 'menu' && <MlMenu drinks={drinks} admin={admin}
         onOpen={id => setScr({ m: 'view', id })} onAdd={toAdd} onEditQuick={id => setScr({ m: 'edit', id })}
-        onMenuBoard={() => setMenu(true)} onImport={() => setImp(true)} onNew={() => setEdit({ item: null })} />}
+        onMenuBoard={() => setMenu(true)} onImport={() => setImp(true)} onNew={() => setEdit({ item: null })} onFromSales={() => setFromSales(true)} />}
       {scr.m === 'view' && cur && <MlView r={cur} admin={admin}
         list={withRecipe.some(r => r.id === cur.id) ? withRecipe : [cur, ...withRecipe]}
         onPick={id => setScr({ m: 'view', id })} onBack={() => setScr({ m: 'menu' })} onAdd={toAdd}
@@ -43681,6 +43842,7 @@ function RecipeView() {
       {br && <MlBar r={br} onClose={() => setBar(null)} />}
       {edit && <RcpEditor item={edit.item} onClose={() => setEdit(null)} />}
       {imp && <RcpImportModal onClose={() => setImp(false)} />}
+      {fromSales && <MlFromSales onClose={() => setFromSales(false)} />}
       {menu && <MenuBoard onClose={() => setMenu(false)} />}
       {saved && !br && <div className="ml-toast" role="status">
         <span>Đã lưu {saved.name}{saved.extra ? ' và ' + saved.extra : ''}</span>
@@ -55693,6 +55855,7 @@ function App() {
     if (DEMO) setUser(emps.find(e => e.role === 'ADMIN') || emps[0]);
     if (DEMO) setAtt(seedDemoAtt(emps));
     if (DEMO) setRevenue(seedDemoRev());
+    if (DEMO) setSales(seedDemoSales());
     /* Phải bật cờ này, không thì màn hình nhân viên báo đỏ "Chưa tải được lịch xếp ca".
        Chạy dữ liệu mẫu thì đúng là KHÔNG có lịch, chứ không phải đang chờ mạng — hai chuyện
        khác nhau, mà cờ tắt là app hiểu nhầm thành cái thứ hai. */
