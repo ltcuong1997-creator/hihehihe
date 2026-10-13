@@ -54889,7 +54889,7 @@ function App() {
   const znSeen = useRef({});
   const znT0 = useRef(Date.now());
   useEffect(() => {
-    if (!user || !window.ZNotch) return;
+    if (!user) return;
     const S = znSeen.current, pg = roleOf(user.role).pages || [];
     const mine = (b) => (user.branches || []).includes(b);
     const first = (x) => (x.history || [])[0] || (x.log || [])[0] || {};
@@ -56234,9 +56234,8 @@ function App() {
     <Ctx.Provider value={ctx}>
       <div className={'shell' + (navMin ? ' nav-min' : '')} data-g={navGc(shown)}>
         <ZsTitleBar search={<TopFind user={scoped} go={go} />} reloading={reloading}
-          onLogout={askOut} onReload={forceReload} onMini={() => setQr(true)}
-          extra={(mode === 'local' || DEMO) && <button className="zs-tb-btn" onClick={() => zsNotify(ZN_DEMO[(window.__znd = ((window.__znd || 0) + 1)) % ZN_DEMO.length])}>Thử thông báo</button>} />
-        <ZsNotch go={go} />
+          onLogout={askOut} onReload={forceReload} onMini={() => setQr(true)} />
+        {/* Tai thỏ (dynamic island) đã bỏ theo yêu cầu: tin mới chỉ cộng vào chuông thông báo */}
         <Nav user={scoped} page={page} go={go} badgeBy={badgeBy}
           min={navMin} onToggle={() => setNavMin(v => !v)} />
         <div className="main">
