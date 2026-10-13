@@ -5437,6 +5437,10 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-bc-l em{min-width:0;white-space:nowrap}
 .ml-bc-l em small{font-size:10.5px;margin-left:2px}
 .ml-bc-f{font-size:11px;padding:2px 9px 6px}
+/* Nhãn nhóm khi rê chuột nhô lên mép trên thẻ: thẻ không được cắt tràn, bo góc đầu thẻ thay cho overflow:hidden */
+.ml-bc:not(.editing){overflow:visible}
+.ml-bc:not(.editing) .ml-bc-h{border-radius:13px 13px 0 0}
+.ml-bc-g{z-index:3;top:-9px;line-height:16px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .ml-menu .ml-type{min-height:42px;padding:3px 3px 3px 14px}
 .ml-menu .ml-type input{font:500 14px K2D,sans-serif;padding:6px 0}
 .ml-menu .ml-type .ml-pill{min-height:36px;padding:0 14px;font-size:13.5px}
