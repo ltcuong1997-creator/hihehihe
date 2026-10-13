@@ -5373,9 +5373,14 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-tile.empty{background:#fff;border:2px dashed #D8D2C8;color:#5E5A53}
 .ml-tile.empty .cup{opacity:.9}
 /* Bảng tổng hợp: mọi công thức trên một màn, xếp cột kiểu báo — bấm món để xem chi tiết */
-.ml-board{position:relative;margin-top:14px;column-width:210px;column-gap:10px;background:#fff}
-.ml-board:fullscreen{padding:18px;overflow:auto;column-width:230px}
-.ml-bc{break-inside:avoid;display:flex;flex-direction:column;width:100%;margin:0 0 10px;padding:0;border:1px solid #ECE7DF;border-radius:14px;overflow:hidden;background:#fff;text-align:left;font:inherit;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.ml-grp{margin-top:16px}
+.ml-grp-h{font:700 14px Unbounded,sans-serif;letter-spacing:-.01em;margin:0 0 8px;display:flex;align-items:center;gap:8px;color:#3B372F}
+.ml-grp-h small{font:600 12px 'Be Vietnam Pro',sans-serif;background:#F2EFEA;border-radius:999px;padding:2px 8px;color:#6B655C}
+.ml-grp .ml-grid{margin-top:0}
+/* Xếp NGANG theo hàng (trái → phải rồi mới xuống dòng), mỗi ô cao theo nội dung */
+.ml-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px;align-items:start;background:#fff}
+.ml-menu.is-board:fullscreen{padding:18px 22px;overflow:auto;border-radius:0}
+.ml-bc{display:flex;flex-direction:column;width:100%;margin:0;padding:0;border:1px solid #ECE7DF;border-radius:14px;overflow:hidden;background:#fff;text-align:left;font:inherit;cursor:pointer;transition:transform .15s,box-shadow .15s}
 .ml-bc:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.08)}
 .ml-bc-h{display:flex;align-items:center;gap:7px;padding:7px 10px}
 .ml-bc-h .cup{flex:0 0 auto}
@@ -5387,10 +5392,17 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-bc-l em{font-style:normal;font-weight:800;min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
 .ml-bc-l em small{font-weight:500;opacity:.7;margin-left:2px;font-size:10.5px}
 .ml-bc-f{padding:3px 10px 7px;font-size:11px;color:#6B655C}
-.ml-bc-empty{cursor:default;border-style:dashed}
-.ml-bc-empty .ml-bc-h{color:#6B655C}
-.ml-bc-empty .ml-bc-l span{border:0}
-@media (max-width:640px){.ml-menu{padding:14px 12px 16px;border-radius:18px}.ml-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:138px;gap:8px}.ml-board{column-width:160px}.ml-fs{display:none}}
+.ml-dd{position:relative}
+.ml-dd>summary{list-style:none;cursor:pointer}
+.ml-dd>summary::-webkit-details-marker{display:none}
+.ml-dd-box{position:absolute;right:0;top:calc(100% + 6px);z-index:30;width:280px;max-height:360px;overflow:auto;background:#fff;border:1px solid #ECE7DF;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.12);padding:6px}
+.ml-dd-box button{display:grid;grid-template-columns:1fr auto;grid-template-areas:"b i" "s i";width:100%;text-align:left;border:0;background:none;padding:7px 9px;border-radius:10px;font:inherit;cursor:pointer;column-gap:8px}
+.ml-dd-box button:hover:not(:disabled){background:#F6F3EE}
+.ml-dd-box button:disabled{cursor:default}
+.ml-dd-box b{grid-area:b;font-size:13.5px}
+.ml-dd-box small{grid-area:s;font-size:11.5px;color:#7A746B}
+.ml-dd-box i{grid-area:i;align-self:center;font-style:normal;font-size:11.5px;font-weight:700;color:#1A1A1A;background:#F2EFEA;border-radius:999px;padding:3px 9px}
+@media (max-width:640px){.ml-menu{padding:14px 12px 16px;border-radius:18px}.ml-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:138px;gap:8px}.ml-board{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.ml-fs{display:none}.ml-dd-box{right:auto;left:0;width:min(280px,88vw)}}
 .ml-intro .ml-tile{animation:mlUp14 .5s ease-out backwards;animation-delay:calc(var(--i) * 50ms)}
 .ml-intro .ml-tile .cup__layer{animation:mlFill .8s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:calc(var(--i) * 50ms + 300ms + var(--j) * 160ms)}
 @keyframes mlUp14{from{opacity:0;transform:translateY(14px)}}
@@ -42735,8 +42747,8 @@ function MlMenu({ drinks, admin, onOpen, onAdd, onEditQuick, onMenuBoard, onImpo
   /* Thẻ (lưới card màu) | Bảng (mọi công thức trên một màn, bấm món để xem chi tiết) — nhớ lựa chọn trên máy này */
   const [mode, setMode0] = useState(() => { try { return localStorage.getItem('ml_mode') || 'cards'; } catch (e) { return 'cards'; } });
   const setMode = (m) => { setMode0(m); try { localStorage.setItem('ml_mode', m); } catch (e) {} };
-  const boardRef = useRef(null);
-  const fullScreen = () => { const el = boardRef.current; if (el && el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
+  const rootRef = useRef(null);
+  const fullScreen = () => { const el = rootRef.current; if (el && el.requestFullscreen) el.requestFullscreen().catch(() => {}); };
   const [q, setQ] = useState('');
   const [intro] = useState(() => !mlIntroDone);
   useEffect(() => { mlIntroDone = true; }, []);
@@ -42751,9 +42763,18 @@ function MlMenu({ drinks, admin, onOpen, onAdd, onEditQuick, onMenuBoard, onImpo
   /* Ô lớn đầu tiên: món vừa sửa gần nhất (có công thức) */
   const recent = list.filter(r => st(r) !== 'empty').sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')))[0];
   const ordered = recent ? [recent, ...list.filter(r => r !== recent)] : list;
+  /* Món chưa có công thức: không bày ra lưới mà gom vào ô xổ xuống trên thanh công cụ */
+  const empties = list.filter(r => st(r) === 'empty');
+  const ddRef = useRef(null);
+  /* Gom theo nhóm (Cà phê, Trà sữa…) theo đúng thứ tự nhóm của thực đơn; món không nhóm xuống cuối */
+  const groups = (() => {
+    const has = list.filter(r => st(r) !== 'empty');
+    const keys = [...new Set(has.map(r => r.cat || ''))].sort((a, b) => (a === '') - (b === '') || rcpCatIdx(a) - rcpCatIdx(b) || a.localeCompare(b));
+    return keys.map(k => ({ k, name: k || 'Khác', items: has.filter(r => (r.cat || '') === k) }));
+  })();
 
   return (
-    <div className={'ml ml-menu' + (intro ? ' ml-intro' : '')}>
+    <div ref={rootRef} className={'ml ml-menu' + (intro ? ' ml-intro' : '') + (mode === 'board' ? ' is-board' : '')}>
       <div className="ml-head">
         <span className="ml-logo">HiHế</span>
         <div>
@@ -42767,7 +42788,6 @@ function MlMenu({ drinks, admin, onOpen, onAdd, onEditQuick, onMenuBoard, onImpo
         {catsIn.map(c => (
           <button key={c} className={'ml-chip' + (cf === c ? ' on' : '')} onClick={() => setCf(c)}>{c} <b>{drinks.filter(r => r.cat === c).length}</b></button>
         ))}
-        {!!nEmpty && <button className={'ml-chip dash' + (cf === '_empty' ? ' on' : '')} onClick={() => setCf('_empty')}>Chưa có công thức <b>{nEmpty}</b></button>}
       </div>
       <div className="ml-tools">
         <span className="ml-seg" role="tablist" aria-label="Kiểu xem">
@@ -42779,65 +42799,71 @@ function MlMenu({ drinks, admin, onOpen, onAdd, onEditQuick, onMenuBoard, onImpo
         {admin && <button className="ml-chip" onClick={onImport}><Ic.upload size={15} /> Nhập Excel</button>}
         {admin && <button className="ml-chip" onClick={onNew} title="Form đầy đủ: bước pha, kiểu ly, ảnh">Form đầy đủ</button>}
         {mode === 'board' && <button className="ml-chip ml-fs" onClick={fullScreen} title="Toàn màn hình (Esc để thoát)">⤢ Toàn màn hình</button>}
+        {!!empties.length && (
+          <details className="ml-dd" ref={ddRef}>
+            <summary className="ml-chip dash">Chưa có công thức <b>{empties.length}</b> ▾</summary>
+            <div className="ml-dd-box">
+              {empties.map(r => (
+                <button key={r.id} type="button" disabled={!admin}
+                  title={admin ? 'Gõ công thức cho món này' : ''}
+                  onClick={() => { if (ddRef.current) ddRef.current.open = false; onAdd(r.name + (r.price ? ' ' + Math.round(r.price / 1000) + 'k' : '') + ': ', r.id); }}>
+                  <b>{r.name || 'Chưa đặt tên'}</b><small>{[r.cat, r.price ? mlMoney(r.price) : ''].filter(Boolean).join(' · ')}</small>
+                  {admin && <i>Gõ công thức</i>}
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
-      {ordered.length && mode === 'board' ? (
-        <div className="ml-board" ref={boardRef}>
-          {list.filter(r => st(r) !== 'empty').map(r => {
-            const C = mlColors(r), cost = mlCost(r.items);
-            return (
-              <button key={r.id} className="ml-bc" onClick={() => onOpen(r.id)} title={'Xem chi tiết ' + r.name}>
-                <span className="ml-bc-h" style={{ background: C.bg, color: C.ink }}>
-                  <MlRecipeCup r={r} w={22} h={32} />
-                  <b>{r.name}</b>
-                  {r.price ? <i>{mlMoney(r.price)}</i> : null}
-                </span>
-                <span className="ml-bc-l">
-                  {(r.items || []).map(x => (
-                    <span key={x.id}><em>{numFmt(+x.qty || 0)}<small>{x.unit}</small></em>{x.name}</span>
-                  ))}
-                </span>
-                {cost ? <span className="ml-bc-f">Vốn {mlMoney(cost)}{r.price ? ' · ' + mlPct(cost / r.price * 100) : ''}</span> : null}
-              </button>
-            );
-          })}
-          {list.some(r => st(r) === 'empty') && (
-            <div className="ml-bc ml-bc-empty">
-              <span className="ml-bc-h"><b>Chưa có công thức</b></span>
-              <span className="ml-bc-l">{list.filter(r => st(r) === 'empty').map(r => <span key={r.id}>{r.name || 'Chưa đặt tên'}</span>)}</span>
+      {groups.length ? groups.map(g => (
+        <section key={g.k} className="ml-grp">
+          <h3 className="ml-grp-h">{g.name} <small>{g.items.length}</small></h3>
+          {mode === 'board' ? (
+            <div className="ml-board">
+              {g.items.map(r => {
+                const C = mlColors(r), cost = mlCost(r.items);
+                return (
+                  <button key={r.id} className="ml-bc" onClick={() => onOpen(r.id)} title={'Xem chi tiết ' + r.name}>
+                    <span className="ml-bc-h" style={{ background: C.bg, color: C.ink }}>
+                      <MlRecipeCup r={r} w={22} h={32} />
+                      <b>{r.name}</b>
+                      {r.price ? <i>{mlMoney(r.price)}</i> : null}
+                    </span>
+                    <span className="ml-bc-l">
+                      {(r.items || []).map(x => (
+                        <span key={x.id}><em>{numFmt(+x.qty || 0)}<small>{x.unit}</small></em>{x.name}</span>
+                      ))}
+                    </span>
+                    {cost ? <span className="ml-bc-f">Vốn {mlMoney(cost)}{r.price ? ' · ' + mlPct(cost / r.price * 100) : ''}</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="ml-grid">
+              {g.items.map((r, i) => {
+                const s = st(r), C = mlColors(r);
+                const cost = mlCost(r.items);
+                const sub = [r.cat, r.price ? mlMoney(r.price) : ''].filter(Boolean).join(', ');
+                return (
+                  <div key={r.id} role="button" tabIndex={0} className="ml-tile"
+                    style={{ '--bg': C.bg, '--ink': C.ink, '--i': i }}
+                    onClick={() => onOpen(r.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(r.id); } }}>
+                    <small>{sub}</small>
+                    <h4>{r.name}</h4>
+                    <div className="ml-tf">{mlSteps(r).length} bước{cost ? ', vốn ' + mlMoney(cost) : ''}{cost && r.price ? ', bằng ' + mlPct(cost / r.price * 100) : ''}</div>
+                    {s === 'draft' && admin && <button className="ml-pill dark sm" onClick={e => { e.stopPropagation(); onEditQuick(r.id); }}>Gõ thêm</button>}
+                    <MlRecipeCup r={r} w={62} h={88} />
+                  </div>
+                );
+              })}
             </div>
           )}
-        </div>
-      ) : ordered.length ? (
-        <div className="ml-grid">
-          {ordered.map((r, i) => {
-            const s = st(r), big = false, C = mlColors(r);
-            const cost = mlCost(r.items);
-            const sub = [r.cat, r.price ? mlMoney(r.price) : ''].filter(Boolean).join(', ');
-            if (s === 'empty') return (
-              <div key={r.id} className="ml-tile empty" style={{ '--i': i }}>
-                <small>{sub || 'Chưa có giá'}</small>
-                <h4>{r.name || 'Chưa đặt tên'}</h4>
-                <MlCup w={62} h={88} empty />
-                <div className="ml-tf">Chưa có công thức</div>
-                {admin && <button className="ml-pill dark sm" onClick={() => onAdd(r.name + (r.price ? ' ' + Math.round(r.price / 1000) + 'k' : '') + ': ', r.id)}>Gõ công thức</button>}
-              </div>
-            );
-            return (
-              <div key={r.id} role="button" tabIndex={0} className={'ml-tile' + (big ? ' big' : '')}
-                style={{ '--bg': C.bg, '--ink': C.ink, '--i': i }}
-                onClick={() => onOpen(r.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(r.id); } }}>
-                <small>{sub}</small>
-                <h4>{r.name}</h4>
-                <div className="ml-tf">{mlSteps(r).length} bước{cost ? ', vốn ' + mlMoney(cost) : ''}{cost && r.price ? ', bằng ' + mlPct(cost / r.price * 100) : ''}</div>
-                {s === 'draft' && admin && <button className="ml-pill dark sm" onClick={e => { e.stopPropagation(); onEditQuick(r.id); }}>Gõ thêm</button>}
-                <MlRecipeCup r={r} w={62} h={88} />
-              </div>
-            );
-          })}
-        </div>
-      ) : (
+        </section>
+      )) : (
         <div style={{ padding: '40px 0' }}>
-          <Empty title={drinks.length ? 'Không có món nào khớp' : 'Chưa có món nào'} desc={admin ? 'Gõ một dòng ở ô trên để tạo món đầu tiên.' : 'Chờ quản lý dựng công thức.'} />
+          <Empty title={drinks.length ? (empties.length ? 'Các món khớp đều chưa có công thức' : 'Không có món nào khớp') : 'Chưa có món nào'}
+            desc={empties.length ? 'Mở ô "Chưa có công thức" trên thanh công cụ để gõ công thức.' : (admin ? 'Gõ một dòng ở ô trên để tạo món đầu tiên.' : 'Chờ quản lý dựng công thức.')} />
         </div>
       )}
     </div>
