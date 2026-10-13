@@ -110,7 +110,8 @@ async function readKiot(page, dates, branchIds) {
     const chKey = (name, hasTable) => {
       const n = noAcc(name);
       if (/grab/.test(n)) return 'grab';
-      if (/shopee|now ?food/.test(n)) return 'shopee';
+      /* KiotViet đặt tên kênh ShopeeFood là "Now" (tên cũ của ShopeeFood) */
+      if (/shopee|now ?food|^now\b/.test(n)) return 'shopee';
       if (/be ?food|^be$/.test(n)) return 'be';
       if (/mang ve|mang di|take ?away/.test(n)) return 'take';
       if (/tai cho|tai quan|dine/.test(n)) return 'dine';

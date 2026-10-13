@@ -8,6 +8,9 @@ on:
   schedule:
     # GitHub tính giờ UTC: 0–16h UTC = 7h–23h giờ Việt Nam, chạy phút thứ 7 mỗi giờ
     - cron: '7 0-16 * * *'
+    # Lượt dự phòng phút 37: GitHub hay bỏ lượt chạy theo lịch lúc đông máy (có ngày chỉ chạy 3–4 lần
+    # thay vì 17) — chạy thêm không sao vì robot ghi kiểu "thay theo ngày", không cộng trùng
+    - cron: '37 0-16 * * *'
     # 0h35 giờ VN: chạy thêm một lần để chốt hóa đơn cuối ngày hôm trước
     - cron: '35 17 * * *'
   workflow_dispatch:
