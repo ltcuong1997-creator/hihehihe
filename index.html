@@ -19893,7 +19893,7 @@ function DriveTab() {
   const GAS = `function doPost(e) {
   try {
     var b = JSON.parse(e.postData.contents);
-    var folder = DriveApp.getFolderById(b.folderId);
+    var folder = b.folderId ? DriveApp.getFolderById(b.folderId) : hiheRoot();
     if (b.sub) {
       var it = folder.getFoldersByName(b.sub);
       folder = it.hasNext() ? it.next() : folder.createFolder(b.sub);
@@ -19909,7 +19909,32 @@ function DriveTab() {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+// Không khai ID thư mục thì tự tạo (một lần) thư mục "Hi He - Tep dinh kem" trong My Drive
+function hiheRoot() {
+  var p = PropertiesService.getScriptProperties(), id = p.getProperty('ROOT');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  var f = DriveApp.createFolder('Hi He - Tep dinh kem');
+  p.setProperty('ROOT', f.getId());
+  return f;
 }`;
+  /* Dán link /exec xong là tự thử tải một ảnh 1×1 để báo kết nối được hay chưa — khỏi phải bấm thêm */
+  const tried = useRef('');
+  useEffect(() => {
+    const u = String(d.gasUrl || '').trim();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[-\w]+\/exec$/.test(u) || tried.current === u) return;
+    const h = setTimeout(async () => {
+      tried.current = u;
+      setTest('Đang kiểm tra kết nối…');
+      try {
+        const px = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII='), c => c.charCodeAt(0));
+        const r = await uploadDrive(cfg, new File([px], 'kiem-tra.png', { type: 'image/png' }), { name: 'KIEMTRA', sub: 'Kiem tra ket noi' });
+        setTest('OK · đã kết nối Drive — ảnh mới sẽ lưu lên Drive (' + r.url + ')');
+      } catch (err) { setTest('Lỗi: ' + (err.message || err)); }
+    }, 800);
+    return () => clearTimeout(h);
+  }, [d.gasUrl]);
+  const copyGas = () => { try { navigator.clipboard.writeText(GAS); toast('Đã chép đoạn script'); } catch (e) { toast('Không chép được — bôi đen đoạn script để chép'); } };
   return (
     <div className="grid split">
       <div className="card">
@@ -19918,7 +19943,7 @@ function DriveTab() {
           <Field label="Link webapp Apps Script" hint="Kết thúc bằng /exec">
             <input className="inp mono" value={d.gasUrl} onChange={e => saveCfg({ drive: { ...d, gasUrl: e.target.value } })} placeholder="https://script.google.com/macros/s/AKfyc.../exec" />
           </Field>
-          <Field label="ID thư mục Drive" hint="Lấy trong link thư mục: drive.google.com/drive/folders/ID_Ở_ĐÂY">
+          <Field label="ID thư mục Drive (không bắt buộc)" hint="Để trống: script tự tạo thư mục “Hi He - Tep dinh kem” trong Drive. Muốn dùng thư mục có sẵn thì dán ID trong link drive.google.com/drive/folders/ID_Ở_ĐÂY">
             <input className="inp mono" value={d.folderId} onChange={e => saveCfg({ drive: { ...d, folderId: e.target.value } })} />
           </Field>
           <button className="btn btn-o" onClick={() => ref.current.click()}><Ic.upload size={15} /> Thử tải một tệp</button>
@@ -19930,12 +19955,15 @@ function DriveTab() {
         </div>
       </div>
       <div className="card">
-        <div className="card-h"><div><h3>Cách dựng (làm một lần)</h3><p>5 phút</p></div></div>
+        <div className="card-h"><div><h3>Cách dựng — 3 bước, làm một lần</h3><p>Khoảng 3 phút, làm trên máy tính, đăng nhập Google của quán</p></div></div>
         <div className="card-b" style={{ fontSize: 13.5, lineHeight: 1.7 }}>
-          <b>1.</b> Tạo một thư mục trên Drive công ty, ví dụ <i>Hí Hế – Tệp đính kèm</i>. Copy ID trong link. App tự tạo thư mục con theo từng loại và đặt tên tệp theo mã chứng từ để dễ tìm.<br />
-          <b>2.</b> Vào <a href="https://script.google.com" target="_blank" rel="noreferrer" style={{ color: 'var(--brand-dark)', fontWeight: 700 }}>script.google.com</a> → New project → dán đoạn dưới.<br />
-          <b>3.</b> <b>Triển khai → Ứng dụng web</b>: thực thi bằng <b>Tôi</b>, quyền truy cập <b>Bất kỳ ai</b> → copy link <span className="mono">/exec</span> dán vào ô bên trái.<br />
-          <b>4.</b> Bấm "Thử tải một tệp" để kiểm tra.
+          <b>1.</b> Bấm <button className="btn btn-o btn-sm" onClick={copyGas}>Chép script</button> rồi bấm{' '}
+          <a href="https://script.new" target="_blank" rel="noreferrer" style={{ color: 'var(--brand-dark)', fontWeight: 700 }}>mở Apps Script mới</a>
+          {' '}→ xoá hết code có sẵn → dán (Ctrl+V) → bấm lưu (Ctrl+S).<br />
+          <b>2.</b> Bấm <b>Triển khai (Deploy) → Triển khai mới → chọn loại Ứng dụng web</b>: thực thi bằng <b>Tôi</b>, quyền truy cập <b>Bất kỳ ai</b> → Triển khai → cho phép quyền Drive
+          {' '}(nếu Google báo “chưa xác minh”: Nâng cao → Đi tới dự án).<br />
+          <b>3.</b> Copy link kết thúc bằng <span className="mono">/exec</span> dán vào ô <b>Link webapp Apps Script</b> bên trái — app <b>tự kiểm tra</b>, hiện “OK” là xong.
+          {' '}Không cần tạo thư mục: script tự tạo thư mục <i>Hi He - Tep dinh kem</i> và chia thư mục con theo từng loại.
           <pre style={{ background: '#2E2019', color: '#CAC3BE', padding: '13px 15px', borderRadius: 12, fontSize: 11.5, overflowX: 'auto', lineHeight: 1.6 }}>{GAS}</pre>
           <div style={{ color: 'var(--txt-2)' }}>
             Sau này sửa script thì vào đúng bản triển khai cũ và <b>phát hành phiên bản mới</b>, đừng tạo triển khai mới — link đổi là app mất kết nối.
