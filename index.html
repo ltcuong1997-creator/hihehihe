@@ -8664,13 +8664,15 @@ function Dashboard() {
 
 /* ===================== CA LÀM ===================== */
 function MyWeekTable() {
-  const { user, cfg, sched } = useApp();
+  const { user, cfg, sched, needSchedRange } = useApp();
   const [wk, setWk] = useState(0);
   const days = useMemo(() => {
     const base = new Date(); base.setDate(base.getDate() + wk * 7);
     const mon = new Date(base); mon.setDate(base.getDate() - ((base.getDay() + 6) % 7));
     return Array.from({ length: 7 }, (_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return d; });
   }, [wk]);
+  /* Bấm Tuần trước / Tuần sau phải nạp lịch của tuần đó — bản cũ không gọi nên tuần ngoài cửa sổ hiện "Nghỉ" cả tuần */
+  useEffect(() => { if (needSchedRange) needSchedRange(dKey(days[0]), dKey(days[6])); }, [wk]);
   const cells = days.map(d => ({ d, k: dKey(d), list: myShiftsOn(cfg, sched, user, dKey(d)) }));
   const totalShift = cells.reduce((a, c) => a + c.list.length, 0);
   return (
@@ -41018,9 +41020,13 @@ const CUT_VIS = () => cutBack(45, 14);
 const BK_WIN_BACK = 1, BK_WIN_FWD = 1;
 const bkLo = () => dAdd(todayKey(), -BK_WIN_BACK);
 const bkHi = () => dAdd(todayKey(), BK_WIN_FWD);
+/* Cửa sổ realtime lịch xếp ca: từ THỨ HAI tuần này (hoặc 2 ngày trước nếu sớm hơn — ca đêm, chấm công
+   bù) tới CHỦ NHẬT tuần sau. Bản cũ chỉ lùi 2 ngày nên "Lịch làm việc của tôi" tuần này mất T2–T4,
+   và tiến 8 ngày nên cuối tuần sau trống — nhân viên tưởng chưa được xếp ca. */
 const SCH_WIN_BACK = 2, SCH_WIN_FWD = 8;
-const schLo = () => dAdd(todayKey(), -SCH_WIN_BACK);
-const schHi = () => dAdd(todayKey(), SCH_WIN_FWD);
+const schMon = () => { const t = todayKey(); return dAdd(t, -((new Date(t + 'T00:00:00').getDay() + 6) % 7)); };
+const schLo = () => { const a = dAdd(todayKey(), -SCH_WIN_BACK), m = schMon(); return a < m ? a : m; };
+const schHi = () => { const a = dAdd(todayKey(), SCH_WIN_FWD), z = dAdd(schMon(), 13); return a > z ? a : z; };
 /* Khoảng cần xem đã nằm trọn trong cửa sổ realtime chưa — nằm trọn thì khỏi nạp thêm gì */
 const inWin = (from, to, lo, hi) => !!from && !!to && from >= lo && to <= hi;
 const CUT_STK = () => cutBack(90, 14);      /* tồn kho: đủ để đối chiếu vài kỳ gần đây */
@@ -55944,8 +55950,10 @@ function App() {
   const fetchVisMonth = (period) => fetchVisRange(period + '-01', period + '-31');
 
   /* Lịch xếp ca chỉ nghe realtime 60 ngày gần nhất — báo cáo định biên của kỳ cũ hơn thì tải bù 1 lần */
-  const fetchSchedRange = async (from, to) => {
-    if (!cloud || !db) return;
+  const fetchSchedRange = async (from, to, tries = 0) => {
+    /* Firebase chưa kết nối xong (mở thẳng vào trang Ca làm lúc vừa tải app): chờ rồi thử lại,
+       KHÔNG bỏ qua im lặng — bản cũ return luôn nên tuần đó không bao giờ được nạp */
+    if (!cloud || !db) { if (!DEMO && tries < 40) setTimeout(() => fetchSchedRange(from, to, tries + 1), 1500); return; }
     const key = from + '_' + to;
     if (schFetchedRef.current[key]) return;
     schFetchedRef.current[key] = true;
@@ -56147,7 +56155,7 @@ function App() {
            chỉ tải lịch của các cơ sở trong user.branches thì ca hỗ trợ KHÔNG có trong dữ liệu,
            màn chấm công báo "Hôm nay bạn chưa được xếp ca" và người đó đứng ở cửa hàng không vào
            ca được — lỗi này đã xảy ra thật.
-           Cửa sổ chỉ 11 ngày nên tải cả hệ thống vẫn rẻ; đây là chỗ KHÔNG đáng đánh đổi. */
+           Cửa sổ chỉ khoảng 2 tuần (T2 tuần này → CN tuần sau) nên tải cả hệ thống vẫn rẻ; đây là chỗ KHÔNG đáng đánh đổi. */
         unsubs.push(rdOn(db.collection(COL.sch).where('date', '>=', sLo).where('date', '<=', sHi), COL.sch, s => {
           setSched(prev => {
             /* Giữ lại các ngày ngoài cửa sổ đã nạp bù, chỉ thay phần thuộc cửa sổ này */
