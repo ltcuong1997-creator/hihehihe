@@ -6894,7 +6894,7 @@ const payCalc = (e, ctx) => {
   const log = isPT ? EMPTY_OBJ : ((((ftlogs || {})[ftKey(e.id, mo)]) || {}).days || EMPTY_OBJ);
   const day = {};
   const cell = (d) => (day[d] = day[d] || { mins: 0, amt: 0, ot: 0, mult: dayMultiplier(cfg, d).mult, n: 0, noOut: 0, mark: '' });
-  let mins = 0, holMins = 0, amt = 0, lates = 0, noOut = 0, otMins = 0, otAmt = 0, payMins = 0;
+  let mins = 0, holMins = 0, amt = 0, lates = 0, noOut = 0, otMins = 0, otAmt = 0, payMins = 0, realMins = 0;
   const otK = otMultOf(cfg);
   Object.keys(rec).forEach(k => {
     if (k.slice(0, 7) !== mo) return;
@@ -6911,7 +6911,8 @@ const payCalc = (e, ctx) => {
     c.mins += m; c.ot += ot;
     c.amt += a1;
     mins += m; otMins += ot;
-    payMins += (m - ot) * c.mult + ot * c.mult * otK;   /* giờ quy đổi = giờ tính lương */
+    payMins += (m - ot) * c.mult + ot * c.mult * otK;   /* giờ quy đổi = giờ tính lương (gồm cả hệ số lễ) */
+    realMins += (m - ot) + ot * otK;                     /* tổng giờ thực tế = thường × 1 + tăng ca × hệ số */
     otAmt += ot / 60 * rate * c.mult * otK;
     amt += a1;
     if (c.mult > 1) holMins += m;
@@ -6940,7 +6941,7 @@ const payCalc = (e, ctx) => {
   const add = my.filter(a => a.type === 'add').reduce((x, a) => x + a.amount, 0);
   const ded = my.filter(a => a.type === 'deduct').reduce((x, a) => x + a.amount, 0);
   return {
-    e, isPT, rate, stdDays, day, log, mins, holMins, otMins, regMins: mins - otMins, payMins, otAmt: Math.round(otAmt / 1000) * 1000, otK, leaveDays, leaveMins, unpaidDays, workDays, worked,
+    e, isPT, rate, stdDays, day, log, mins, holMins, otMins, regMins: mins - otMins, payMins, realMins, otAmt: Math.round(otAmt / 1000) * 1000, otK, leaveDays, leaveMins, unpaidDays, workDays, worked,
     lates, noOut, amount, allow, seni, respPct, resp, ins, insFull, add, ded, my, adjN: my.length,
     /* giữ tên cũ cho báo cáo chi phí theo cơ sở */
     days: workDays, paid: worked,
@@ -7047,9 +7048,9 @@ const payslipHtml = (r, opt) => {
     hrsShort(totMins || 0) + (totMins ? '' : '0') + ' giờ · ' + r.worked + ' ngày làm việc'));
   /* Tách giờ: thường (hệ số 1) · tăng ca (× hệ số tăng ca) · tổng giờ tính lương sau quy đổi */
   const kTxt = String(r.otK || 1.5).replace('.', ',');
-  rows.push(sub('Giờ thường (hệ số 1)', (hrsShort(r.regMins + r.leaveMins) || '0') + ' giờ'));
-  rows.push(sub('Giờ tăng ca (×' + kTxt + ')', (hrsShort(r.otMins) || '0') + ' giờ'));
-  if (r.otMins || r.holMins) rows.push(sub('Tổng giờ tính lương (đã quy đổi tăng ca' + (r.holMins ? ', lễ' : '') + ')', hrsShort(r.payMins + r.leaveMins) + ' giờ'));
+  rows.push(sub('Giờ thường × 1', (hrsShort(r.regMins + r.leaveMins) || '0') + ' giờ'));
+  rows.push(sub('Giờ tăng ca × ' + kTxt, (hrsShort(r.otMins) || '0') + ' giờ'));
+  rows.push(line('Tổng giờ thực tế (thường × 1 + tăng ca × ' + kTxt + ')', (hrsShort(r.realMins + r.leaveMins) || '0') + ' giờ'));
   rows.push(line('Đơn giá', vnd(r.rate) + ' / giờ'));
   if (!r.isPT) rows.push(sub('Lương tháng ' + vnd(e.base) + ' ÷ (' + r.stdDays + ' công chuẩn × ' + FT_DAY_HOURS + ' giờ)', ''));
   rows.push(line('Lương theo giờ', vnd(r.amount)));
@@ -9479,6 +9480,9 @@ function AttendanceView() {
   const worked = rows.filter(r => r.a && r.a.inAt).length;
   const lates = rows.filter(r => r.a && r.a.late > 0).length;
   const mins = rows.reduce((a, r) => a + attMinsOf(r.a, cfg), 0);
+  /* Tổng giờ thực tế = giờ thường × 1 + giờ tăng ca × hệ số tăng ca (cùng cách tính với cột Tổng giờ thực tế) */
+  const otAll = rows.reduce((a, r) => a + otOf(attMinsOf(r.a, cfg), cfg), 0);
+  const realMins = Math.round(mins - otAll + otAll * otMultOf(cfg));
   /* Xem toàn hệ thống -> gom theo cửa hàng cho dễ kiểm soát, mỗi nhóm 1 khối tbody riêng trong cùng bảng */
   const groupByBranch = whoIsBranch && whoBranchId === 'all';
   const branchGroups = useMemo(() => {
@@ -9500,13 +9504,13 @@ function AttendanceView() {
       {/* Tính tại chỗ thay vì đọc mỗi field mins đã lưu — bản ghi sửa tay/nhập Excel không có mins */}
       {(() => {
         /* Tách giờ: thường (hệ số 1) · tăng ca (× hệ số tăng ca) · tổng giờ làm + giờ tính lương sau quy đổi */
-        const m = attMinsOf(r.a, cfg), ot = otOf(m, cfg), k = otMultOf(cfg), dm = dayMultiplier(cfg, r.k).mult;
-        const pay = (m - ot) * dm + ot * dm * k;
+        const m = attMinsOf(r.a, cfg), ot = otOf(m, cfg), k = otMultOf(cfg);
+        const real = Math.round(m - ot + ot * k);   /* tổng giờ thực tế = thường × 1 + tăng ca × hệ số */
         const dash = <span style={{ color: 'var(--txt-3)' }}>—</span>;
         return (<>
           <td className="mono">{m ? hoursTxt(m - ot) : '—'}</td>
           <td className="mono">{ot ? <span className="tag t-amber" title={'Vượt ' + (otCapMins(cfg) / 60) + ' tiếng — trả ×' + k}>+{hoursTxt(ot)}</span> : dash}</td>
-          <td className="mono">{m ? <><b>{hoursTxt(m)}</b>{Math.round(pay) !== m && <div style={{ fontSize: 10.5, color: 'var(--txt-3)', fontWeight: 600 }} title="Giờ tính lương sau khi nhân hệ số tăng ca / ngày lễ">= {hoursTxt(Math.round(pay))} tính lương</div>}</> : '—'}</td>
+          <td className="mono">{m ? <><b>{hoursTxt(real)}</b>{ot > 0 && <div style={{ fontSize: 10.5, color: 'var(--txt-3)', fontWeight: 600 }}>{hoursTxt(m - ot)} + {hoursTxt(ot)}×{String(k).replace('.', ',')}</div>}</> : '—'}</td>
         </>);
       })()}
       <td>{(() => { const dm = dayMultiplier(cfg, r.k); return dm.mult > 1 ? <span className="tag t-red">{dm.label} ×{dm.mult}</span> : <span style={{ color: 'var(--txt-3)' }}>×1</span>; })()}</td>
@@ -9567,7 +9571,8 @@ function AttendanceView() {
       <div className="grid g4" style={{ gap: 10 }}>
         <Stat icon={<Ic.check size={13} />} k="Ngày công" v={worked} d={range === 'month' ? 'trong T' + mo.slice(5) : range === 'custom' ? dShort(cFrom) + ' – ' + dShort(cTo) : range + ' ngày gần nhất'} />
         <Stat icon={<Ic.alert size={13} />} k="Lượt đi trễ" v={lates} d="quá thời gian ân hạn" color={lates ? 'var(--amber)' : null} />
-        <Stat icon={<Ic.clock size={13} />} k="Giờ công thực tế" v={hoursTxt(mins)} d="tính từ giờ vào – giờ ra" />
+        <Stat icon={<Ic.clock size={13} />} k="Tổng giờ thực tế" v={hoursTxt(realMins)}
+          d={otAll ? hoursTxt(mins - otAll) + ' thường ×1 + ' + hoursTxt(otAll) + ' tăng ca ×' + String(otMultOf(cfg)).replace('.', ',') : 'giờ thường ×1 · chưa có tăng ca'} />
         <Stat icon={<Ic.trend size={13} />} k="Tỷ lệ đúng giờ" v={worked ? Math.round((worked - lates) / worked * 100) + '%' : '—'} d="trong khoảng đang xem" color="var(--brand-dark)" />
       </div>
       <div className="card">
@@ -9676,7 +9681,7 @@ function AttendanceView() {
         </div>
         <div className="scroll-x">
           <table className="tb tb-compact">
-            <thead><tr><th>Ngày</th><th>Nhân viên</th><th>Chi nhánh</th><th>Ca</th><th>Giờ vào</th><th>Giờ ra</th><th title="Giờ hệ số 1 (ngày lễ nhân hệ số lễ)">Giờ thường</th><th title="Ca dài hơn giờ chuẩn (mặc định 8 tiếng) thì phần vượt là tăng ca">Tăng ca</th><th title="Tổng giờ làm · dòng dưới: giờ tính lương sau quy đổi">Tổng giờ</th><th>Hệ số</th><th>Vị trí</th><th>Trạng thái</th><th style={{ width: 180 }}></th></tr></thead>
+            <thead><tr><th>Ngày</th><th>Nhân viên</th><th>Chi nhánh</th><th>Ca</th><th>Giờ vào</th><th>Giờ ra</th><th title="Giờ trong 8 tiếng đầu của ca — hệ số 1">Giờ thường ×1</th><th title="Phần vượt 8 tiếng của ca — nhân hệ số tăng ca">Tăng ca ×{String(otMultOf(cfg)).replace('.', ',')}</th><th title="= giờ thường × 1 + giờ tăng ca × hệ số tăng ca">Tổng giờ thực tế</th><th>Hệ số</th><th>Vị trí</th><th>Trạng thái</th><th style={{ width: 180 }}></th></tr></thead>
             {!rows.length && (
               <tbody><tr><td colSpan={13}><Empty title="Không có dòng nào" desc="Chỉ những ngày/ca đã được xếp lịch mới hiện ở đây." /></td></tr></tbody>
             )}
@@ -11796,14 +11801,14 @@ function PayrollView() {
     const head = ['STT', 'Mã NV', 'Họ và tên', 'Chức vụ', 'Phòng ban', 'Chi nhánh', 'Loại', 'Hình thức', 'Trạng thái',
       'Ngày công', 'Phép năm (ngày)', 'Giờ công', 'Đơn giá / giờ', 'Lương theo giờ', 'Phụ cấp', 'Thâm niên',
       'Lương trách nhiệm', 'Đánh giá (%)',
-      'BHXH', 'Trừ BHXH', 'Bổ sung', 'Khấu trừ', 'Thực nhận', 'Số tài khoản', 'Ngân hàng', 'Chủ tài khoản', 'Giờ thường (hệ số 1)', 'Giờ tăng ca', 'Tổng giờ tính lương (quy đổi)', 'Tiền tăng ca (đã gồm trong Lương theo giờ)'];
+      'BHXH', 'Trừ BHXH', 'Bổ sung', 'Khấu trừ', 'Thực nhận', 'Số tài khoản', 'Ngân hàng', 'Chủ tài khoản', 'Giờ thường ×1', 'Giờ tăng ca', 'Tổng giờ thực tế (thường + TC × hệ số)', 'Tiền tăng ca (đã gồm trong Lương theo giờ)'];
     const rp = (r) => (r.e.respBase || 0) > 0 ? r.respPct : '';
     const out = rows.map((r, i) => [i + 1, r.e.code, r.e.name, posOf(r.e.posId).name, deptOf(r.e.deptId).name,
       r.e.branches.map(b => branchOf(b).code).join(' '), r.isPT ? 'Parttime' : 'Fulltime', (r.e.payMode || 'gross').toUpperCase(), stTxt(r.e),
       r.workDays, r.leaveDays || '', +(((r.mins + r.leaveMins) / 60).toFixed(2)), Math.round(r.rate), r.amount, r.allow, r.seni, r.resp, rp(r),
       insOf(r.e) ? 'Có' : 'Không', r.ins, r.add, r.ded, r.net,
       String(r.e.bankNo == null ? '' : r.e.bankNo), r.e.bankName || '', r.e.bankOwner || r.e.name,
-      +(((r.regMins || 0) + (r.leaveMins || 0)) / 60).toFixed(2), +((r.otMins || 0) / 60).toFixed(2), +(((r.payMins || 0) + (r.leaveMins || 0)) / 60).toFixed(2), r.otAmt || 0]);
+      +(((r.regMins || 0) + (r.leaveMins || 0)) / 60).toFixed(2), +((r.otMins || 0) / 60).toFixed(2), +(((r.realMins || 0) + (r.leaveMins || 0)) / 60).toFixed(2), r.otAmt || 0]);
     return [head, ...out];
   };
   const expExcel = async () => {
