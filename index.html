@@ -6878,6 +6878,13 @@ const minsPay = (mins, rate, mult) => Math.round((mins || 0) / 60 * (rate || 0) 
 
 /* Lương của MỘT người trong MỘT kỳ — nguồn duy nhất cho bảng lương, phiếu lương và báo cáo,
    để nhân viên xem phiếu ra đúng con số kế toán chốt. */
+/* ---- TĂNG CA: một CA dài hơn N giờ (Cấu hình → Giờ chuẩn/ngày trước khi tính tăng ca, mặc định 8)
+   thì phần vượt N giờ là tăng ca, trả × hệ số tăng ca (mặc định 1,5) — nhân chồng lên hệ số ngày lễ.
+   Tính theo TỪNG CA (từng bản ghi chấm công), không cộng dồn nhiều ca trong ngày. Tự tính, không cần
+   duyệt; công bổ sung đi qua phiếu đã duyệt thì vào bảng công rồi cũng tính theo đúng luật này. */
+const otCapMins = (cfg) => { const h = +((cfg && cfg.rules) || {}).otAfterHours; return (h > 0 ? h : 8) * 60; };
+const otMultOf = (cfg) => { const k = +((cfg && cfg.rules) || {}).otMultiplier; return k > 0 ? k : 1.5; };
+const otOf = (mins, cfg) => { const c = otCapMins(cfg); return mins > c ? mins - c : 0; };
 const payCalc = (e, ctx) => {
   const { att, cfg, ftlogs, mo, days, stdDays } = ctx;
   const my = ctx.my || EMPTY_ARR;
@@ -6886,8 +6893,9 @@ const payCalc = (e, ctx) => {
   const rec = (att || {})[e.id] || {};
   const log = isPT ? EMPTY_OBJ : ((((ftlogs || {})[ftKey(e.id, mo)]) || {}).days || EMPTY_OBJ);
   const day = {};
-  const cell = (d) => (day[d] = day[d] || { mins: 0, amt: 0, mult: dayMultiplier(cfg, d).mult, n: 0, noOut: 0, mark: '' });
-  let mins = 0, holMins = 0, amt = 0, lates = 0, noOut = 0;
+  const cell = (d) => (day[d] = day[d] || { mins: 0, amt: 0, ot: 0, mult: dayMultiplier(cfg, d).mult, n: 0, noOut: 0, mark: '' });
+  let mins = 0, holMins = 0, amt = 0, lates = 0, noOut = 0, otMins = 0, otAmt = 0;
+  const otK = otMultOf(cfg);
   Object.keys(rec).forEach(k => {
     if (k.slice(0, 7) !== mo) return;
     const a = rec[k];
@@ -6897,10 +6905,14 @@ const payCalc = (e, ctx) => {
     c.n++;
     if (!a.outAt) { c.noOut++; noOut++; }
     if (a.late) lates++;
-    c.mins += m;
-    c.amt += m / 60 * rate * c.mult;
-    mins += m;
-    amt += m / 60 * rate * c.mult;
+    const ot = otOf(m, cfg);
+    /* giờ thường × đơn giá × hệ số ngày; giờ tăng ca × đơn giá × hệ số ngày × hệ số tăng ca */
+    const a1 = (m - ot) / 60 * rate * c.mult + ot / 60 * rate * c.mult * otK;
+    c.mins += m; c.ot += ot;
+    c.amt += a1;
+    mins += m; otMins += ot;
+    otAmt += ot / 60 * rate * c.mult * otK;
+    amt += a1;
     if (c.mult > 1) holMins += m;
   });
   let leaveDays = 0, unpaidDays = 0;
@@ -6927,7 +6939,7 @@ const payCalc = (e, ctx) => {
   const add = my.filter(a => a.type === 'add').reduce((x, a) => x + a.amount, 0);
   const ded = my.filter(a => a.type === 'deduct').reduce((x, a) => x + a.amount, 0);
   return {
-    e, isPT, rate, stdDays, day, log, mins, holMins, leaveDays, leaveMins, unpaidDays, workDays, worked,
+    e, isPT, rate, stdDays, day, log, mins, holMins, otMins, otAmt: Math.round(otAmt / 1000) * 1000, otK, leaveDays, leaveMins, unpaidDays, workDays, worked,
     lates, noOut, amount, allow, seni, respPct, resp, ins, insFull, add, ded, my, adjN: my.length,
     /* giữ tên cũ cho báo cáo chi phí theo cơ sở */
     days: workDays, paid: worked,
@@ -7036,6 +7048,7 @@ const payslipHtml = (r, opt) => {
   if (!r.isPT) rows.push(sub('Lương tháng ' + vnd(e.base) + ' ÷ (' + r.stdDays + ' công chuẩn × ' + FT_DAY_HOURS + ' giờ)', ''));
   rows.push(line('Lương theo giờ', vnd(r.amount)));
   if (r.holMins) rows.push(sub('Trong đó ' + hrsShort(r.holMins) + ' giờ ngày lễ đã nhân hệ số', ''));
+  if (r.otMins) rows.push(sub('Trong đó ' + hrsShort(r.otMins) + ' giờ tăng ca (×' + String(r.otK).replace('.', ',') + ') = ' + vnd(r.otAmt), ''));
   if (r.allow) rows.push(line('Phụ cấp', vnd(r.allow)));
   if (r.seni) rows.push(line('Thâm niên', vnd(r.seni)));
   if ((e.respBase || 0) > 0) {
@@ -7065,6 +7078,7 @@ const payslipHtml = (r, opt) => {
     else if (c && c.mark === 'X') tag = '<i class="mk x">X</i>';
     else if (c && c.noOut && !c.mins) tag = '<i class="mk o" title="thiếu giờ ra">!</i>';
     if (hol && c && c.mins) tag += '<i class="mk h">×' + (hol.mult || 1) + '</i>';
+    if (c && c.ot) tag += '<i class="mk t" title="tăng ca">+' + hrsShort(c.ot) + '</i>';
     cells.push('<div class="c' + (wd === 0 || wd === 6 ? ' we' : '') + (hol ? ' hol' : '') + '"><span class="dn">' + (+d.slice(8)) +
       '</span>' + tag + '<b>' + (v || '<span class="dot">·</span>') + '</b></div>');
   });
@@ -7099,6 +7113,7 @@ const payslipHtml = (r, opt) => {
     '.mk{position:absolute;right:6px;top:3px;font-style:normal;font-size:9.5px;font-weight:800;border-radius:4px;padding:0 4px;line-height:14px}' +
     '.mk.p{background:#E8F1FE;color:#1A5FC4}.mk.x{background:#FDECEA;color:#B4302B}.mk.o{background:#FDECEA;color:#B4302B}' +
     '.mk.h{background:#FDE7E3;color:#B4302B;right:auto;left:22px}' +
+    '.mk.t{background:#FFF1D6;color:#8A5B08;right:auto;top:auto;left:6px;bottom:4px}' +
     '.ft{display:flex;gap:20px;align-items:center;margin-top:22px}' +
     '.qr{display:flex;gap:14px;align-items:center;flex:1;min-width:0}.qr img{width:150px;height:150px;object-fit:contain;border:1px solid #eee;border-radius:10px}' +
     '.qr b{display:block;font-size:15px}.qr span{display:block;font-size:13px;color:#555;margin-top:3px;word-break:break-word}' +
@@ -9478,6 +9493,7 @@ function AttendanceView() {
       <td className="mono">{r.a && r.a.outAt ? fmtTime(new Date(r.a.outAt)) : '—'}</td>
       {/* Tính tại chỗ thay vì đọc mỗi field mins đã lưu — bản ghi sửa tay/nhập Excel không có mins */}
       <td className="mono">{(() => { const m = attMinsOf(r.a, cfg); return m ? hoursTxt(m) : '—'; })()}</td>
+      <td className="mono">{(() => { const ot = otOf(attMinsOf(r.a, cfg), cfg); return ot ? <span className="tag t-amber" title={'Vượt ' + (otCapMins(cfg) / 60) + ' tiếng — trả ×' + otMultOf(cfg)}>+{hoursTxt(ot)}</span> : <span style={{ color: 'var(--txt-3)' }}>—</span>; })()}</td>
       <td>{(() => { const dm = dayMultiplier(cfg, r.k); return dm.mult > 1 ? <span className="tag t-red">{dm.label} ×{dm.mult}</span> : <span style={{ color: 'var(--txt-3)' }}>×1</span>; })()}</td>
       <td className="mono">
         {r.a && r.a.geoIn && r.a.geoIn.dist != null && <span className="tag t-green">{r.a.geoIn.dist}m</span>}
@@ -9645,9 +9661,9 @@ function AttendanceView() {
         </div>
         <div className="scroll-x">
           <table className="tb tb-compact">
-            <thead><tr><th>Ngày</th><th>Nhân viên</th><th>Chi nhánh</th><th>Ca</th><th>Giờ vào</th><th>Giờ ra</th><th>Số giờ</th><th>Hệ số</th><th>Vị trí</th><th>Trạng thái</th><th style={{ width: 180 }}></th></tr></thead>
+            <thead><tr><th>Ngày</th><th>Nhân viên</th><th>Chi nhánh</th><th>Ca</th><th>Giờ vào</th><th>Giờ ra</th><th>Số giờ</th><th title="Ca dài hơn giờ chuẩn (mặc định 8 tiếng) thì phần vượt là tăng ca">Tăng ca</th><th>Hệ số</th><th>Vị trí</th><th>Trạng thái</th><th style={{ width: 180 }}></th></tr></thead>
             {!rows.length && (
-              <tbody><tr><td colSpan={11}><Empty title="Không có dòng nào" desc="Chỉ những ngày/ca đã được xếp lịch mới hiện ở đây." /></td></tr></tbody>
+              <tbody><tr><td colSpan={12}><Empty title="Không có dòng nào" desc="Chỉ những ngày/ca đã được xếp lịch mới hiện ở đây." /></td></tr></tbody>
             )}
             {groupByBranch
               ? branchGroups.map(g => {
@@ -9655,7 +9671,7 @@ function AttendanceView() {
                   return (
                     <tbody key={g.bid}>
                       <tr>
-                        <td colSpan={11} style={{ background: '#F7F6F5', padding: '5px 8px', borderTop: '2px solid var(--line)' }}>
+                        <td colSpan={12} style={{ background: '#F7F6F5', padding: '5px 8px', borderTop: '2px solid var(--line)' }}>
                           <span style={{ fontWeight: 800, fontSize: 13 }}>{g.b.name || g.bid}</span>
                           <span className="tag t-gray" style={{ marginLeft: 8 }}>{g.list.length} dòng</span>
                           {gMiss > 0 && <span className="tag t-red" style={{ marginLeft: 6 }}>{gMiss} thiếu công</span>}
@@ -11554,7 +11570,7 @@ const PayRow = React.memo(function PayRow({ r, idx, days, canEdit, onCycle, onAd
       <td className="mono" style={{ textAlign: 'right', fontWeight: 700 }}>
         {hrsShort(r.mins + r.leaveMins) || '0'}h
         <div style={{ fontSize: 10.5, color: 'var(--txt-3)', fontWeight: 400 }}>
-          {r.workDays} ngày{r.leaveDays ? ' · ' + r.leaveDays + 'P' : ''}{r.holMins ? ' · lễ ' + hrsShort(r.holMins) + 'h' : ''}
+          {r.workDays} ngày{r.leaveDays ? ' · ' + r.leaveDays + 'P' : ''}{r.holMins ? ' · lễ ' + hrsShort(r.holMins) + 'h' : ''}{r.otMins ? ' · TC ' + hrsShort(r.otMins) + 'h' : ''}
         </div>
       </td>
       <td className="mono" style={{ textAlign: 'right' }}>
@@ -11758,20 +11774,21 @@ function PayrollView() {
   const expName = 'bang-luong-' + mo + (oneBr ? '-' + slug(oneBr.code || oneBr.name) : (scopeBrs.length > 1 ? '-nhieu-chi-nhanh' : ''));
 
   /* --- xuất file --- */
-  const NUM_COLS = [11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22];
+  const NUM_COLS = [11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 26, 27];
   const STK = 23;
   const expRows = () => {
     const stTxt = (e) => e.status === 'off' ? ('Đã nghỉ việc' + (e.leftAt ? ' ' + e.leftAt.split('-').reverse().join('/') : '')) : 'Đang làm việc';
     const head = ['STT', 'Mã NV', 'Họ và tên', 'Chức vụ', 'Phòng ban', 'Chi nhánh', 'Loại', 'Hình thức', 'Trạng thái',
       'Ngày công', 'Phép năm (ngày)', 'Giờ công', 'Đơn giá / giờ', 'Lương theo giờ', 'Phụ cấp', 'Thâm niên',
       'Lương trách nhiệm', 'Đánh giá (%)',
-      'BHXH', 'Trừ BHXH', 'Bổ sung', 'Khấu trừ', 'Thực nhận', 'Số tài khoản', 'Ngân hàng', 'Chủ tài khoản'];
+      'BHXH', 'Trừ BHXH', 'Bổ sung', 'Khấu trừ', 'Thực nhận', 'Số tài khoản', 'Ngân hàng', 'Chủ tài khoản', 'Giờ tăng ca', 'Tiền tăng ca (đã gồm trong Lương theo giờ)'];
     const rp = (r) => (r.e.respBase || 0) > 0 ? r.respPct : '';
     const out = rows.map((r, i) => [i + 1, r.e.code, r.e.name, posOf(r.e.posId).name, deptOf(r.e.deptId).name,
       r.e.branches.map(b => branchOf(b).code).join(' '), r.isPT ? 'Parttime' : 'Fulltime', (r.e.payMode || 'gross').toUpperCase(), stTxt(r.e),
       r.workDays, r.leaveDays || '', +(((r.mins + r.leaveMins) / 60).toFixed(2)), Math.round(r.rate), r.amount, r.allow, r.seni, r.resp, rp(r),
       insOf(r.e) ? 'Có' : 'Không', r.ins, r.add, r.ded, r.net,
-      String(r.e.bankNo == null ? '' : r.e.bankNo), r.e.bankName || '', r.e.bankOwner || r.e.name]);
+      String(r.e.bankNo == null ? '' : r.e.bankNo), r.e.bankName || '', r.e.bankOwner || r.e.name,
+      +((r.otMins || 0) / 60).toFixed(2), r.otAmt || 0]);
     return [head, ...out];
   };
   const expExcel = async () => {
@@ -11779,7 +11796,7 @@ function PayrollView() {
     try { await window.needLib('xlsx'); } catch (e) { return downloadCsvText(expName + '.csv', data, [STK]); }
     if (typeof XLSX === 'undefined') return downloadCsvText(expName + '.csv', data, [STK]);
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [5, 11, 24, 20, 18, 14, 10, 10, 18, 10, 12, 10, 12, 14, 12, 12, 16, 11, 8, 12, 12, 12, 14, 20, 18, 24]
+    ws['!cols'] = [5, 11, 24, 20, 18, 14, 10, 10, 18, 10, 12, 10, 12, 14, 12, 12, 16, 11, 8, 12, 12, 12, 14, 20, 18, 24, 11, 16]
       .map(w => ({ wch: w }));
     /* Số tài khoản luôn để dạng text để không mất số 0 đầu */
     data.forEach((r, i) => {
@@ -39377,7 +39394,7 @@ function HolidayTab() {
             <input className="inp mono" type="number" step="0.1" value={(cfg.rules && cfg.rules.weekendMult) || 1}
               onChange={e => saveCfg({ rules: { ...cfg.rules, weekendMult: +e.target.value } })} />
           </Field>
-          <Field label="Giờ chuẩn/ngày trước khi tính tăng ca">
+          <Field label="Số giờ một ca trước khi tính tăng ca">
             <input className="inp mono" type="number" value={cfg.rules.otAfterHours}
               onChange={e => saveCfg({ rules: { ...cfg.rules, otAfterHours: +e.target.value } })} />
           </Field>
@@ -40779,7 +40796,7 @@ function SettingsView() {
           <div className="card">
             <div className="card-h"><div><h3>Quy tắc công & lương</h3><p>Áp dụng chung toàn hệ thống</p></div></div>
             <div className="card-b grid g3" style={{ gap: 0, columnGap: 14 }}>
-              <Field label="Giờ chuẩn/ngày trước khi tính tăng ca">
+              <Field label="Số giờ một ca trước khi tính tăng ca">
                 <input className="inp mono" type="number" value={cfg.rules.otAfterHours}
                   onChange={e => saveCfg({ rules: { ...cfg.rules, otAfterHours: +e.target.value } })} />
               </Field>
