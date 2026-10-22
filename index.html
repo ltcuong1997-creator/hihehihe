@@ -15773,14 +15773,27 @@ function EmpDayModal({ branchId, date, emp, shifts, onClose }) {
 /* ---- Ảnh lịch tuần để dán Zalo ----
    Vẽ thẳng lên canvas (không cần thư viện chụp màn hình): đầu ảnh có tiêu đề + khoảng ngày + tên chi nhánh,
    bảng nhân viên × 7 ngày, ô không có ca ghi OFF, cuối ảnh là chú thích giờ từng ca. Vẽ ở tỉ lệ 2x cho nét. */
-function drawWeekSchedImg({ branch, days, rows, shifts, sched, bid, cfg }) {
-  const S = 2, PAD = 22, NAME_W = 190, DAY_W = 112, HEAD_H = 104, TH_H = 50, CHIP_H = 34, CHIP_GAP = 4;
+/* Nạp ảnh đại diện để vẽ lên canvas. Ảnh ngoài (Drive) phải tải kiểu CORS, không thì canvas bị "bẩn" và
+   không copy/tải ảnh được — tải hỏng hoặc quá 4 giây thì để trống, ô đó vẽ chữ viết tắt thay ảnh. */
+const loadAvatarImgs = (rows) => Promise.all((rows || []).map(e => new Promise(res => {
+  /* ảnh lưu trong app (data:) dùng nguyên — imgUrl có thể đọc nhầm chuỗi base64 thành link Drive */
+  const raw = String(e.avatar || ''), src = /^data:/.test(raw) ? raw : imgUrl(raw);
+  if (!src) return res([e.id, null]);
+  const im = new Image();
+  if (!/^data:/.test(src)) im.crossOrigin = 'anonymous';
+  const t = setTimeout(() => res([e.id, null]), 4000);
+  im.onload = () => { clearTimeout(t); res([e.id, im]); };
+  im.onerror = () => { clearTimeout(t); res([e.id, null]); };
+  im.src = src;
+}))).then(a => Object.fromEntries(a));
+function drawWeekSchedImg({ branch, days, rows, shifts, sched, bid, cfg, avs }) {
+  const S = 2, PAD = 22, NAME_W = 236, DAY_W = 112, HEAD_H = 104, TH_H = 50, CHIP_H = 34, CHIP_GAP = 4;
   const W = PAD * 2 + NAME_W + DAY_W * 7;
   const font = (getComputedStyle(document.body).fontFamily || 'system-ui, sans-serif');
   const F = (w, px) => w + ' ' + px + 'px ' + font;
   const C = { brand: '#18484A', brandDk: '#123A3B', wash: '#E8F1F0', ink: '#2E2019', ink3: '#8A7B70', line: '#EADFD3', zebra: '#FBF7F3', off: '#F1ECE6', offTx: '#A89A8E', sun: '#FFF4EE' };
   const cellOf = (e, d) => shifts.filter(s => (sched[schedKey(bid, dKey(d), s.id)] || []).includes(e.id));
-  const rowH = rows.map(e => Math.max(1, ...days.map(d => cellOf(e, d).length)) * (CHIP_H + CHIP_GAP) + 12);
+  const rowH = rows.map(e => Math.max(52, Math.max(1, ...days.map(d => cellOf(e, d).length)) * (CHIP_H + CHIP_GAP) + 12));
   const bodyH = rowH.reduce((a, b) => a + b, 0) || 50;
   const LEG_H = 30 + Math.ceil(shifts.length / 4) * 22 + 4;
   const H = HEAD_H + 14 + TH_H + bodyH + LEG_H + PAD;
@@ -15826,10 +15839,25 @@ function drawWeekSchedImg({ branch, days, rows, shifts, sched, bid, cfg }) {
     if (ri % 2) { g.fillStyle = C.zebra; g.fillRect(x0, y, W - PAD * 2, h); }
     days.forEach((d, i) => { if (d.getDay() === 0 && !(ri % 2)) { g.fillStyle = C.sun; g.fillRect(xd + i * DAY_W, y, DAY_W, h); } });
     const away = !(e.branches || []).includes(bid);
+    /* ảnh đại diện tròn ở đầu cột tên — chưa có ảnh thì vòng màu + chữ viết tắt như trong app */
+    const AV = 38, ax = x0 + 10, ay = y + h / 2 - AV / 2, im = (avs || {})[e.id];
+    g.save(); g.beginPath(); g.arc(ax + AV / 2, ay + AV / 2, AV / 2, 0, Math.PI * 2); g.closePath(); g.clip();
+    if (im) {
+      const k = Math.max(AV / im.width, AV / im.height), iw = im.width * k, ih = im.height * k;
+      g.drawImage(im, ax + (AV - iw) / 2, ay + (AV - ih) / 2, iw, ih);
+    } else {
+      const hu = hueOf(e.name || 'x'), gr = g.createLinearGradient(ax, ay, ax + AV, ay + AV);
+      gr.addColorStop(0, 'hsl(' + hu + ',58%,52%)'); gr.addColorStop(1, 'hsl(' + ((hu + 38) % 360) + ',62%,40%)');
+      g.fillStyle = gr; g.fillRect(ax, ay, AV, AV);
+      g.fillStyle = '#fff'; g.font = F(800, 14); g.textAlign = 'center'; g.fillText(initials(e.name).toUpperCase(), ax + AV / 2, ay + AV / 2 + 5);
+    }
+    g.restore();
+    g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(ax + AV / 2, ay + AV / 2, AV / 2, 0, Math.PI * 2); g.stroke();
+    const tx = ax + AV + 10, tw = NAME_W - (tx - x0) - 8;
     g.textAlign = 'left'; g.fillStyle = C.ink; g.font = F(700, 14.5);
-    g.fillText(fit(e.name, NAME_W - 20), x0 + 12, y + h / 2 - 2);
+    g.fillText(fit(e.name, tw), tx, y + h / 2 - 2);
     g.fillStyle = away ? '#7C3AED' : C.ink3; g.font = F(600, 11.5);
-    g.fillText(fit(away ? 'Hỗ trợ · ' + branchOf((e.branches || [])[0]).code : posOf(e.posId).name, NAME_W - 20), x0 + 12, y + h / 2 + 14);
+    g.fillText(fit(away ? 'Hỗ trợ · ' + branchOf((e.branches || [])[0]).code : posOf(e.posId).name, tw), tx, y + h / 2 + 14);
     days.forEach((d, i) => {
       const got = cellOf(e, d), cx = xd + i * DAY_W;
       g.textAlign = 'center';
@@ -16111,7 +16139,7 @@ function ScheduleView() {
             )}
             {shifts.length > 0 && (
               <button className="btn btn-p btn-sm" title="Tạo ảnh lịch tuần để copy dán qua Zalo"
-                onClick={() => setImgCv(drawWeekSchedImg({ branch: branchOf(bid), days, rows: rowEmps, shifts, sched, bid, cfg }))}>
+                onClick={async () => { const avs = await loadAvatarImgs(rowEmps); setImgCv(drawWeekSchedImg({ branch: branchOf(bid), days, rows: rowEmps, shifts, sched, bid, cfg, avs })); }}>
                 <Ic.clip size={14} /> Ảnh lịch tuần
               </button>
             )}
