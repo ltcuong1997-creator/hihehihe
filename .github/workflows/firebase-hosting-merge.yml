@@ -31,3 +31,7 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HIHEHIHE }}
           channelId: live
           projectId: hihehihe
+          # Ghim bản CLI: firebase-tools 15.34.1 (22/10/2026) đòi thêm quyền serviceusage.services.get mà tài khoản
+          # deploy chưa có → lỗi 403. 15.34.0 deploy bình thường. Muốn lên bản mới thì cấp vai trò
+          # "Service Usage Consumer" cho tài khoản dịch vụ trong Google Cloud IAM rồi bỏ dòng này.
+          firebaseToolsVersion: 15.34.0
