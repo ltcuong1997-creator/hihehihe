@@ -151,7 +151,7 @@ async function readKiot(page, dates, branchIds) {
     };
     for (const bid of branchIds) {
       for (const d of dates) {
-        const agg = {}; const book = []; const ch = {}, chN = {}, chL = {}; let skip = 0, total = 0, inv = 0, sum = 0;
+        const agg = {}; const book = []; const ch = {}, chN = {}, chL = {}; const vinv = []; let skip = 0, total = 0, inv = 0, sum = 0;
         do {
           const flt = `((BranchId eq ${bid}) and PurchaseDate ge datetime'${d}T00:00:00+07:00' and PurchaseDate lt datetime'${nd(d)}T00:00:00+07:00' and (Status eq 1 or Status eq 3))`;
           const u = '/api/invoices?format=json&Includes=' + encodeURIComponent('["InvoiceDetails","Payments"]') + '&$top=100&$skip=' + skip
@@ -167,6 +167,13 @@ async function readKiot(page, dates, branchIds) {
             const dk = (c.name || '(mặc định)') + (c.hasTable ? ' · có bàn' : ' · không bàn') + ' → ' + c.k;
             diag.ch[dk] = (diag.ch[dk] || 0) + 1;
             book.push(...payLines(v, c.k));
+            /* Voucher nhân viên: giữ lại phần có thể chứa MÃ VOUCHER (thanh toán, khuyến mãi, ghi chú) của
+               hoá đơn có giảm giá / khuyến mãi / thanh toán khác tiền mặt-chuyển khoản-ví, để đối soát với
+               mã app đã cấp. Không ghi ra log. */
+            const odd = (v.Payments || []).some(p => !['Cash', 'Transfer', 'EWallet', 'Card'].includes(p.Method));
+            if (+v.Discount > 0 || (v.InvoicePromotions || []).length || odd) {
+              vinv.push({ c: v.Code || '', t: v.PurchaseDate || '', b: JSON.stringify([v.Payments || [], v.InvoicePromotions || [], v.Description || '', v.DiscountRatio || 0, v.Discount || 0]).toUpperCase() });
+            }
             (v.InvoiceDetails || []).forEach(x => {
               const p = prod[x.ProductId] || { code: 'ID' + x.ProductId, name: x.ProductName || ('Món #' + x.ProductId), unit: '', group: '' };
               const o = agg[p.code] || (agg[p.code] = { ...p, qty: 0, amount: 0 });
@@ -176,7 +183,7 @@ async function readKiot(page, dates, branchIds) {
           skip += 100;
           await new Promise(r => setTimeout(r, 400));
         } while (skip < total);
-        out.push({ kvBranch: String(bid), date: d, invoices: inv, total, sum, book, ch, chN, chL, items: Object.values(agg) });
+        out.push({ kvBranch: String(bid), date: d, invoices: inv, total, sum, book, ch, chN, chL, vinv, items: Object.values(agg) });
       }
     }
     return { out, diag };
@@ -313,13 +320,52 @@ async function main() {
     });
     log('Đã ghi ops_sales/' + id);
   }
+  const vc = await reconcileVouchers(db, raw).catch(e => { log('⚠ Đối soát voucher lỗi:', e.message); return null; });
   /* Nhịp tim: app đọc để biết robot chạy lần cuối lúc nào, có lỗi gì không */
   await db.collection('ops_robot').doc('kiotviet').set({
     ok: true, at: now, dates, err: '',
     qty: raw.reduce((a, r) => a + r.items.reduce((s, x) => s + x.qty, 0), 0),
     invoices: raw.reduce((a, r) => a + r.invoices, 0),
-    rev,
+    rev, vc,
   });
+}
+
+/* ---- ĐỐI SOÁT VOUCHER NHÂN VIÊN ----
+   Lượt đã được thu ngân xác minh (ops_vreq status 'ok') giữ poolId; mã thật nằm trong ops_vpool (khoá ở
+   luật Firestore, robot dùng quyền admin nên đọc được). Tìm mã đó trong các hoá đơn có giảm giá /
+   khuyến mãi / thanh toán lạ của đúng ngày (hoặc ngày hôm sau, ca đêm) → ghi invCode/invAt vào lượt.
+   Mã trong kho CHƯA cấp mà lại xuất hiện trên hoá đơn → ghi strayInv vào mã đó để quản lý soi.
+   Chỉ in SỐ LƯỢNG ra log (repo công khai). */
+async function reconcileVouchers(db, raw) {
+  const inv = raw.flatMap(r => (r.vinv || []).map(x => ({ ...x, date: r.date })));
+  const dates = [...new Set(raw.map(r => r.date))];
+  if (!dates.length) return null;
+  const yms = [...new Set(dates.map(d => d.slice(0, 7)))];
+  const reqs = [];
+  for (const ym of yms) {
+    const s = await db.collection('ops_vreq').where('ym', '==', ym).where('status', '==', 'ok').get();
+    s.docs.forEach(d => reqs.push(d.data()));
+  }
+  const pool = await db.collection('ops_vpool').get();
+  const P = {}; pool.docs.forEach(d => { P[d.id] = d.data(); });
+  let matched = 0, open = 0, stray = 0;
+  for (const r of reqs) {
+    if (r.invCode || !r.poolId || !P[r.poolId]) continue;
+    const day = String(r.okAt || '').slice(0, 10), next = addDay(day, 1);
+    if (!dates.includes(day) && !dates.includes(next)) continue;
+    const code = String(P[r.poolId].code || '').toUpperCase();
+    const hit = code.length >= 4 && inv.find(x => (x.date === day || x.date === next) && x.b.includes(code));
+    if (hit) { await db.collection('ops_vreq').doc(r.id).set({ invCode: hit.c, invAt: hit.t, invBy: 'robot-kiotviet' }, { merge: true }); matched++; }
+    else open++;
+  }
+  for (const [id, p] of Object.entries(P)) {
+    if (p.used || p.strayInv) continue;
+    const code = String(p.code || '').toUpperCase();
+    const hit = code.length >= 4 && inv.find(x => x.b.includes(code));
+    if (hit) { await db.collection('ops_vpool').doc(id).set({ strayInv: hit.c, strayAt: hit.t }, { merge: true }); stray++; }
+  }
+  log(`Đối soát voucher nhân viên: ${inv.length} hoá đơn có giảm/khuyến mãi · ghép được ${matched} lượt · ${open} lượt chưa thấy hoá đơn · ${stray} mã chưa cấp mà đã xuất hiện trên hoá đơn`);
+  return { matched, open, stray };
 }
 
 main().catch(async (e) => {
