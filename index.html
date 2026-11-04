@@ -5675,6 +5675,29 @@ html.zs-min .qr-c{animation:qr-in .7s var(--zs-spring) forwards;animation-delay:
 .ml-stage .ml-sug{min-height:32px;font-size:12.5px;padding:0 12px}
 .mlq-top>b{font:700 14px K2D,sans-serif}
 .kvs-help{display:grid;gap:10px;font-size:13.5px;line-height:1.5}
+.svc-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.svc-card{display:flex;gap:14px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px 16px;flex-wrap:wrap}
+.svc-badge{flex:0 0 74px;height:74px;border-radius:18px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;font-size:20px;line-height:1.05;color:#fff;background:linear-gradient(140deg,var(--brand-bright,#2a6b6e),var(--brand-dark,#123a3b))}
+.svc-card.free1 .svc-badge{font-size:14px;background:linear-gradient(140deg,#E8930C,#B4302B)}
+.svc-body{flex:1;min-width:180px;display:grid;gap:3px}
+.svc-body>b{font-size:15px}
+.svc-body>span{font-size:12.5px;color:var(--txt-3)}
+.svc-body em{font-style:normal;font-weight:800;color:var(--txt)}
+.svc-st{margin-top:6px;border-radius:10px;padding:7px 10px;font-size:12.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.svc-st.wait{background:var(--amber-wash,#FFF4E5);color:#7A4A00}
+.svc-st.ok{background:var(--green-wash,#E9F7EF);color:#1F5E3A}
+.svc-st.no{background:#F4F1EE;color:var(--txt-2)}
+.svc-st .btn{margin-left:auto}
+.svc-rules{display:grid;gap:10px;font-size:13.5px;line-height:1.5}
+.svc-rules ul{padding-left:18px;display:grid;gap:4px}
+.svc-agree{display:flex;gap:8px;align-items:center;font-weight:600}
+.svc-warn{background:var(--red-wash,#FDECEA);color:#A3171E;border-radius:10px;padding:8px 11px;font-size:13px}
+.svc-who{display:flex;gap:12px;align-items:center}
+.svc-who>div:nth-child(2){display:grid;flex:1}
+.svc-who b{font-size:16px}.svc-who span{font-size:12.5px;color:var(--txt-3)}
+.svc-left{font-size:20px;font-weight:800;color:#7A4A00}
+.svc-code{font-size:34px;font-weight:900;letter-spacing:.12em;text-align:center;padding:18px 10px;margin:4px 0 10px;border:2px dashed var(--brand,#18484A);border-radius:16px;color:var(--brand-dark,#123a3b);user-select:all}
+.svc-replay{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:80;border:0;border-radius:999px;background:#1A1A1A;color:#fff;font:inherit;font-weight:700;font-size:13px;padding:10px 16px;box-shadow:0 8px 22px rgba(0,0,0,.25);cursor:pointer}
 .kvs-help p{margin:0}
 .kvs-help ol{margin:0;padding-left:20px;display:grid;gap:4px}
 .kvs-help a{color:var(--brand);font-weight:600}
@@ -12200,11 +12223,438 @@ function VoucherImport({ onClose }) {
   );
 }
 
+/* ===================== VOUCHER NHÂN VIÊN (giống ZSpace) =====================
+   Hai loại, mỗi loại một KHO MÃ voucher tạo sẵn trên KiotViet:
+     · free1 — Free 1 ly nước: 4 lượt/tháng, dùng lúc nào cũng được.
+     · pct20 — Giảm 20% tổng bill: không giới hạn lượt (quota 0), chỉ dùng NGOÀI CA.
+   Luồng xin — xác minh: nhân viên bấm lấy, tick cam kết, nhập mã thu ngân → máy thu ngân hiện popup,
+   thu ngân phải ĐANG TRONG CA và nhìn thấy đúng người mới bấm Xác minh → app rút một mã khỏi kho,
+   mã CHỈ hiện trên máy thu ngân để nhập vào máy tính tiền. Lượt có hạn (mặc định 60 phút); từ chối /
+   hết hạn / tự huỷ thì KHÔNG trừ lượt, chỉ lượt đã xác minh mới tính.
+   Hí Hế không có máy chủ riêng (Cloud Functions) như ZSpace, nên:
+     · Kho mã (ops_vpool) khoá bằng luật Firestore: chỉ email trong ops_vacl/main.emails đọc/ghi được
+       (người được admin bật "Được xác minh voucher" + admin). Xem firestore.rules.
+     · Lượt xin (ops_vreq) KHÔNG chứa mã — chỉ giữ poolId — để ai đọc lượt cũng không thấy mã.
+     · Đối soát: robot KiotViet tìm mã đã cấp trong hoá đơn thật rồi ghi inv* vào lượt (sync.mjs). */
+const SVC_COL = { req: 'ops_vreq', pool: 'ops_vpool', acl: 'ops_vacl' };
+const SVC_DEF = {
+  free1: { on: true, label: 'Free 1 ly nước', short: 'FREE 1 LY', quota: 4, mins: 60, offShift: false, desc: 'Tặng 1 ly nước bất kỳ' },
+  pct20: { on: true, label: 'Giảm 20% tổng bill', short: '20%', quota: 0, mins: 60, offShift: true, desc: 'Giảm 20% tổng hoá đơn của bàn' },
+};
+const SVC_TYPES = ['free1', 'pct20'];
+const svcCfg = (cfg) => { const c = (cfg && cfg.svc) || {}; const o = {}; SVC_TYPES.forEach(t => { o[t] = { ...SVC_DEF[t], ...(c[t] || {}) }; }); return o; };
+const svcYm = (d) => { const x = d ? new Date(d) : new Date(); return x.getFullYear() + '-' + pad(x.getMonth() + 1); };
+const svcMmss = (ms) => pad(Math.floor(ms / 60000)) + ':' + pad(Math.floor(ms / 1000) % 60);
+const svcLive = (r, now) => r && r.status === 'wait' && new Date(r.expireAt).getTime() > (now || Date.now());
+const SVC_ST = { wait: ['Đang chờ thu ngân', 't-amber'], ok: ['Đã xác minh', 't-green'], no: ['Thu ngân từ chối', 't-red'], exp: ['Hết hạn', 't-gray'], cancel: ['Đã huỷ', 't-gray'] };
+const svcStOf = (r, now) => (r.status === 'wait' && !svcLive(r, now)) ? 'exp' : r.status;
+/* Ca đang mở của một người NGAY LÚC NÀY: đã vào chưa ra, chưa quá hạn bấm ra. Quét cả hôm qua (ca đêm). */
+const svcOpenShift = (att, cfg, empId, now) => {
+  const t = now ? new Date(now) : new Date();
+  const rows = Object.entries(((att || {})[empId]) || {});
+  const on = (k) => rows.filter(([rk]) => rk === k || rk.startsWith(k + '~')).map(([, r]) => r);
+  const open = [...on(dKey(t)), ...on(dKey(new Date(t.getTime() - 864e5)))].find(r => r && r.inAt && !r.outAt);
+  return open && !attLapsed(open, cfg, t) ? open : null;
+};
+
+/* ---- Kho dữ liệu: Firestore khi chạy thật, bộ nhớ trong máy khi chạy demo ---- */
+const SVC_MEM = { req: {}, pool: {}, acl: {}, subs: new Set() };
+const svcMemFire = () => SVC_MEM.subs.forEach(f => { try { f(); } catch (e) {} });
+const svcPut = (k, id, data) => {
+  if (cloud && db) return db.collection(SVC_COL[k]).doc(id).set(data, { merge: true }).catch(e => { wErr('putDoc', SVC_COL[k], id, e); throw e; });
+  SVC_MEM[k][id] = { ...(SVC_MEM[k][id] || {}), ...data }; svcMemFire(); return Promise.resolve();
+};
+/* Nghe các lượt khớp điều kiện bằng (vd { empId, ym } hoặc { cashierId, status }) */
+const useSvcReqs = (where, on = true) => {
+  const [rows, setRows] = useState(null);
+  const key = JSON.stringify(where || {});
+  useEffect(() => {
+    if (!on) { setRows(null); return; }
+    const W = JSON.parse(key);
+    if (cloud && db) {
+      let q = db.collection(SVC_COL.req);
+      Object.keys(W).forEach(k => { q = q.where(k, '==', W[k]); });
+      return rdOn(q, SVC_COL.req, s => setRows(s.docs.map(d => d.data())), () => setRows([]));
+    }
+    const f = () => setRows(Object.values(SVC_MEM.req).filter(r => Object.keys(W).every(k => r[k] === W[k])));
+    f(); SVC_MEM.subs.add(f); return () => SVC_MEM.subs.delete(f);
+  }, [key, on]);
+  return rows;
+};
+/* Danh sách được cầm mã (ops_vacl/main) */
+const useSvcAcl = () => {
+  const [v, setV] = useState(undefined);
+  useEffect(() => {
+    if (cloud && db) return rdOn(db.collection(SVC_COL.acl).doc('main'), SVC_COL.acl, s => setV(s.exists ? s.data() : null), () => setV(null));
+    const f = () => setV(SVC_MEM.acl.main || null); f(); SVC_MEM.subs.add(f); return () => SVC_MEM.subs.delete(f);
+  }, []);
+  return v;
+};
+/* Kho mã của một loại — chỉ người trong danh sách đọc được (luật Firestore) */
+const svcPoolList = async (type) => {
+  if (cloud && db) { const s = await db.collection(SVC_COL.pool).where('type', '==', type).get(); return s.docs.map(d => d.data()); }
+  return Object.values(SVC_MEM.pool).filter(x => x.type === type);
+};
+const svcPoolGet = async (id) => {
+  if (!id) return null;
+  if (cloud && db) { const s = await db.collection(SVC_COL.pool).doc(id).get(); return s.exists ? s.data() : null; }
+  return SVC_MEM.pool[id] || null;
+};
+/* Xác minh: rút MỘT mã còn trống và chốt lượt trong cùng một giao dịch — hai thu ngân bấm cùng lúc
+   không thể lấy trùng mã, lượt đã hết hạn / bị huỷ giữa chừng thì không rút. */
+const svcVerify = async (req, me) => {
+  const now = new Date().toISOString();
+  if (cloud && db) {
+    const free = await db.collection(SVC_COL.pool).where('type', '==', req.type).where('used', '==', false).limit(6).get();
+    if (free.empty) throw new Error('Kho mã "' + req.type + '" đã hết — báo quản lý nạp thêm mã');
+    for (const d of free.docs) {
+      try {
+        return await db.runTransaction(async (tx) => {
+          const pr = db.collection(SVC_COL.pool).doc(d.id), rr = db.collection(SVC_COL.req).doc(req.id);
+          const [p, r] = [await tx.get(pr), await tx.get(rr)];
+          if (!r.exists || !svcLive(r.data())) throw new Error('STALE');
+          if (!p.exists || p.data().used) throw new Error('TAKEN');
+          tx.update(pr, { used: true, reqId: req.id, empId: req.empId, usedBy: me.id, usedAt: now });
+          tx.update(rr, { status: 'ok', okAt: now, poolId: d.id });
+          return p.data().code;
+        });
+      } catch (e) {
+        if (e.message === 'STALE') throw new Error('Lượt này đã hết hạn hoặc vừa bị huỷ');
+        if (e.message !== 'TAKEN') throw e;
+      }
+    }
+    throw new Error('Mã vừa bị người khác lấy — bấm Xác minh lại');
+  }
+  const p = Object.values(SVC_MEM.pool).find(x => x.type === req.type && !x.used);
+  if (!p) throw new Error('Kho mã đã hết — báo quản lý nạp thêm mã');
+  if (!svcLive(SVC_MEM.req[req.id])) throw new Error('Lượt này đã hết hạn hoặc vừa bị huỷ');
+  Object.assign(p, { used: true, reqId: req.id, empId: req.empId, usedBy: me.id, usedAt: now });
+  Object.assign(SVC_MEM.req[req.id], { status: 'ok', okAt: now, poolId: p.id });
+  svcMemFire();
+  return p.code;
+};
+const useSvcTick = (on) => { const [, t] = useState(0); useEffect(() => { if (!on) return; const h = setInterval(() => t(x => x + 1), 1000); return () => clearInterval(h); }, [on]); };
+
+/* ---- Thẻ voucher trên đầu Ví voucher ---- */
+function SvcCards() {
+  const { user, cfg, att, employees, toast } = useApp();
+  const C = svcCfg(cfg);
+  const ym = svcYm();
+  const mine = useSvcReqs({ empId: user.id, ym });
+  const [ask, setAsk] = useState(null);
+  const pend = (mine || []).find(r => svcLive(r));
+  useSvcTick(!!pend || (mine || []).some(r => r.status === 'ok' && new Date(r.expireAt) > new Date()));
+  const types = SVC_TYPES.filter(t => C[t].on);
+  if (!types.length) return null;
+  const cancel = (r) => svcPut('req', r.id, { status: 'cancel', endAt: new Date().toISOString() }).then(() => toast('Đã huỷ lượt — không bị trừ lượt'));
+  return (
+    <div className="svc-wrap">
+      {types.map(t => {
+        const T = C[t];
+        const used = (mine || []).filter(r => r.type === t && r.status === 'ok').length;
+        const left = T.quota > 0 ? Math.max(0, T.quota - used) : null;
+        const cur = (mine || []).filter(r => r.type === t).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
+        const live = cur && svcLive(cur);
+        const okFresh = cur && cur.status === 'ok' && new Date(cur.expireAt) > new Date();
+        const cashier = cur && employees.find(e => e.id === cur.cashierId);
+        return (
+          <div key={t} className={'svc-card ' + t}>
+            <div className="svc-badge">{T.short}</div>
+            <div className="svc-body">
+              <b>{T.label}</b>
+              <span>{T.desc} · {T.quota > 0 ? <>tháng này còn <em>{left}</em>/{T.quota} lượt</> : 'không giới hạn lượt'} · hiệu lực {T.mins} phút{T.offShift ? ' · chỉ dùng ngoài ca' : ''}</span>
+              {live && (
+                <div className="svc-st wait">
+                  Đang chờ <b>{cashier ? cashier.name : 'thu ngân'}</b> xác minh · còn <b className="mono">{svcMmss(new Date(cur.expireAt) - Date.now())}</b>
+                  <button className="btn btn-o btn-sm" onClick={() => cancel(cur)}>Huỷ</button>
+                </div>
+              )}
+              {okFresh && (
+                <div className="svc-st ok">
+                  <b>Đã xác minh</b> — {cashier ? cashier.name : 'thu ngân'} đang giữ mã trên máy, bạn chỉ cần ra quầy tính tiền. Còn <b className="mono">{svcMmss(new Date(cur.expireAt) - Date.now())}</b>
+                </div>
+              )}
+              {cur && !live && !okFresh && ['no', 'exp'].includes(svcStOf(cur)) && cur.at && (Date.now() - new Date(cur.at) < 3 * 3600e3) && (
+                <div className="svc-st no">{svcStOf(cur) === 'no' ? 'Thu ngân đã từ chối lượt vừa rồi' : 'Lượt vừa rồi đã hết hạn'} — không bị trừ lượt, lấy lại được.</div>
+              )}
+            </div>
+            {!live && !okFresh && (
+              <button className="btn btn-p" disabled={mine == null || !!pend || left === 0}
+                title={pend ? 'Đang có một lượt chờ xác minh' : left === 0 ? 'Đã hết lượt tháng này' : ''}
+                onClick={() => setAsk(t)}>Lấy voucher</button>
+            )}
+          </div>
+        );
+      })}
+      {ask && <SvcAskModal type={ask} onClose={() => setAsk(null)} />}
+    </div>
+  );
+}
+
+function SvcAskModal({ type, onClose }) {
+  const { user, cfg, att, employees, toast } = useApp();
+  const T = svcCfg(cfg)[type];
+  const [step, setStep] = useState(1);
+  const [agree, setAgree] = useState(false);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const open = T.offShift ? svcOpenShift(att, cfg, user.id) : null;
+  const send = async () => {
+    const k = code.trim().toUpperCase();
+    const c = employees.find(e => String(e.code || '').toUpperCase() === k && e.status !== 'off');
+    if (!c) return toast('Không có nhân viên nào mang mã ' + k);
+    if (c.id === user.id) return toast('Không nhập mã của chính mình được');
+    setBusy(true);
+    const now = new Date(), id = uid('VR');
+    const r = { id, type, empId: user.id, empName: user.name, empCode: user.code || '', ym: svcYm(now), at: now.toISOString(),
+      expireAt: new Date(now.getTime() + T.mins * 60000).toISOString(), cashierId: c.id, cashierName: c.name, status: 'wait' };
+    try {
+      await svcPut('req', id, r);
+      notifySend(cfg, c, 'Xác minh voucher ' + T.short, user.name + ' xin dùng voucher "' + T.label + '" — mở app để xác minh', '/');
+      toast('Đã gửi cho ' + c.name + ' — đồng hồ ' + T.mins + ' phút bắt đầu chạy');
+      onClose();
+    } catch (e) { toast('Chưa gửi được: ' + (e.message || e)); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title={'Bạn muốn dùng voucher "' + T.label + '"?'} sub={T.desc + ' · hiệu lực ' + T.mins + ' phút kể từ lúc gửi'} onClose={onClose}
+      footer={step === 1 ? <>
+        <button className="btn btn-o" onClick={onClose}>Để sau</button>
+        <button className="btn btn-p" disabled={!agree || !!open} onClick={() => setStep(2)}>Tôi đồng ý, lấy voucher</button>
+      </> : <>
+        <button className="btn btn-o" onClick={() => setStep(1)}>Quay lại</button>
+        <button className="btn btn-p" disabled={!code.trim() || busy} onClick={send}>Gửi cho thu ngân</button>
+      </>}>
+      {step === 1 ? (
+        <div className="svc-rules">
+          <p>Đọc kỹ trước khi lấy:</p>
+          <ul>
+            <li>Voucher dành cho <b>chính bạn</b> — không lấy hộ, không bán lại, không đưa mã cho người khác.</li>
+            {T.offShift && <li><b>Đang trong ca thì không được lấy.</b> App tự kiểm tra bảng công.</li>}
+            <li>Mỗi lượt phải có một <b>thu ngân đang trong ca</b> bấm xác minh, nhìn thấy đúng bạn ở quầy.</li>
+            <li>Hệ thống <b>đối chiếu ngược với hoá đơn KiotViet</b>. Gian lận hoặc thông đồng thì huỷ quyền dùng và xử lý kỷ luật.</li>
+          </ul>
+          {open && <div className="svc-warn">Bạn đang trong ca (vào lúc {fmtTime(new Date(open.inAt))}). Bấm <b>Ra ca</b> xong quay lại là lấy được.</div>}
+          <label className="svc-agree"><input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} /> Tôi đã đọc và cam kết dùng voucher đúng mục đích.</label>
+        </div>
+      ) : (
+        <div className="svc-rules">
+          <p>Hỏi <b>mã nhân viên của bạn thu ngân</b> đang đứng quầy rồi nhập vào đây. Máy của bạn ấy sẽ hiện thông báo xác minh ngay giữa màn hình.</p>
+          <Field label="Mã nhân viên của thu ngân" hint={'Ví dụ ' + ((employees.find(e => e.code) || {}).code || 'ZS-0009') + ' — hỏi trực tiếp, đừng đoán'}>
+            <input className="inp mono" autoFocus value={code} onChange={e => setCode(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && code.trim()) send(); }} placeholder="Mã nhân viên" />
+          </Field>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/* ---- Popup xác minh trên máy thu ngân: nghe suốt phiên đăng nhập, ở trang nào cũng nhảy ra ---- */
+function SvcCashierWatch() {
+  const { user, cfg, att, employees, toast } = useApp();
+  const jobs = useSvcReqs({ cashierId: user.id, status: 'wait' }, !!user.id);
+  const live = (jobs || []).filter(r => svcLive(r)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  const [hide, setHide] = useState({});
+  const [shown, setShown] = useState(null);    /* { name, label, code, expireAt } — mã vừa cấp */
+  const [busy, setBusy] = useState(false);
+  const mineOk = useSvcReqs({ cashierId: user.id, status: 'ok' }, !!user.id);
+  const recent = (mineOk || []).filter(r => new Date(r.expireAt) > new Date()).sort((a, b) => String(b.okAt).localeCompare(String(a.okAt)));
+  useSvcTick(live.length > 0 || !!shown || recent.length > 0);
+  const seen = useRef({});
+  useEffect(() => { live.forEach(r => { if (!seen.current[r.id]) { seen.current[r.id] = 1; toast('🎟️ ' + r.empName + ' xin dùng voucher — cần bạn xác minh'); } }); }, [live.map(r => r.id).join()]);
+  const C = svcCfg(cfg);
+  const job = live.find(r => !hide[r.id]);
+  const open = svcOpenShift(att, cfg, user.id);
+  const reqOpen = job && C[job.type].offShift ? svcOpenShift(att, cfg, job.empId) : null;
+  const decide = async (ok) => {
+    if (!job) return;
+    setBusy(true);
+    try {
+      if (!ok) { await svcPut('req', job.id, { status: 'no', endAt: new Date().toISOString(), branchId: open ? open.branchId || '' : '' }); toast('Đã từ chối — người xin không bị trừ lượt'); }
+      else {
+        if (!open) throw new Error('Bạn chưa vào ca nên không xác minh được');
+        await svcPut('req', job.id, { branchId: open.branchId || '' });
+        const code = await svcVerify(job, user);
+        setShown({ name: job.empName, label: C[job.type].label, code, expireAt: job.expireAt });
+      }
+    } catch (e) { toast(e.message || String(e)); } finally { setBusy(false); }
+  };
+  const replay = async (r) => {
+    try { const p = await svcPoolGet(r.poolId); if (!p) throw new Error('Không đọc được mã'); setShown({ name: r.empName, label: C[r.type].label, code: p.code, expireAt: r.expireAt }); }
+    catch (e) { toast('Không xem lại được mã: ' + (e.message || e)); }
+  };
+  const emp = job && employees.find(e => e.id === job.empId);
+  return (<>
+    {job && !shown && (
+      <Modal title={'Xác minh voucher ' + C[job.type].short} sub={'Lượt xin của ' + job.empName + ' — chỉ bấm khi bạn nhìn thấy đúng người này ở quầy'} onClose={() => setHide(h => ({ ...h, [job.id]: 1 }))}
+        footer={<>
+          <button className="btn btn-o" disabled={busy} onClick={() => decide(false)}>Từ chối</button>
+          <button className="btn btn-p" disabled={busy || !open} onClick={() => decide(true)}><Ic.check size={15} /> Xác minh</button>
+        </>}>
+        <div className="svc-who">
+          <Avatar name={job.empName} src={emp && emp.avatar} size="lg" />
+          <div><b>{job.empName}</b><span className="mono">{job.empCode}</span><span>{C[job.type].label}</span></div>
+          <div className="svc-left mono">còn {svcMmss(new Date(job.expireAt) - Date.now())}</div>
+        </div>
+        {!open
+          ? <div className="svc-warn">Bạn <b>chưa vào ca</b> nên không bấm Xác minh được. Vào ca trước, hoặc bấm Từ chối.</div>
+          : <p className="hint" style={{ marginTop: 10 }}>Bấm <b>Xác minh</b> thì app cấp một mã voucher — nhập mã vào máy tính tiền KiotViet ({C[job.type].desc.toLowerCase()}).</p>}
+        {reqOpen && <div className="svc-warn">Người xin <b>đang trong ca</b> (vào lúc {fmtTime(new Date(reqOpen.inAt))}) — voucher này chỉ dùng ngoài ca, hãy Từ chối.</div>}
+      </Modal>
+    )}
+    {shown && (
+      <Modal title="Mã voucher" sub={shown.label + ' · ' + shown.name} onClose={() => setShown(null)}
+        footer={<>
+          <button className="btn btn-o" onClick={() => { try { navigator.clipboard.writeText(shown.code); toast('Đã chép mã'); } catch (e) {} }}>Chép mã</button>
+          <button className="btn btn-p" onClick={() => setShown(null)}>Xong</button>
+        </>}>
+        <div className="svc-code mono">{shown.code}</div>
+        <p className="hint" style={{ textAlign: 'center' }}>Nhập mã này vào máy tính tiền KiotViet. Mã dùng đúng một lần. Lỡ đóng thì bấm “Xem lại mã” ở góc màn hình (trong {svcMmss(new Date(shown.expireAt) - Date.now())} nữa).</p>
+      </Modal>
+    )}
+    {!shown && recent.length > 0 && (
+      <button className="svc-replay" onClick={() => replay(recent[0])}>🎟️ Xem lại mã · {recent[0].empName}</button>
+    )}
+  </>);
+}
+
+/* ---- Quản lý: lịch sử + kho mã + cấu hình ---- */
+function SvcAdmin() {
+  const { user, cfg, saveCfg, employees, toast } = useApp();
+  const isAdmin = user.role === 'ADMIN';
+  const acl = useSvcAcl();
+  const myEmail = String(user.email || '').trim().toLowerCase();
+  const canPool = isAdmin || (acl && (acl.emails || []).includes(myEmail));
+  const [tab, setTab] = useState('hist');
+  const [ym, setYm] = useState(svcYm());
+  const rows = useSvcReqs({ ym }, tab === 'hist');
+  const C = svcCfg(cfg);
+  /* Danh sách được cầm mã = người bật "Được xác minh voucher" + admin. Chỉ admin ghi. */
+  const want = useMemo(() => {
+    const ok = (e) => e && e.status !== 'off' && e.email;
+    const em = (e) => String(e.email).trim().toLowerCase();
+    return {
+      emails: [...new Set(employees.filter(e => ok(e) && (e.vcVerify || e.role === 'ADMIN')).map(em))].sort(),
+      admins: [...new Set(employees.filter(e => ok(e) && e.role === 'ADMIN').map(em))].sort(),
+    };
+  }, [employees]);
+  const aclOff = acl !== undefined && JSON.stringify({ e: (acl && acl.emails) || [], a: (acl && acl.admins) || [] }) !== JSON.stringify({ e: want.emails, a: want.admins });
+  const syncAcl = () => svcPut('acl', 'main', { ...want, at: new Date().toISOString(), by: user.id }).then(() => toast('Đã cập nhật danh sách được cầm mã (' + want.emails.length + ' người)')).catch(() => {});
+  const list = (rows || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const cnt = (t, s) => list.filter(r => r.type === t && svcStOf(r) === s).length;
+  return (
+    <div className="card-b grid" style={{ gap: 12 }}>
+      <Seg value={tab} onChange={setTab} options={[
+        { v: 'hist', l: 'Lịch sử dùng' },
+        ...(canPool ? [{ v: 'pool', l: 'Kho mã' }] : []),
+        ...(isAdmin ? [{ v: 'cfg', l: 'Cài đặt' }] : []),
+      ]} />
+      {tab === 'hist' && (<>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input className="inp" type="month" style={{ width: 'auto' }} value={ym} onChange={e => setYm(e.target.value)} />
+          {SVC_TYPES.map(t => <span key={t} className="tag t-gray">{C[t].label}: <b>{cnt(t, 'ok')}</b> đã xác minh · {cnt(t, 'no')} từ chối · {cnt(t, 'exp') + cnt(t, 'cancel')} huỷ/hết hạn</span>)}
+        </div>
+        <div className="scroll-x"><table className="tb tb-compact">
+          <thead><tr><th>Lúc xin</th><th>Loại</th><th>Người xin</th><th>Thu ngân</th><th>Trạng thái</th><th>Hoá đơn KiotViet</th></tr></thead>
+          <tbody>
+            {list.map(r => { const s = svcStOf(r); return (
+              <tr key={r.id}>
+                <td className="mono">{fmtDT(r.at)}</td>
+                <td>{(C[r.type] || {}).short || r.type}</td>
+                <td><b>{r.empName}</b> <span className="hint">{r.empCode}</span></td>
+                <td>{r.cashierName}{r.branchId ? <span className="hint"> · {branchOf(r.branchId).code}</span> : null}</td>
+                <td><span className={'tag ' + SVC_ST[s][1]}>{SVC_ST[s][0]}</span>{r.okAt ? <span className="hint"> {fmtTime(new Date(r.okAt))}</span> : null}</td>
+                <td>{s !== 'ok' ? '—' : r.invCode ? <span className="tag t-green">{r.invCode}{r.invAt ? ' · ' + fmtTime(new Date(r.invAt)) : ''}</span>
+                  : (Date.now() - new Date(r.okAt) > 3 * 3600e3 ? <span className="tag t-red">Chưa thấy hoá đơn dùng mã</span> : <span className="hint">chờ robot đối soát</span>)}</td>
+              </tr>); })}
+            {!list.length && <tr><td colSpan={6}><Empty title="Chưa có lượt nào trong tháng" desc="Lượt xin voucher của nhân viên sẽ hiện ở đây." /></td></tr>}
+          </tbody>
+        </table></div>
+        <p className="hint">Robot KiotViet tìm mã đã cấp trong hoá đơn thật. Lượt đã xác minh quá 3 giờ mà chưa thấy hoá đơn dùng mã thì báo đỏ.</p>
+      </>)}
+      {tab === 'pool' && canPool && <SvcPool />}
+      {tab === 'cfg' && isAdmin && (
+        <div className="grid" style={{ gap: 12 }}>
+          {SVC_TYPES.map(t => { const T = C[t]; const set = (p) => saveCfg({ svc: { ...((cfg && cfg.svc) || {}), [t]: { ...(((cfg && cfg.svc) || {})[t] || {}), ...p } } }); return (
+            <div key={t} className="card" style={{ boxShadow: 'none' }}><div className="card-b grid g4" style={{ gap: 10, alignItems: 'end' }}>
+              <Field label="Loại voucher"><b>{T.label}</b></Field>
+              <Field label="Bật"><select className="inp" value={T.on ? '1' : '0'} onChange={e => set({ on: e.target.value === '1' })}><option value="1">Đang bật</option><option value="0">Tắt</option></select></Field>
+              <Field label="Lượt / tháng" hint="0 = không giới hạn"><input className="inp mono" type="number" min="0" value={T.quota} onChange={e => set({ quota: Math.max(0, +e.target.value || 0) })} /></Field>
+              <Field label="Hiệu lực (phút)"><input className="inp mono" type="number" min="5" value={T.mins} onChange={e => set({ mins: Math.max(5, +e.target.value || 60) })} /></Field>
+              <Field label="Chỉ dùng ngoài ca"><select className="inp" value={T.offShift ? '1' : '0'} onChange={e => set({ offShift: e.target.value === '1' })}><option value="1">Có</option><option value="0">Không — lúc nào cũng được</option></select></Field>
+            </div></div>); })}
+          <div className="card" style={{ boxShadow: 'none' }}><div className="card-b">
+            <b>Ai được cầm mã (xác minh voucher)</b>
+            <p className="hint" style={{ margin: '4px 0 8px' }}>Bật “Được xác minh voucher” trong hồ sơ nhân sự cho thu ngân. Kho mã khoá bằng luật Firebase — chỉ những email dưới đây đọc được.</p>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              {want.emails.map(e => <span key={e} className="tag t-gray">{e}</span>)}
+              {!want.emails.length && <span className="hint">Chưa có ai (cần có email trong hồ sơ).</span>}
+            </div>
+            <button className={'btn ' + (aclOff ? 'btn-p' : 'btn-o')} onClick={syncAcl}>{aclOff ? 'Cập nhật danh sách (đang lệch)' : 'Đồng bộ lại danh sách'}</button>
+          </div></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SvcPool() {
+  const { cfg, user, toast } = useApp();
+  const C = svcCfg(cfg);
+  const [type, setType] = useState('free1');
+  const [rows, setRows] = useState(null);
+  const [err, setErr] = useState('');
+  const [txt, setTxt] = useState('');
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let dead = false; setRows(null); setErr('');
+    svcPoolList(type).then(r => { if (!dead) setRows(r); }).catch(e => { if (!dead) { setErr(String(e.message || e)); setRows([]); } });
+    return () => { dead = true; };
+  }, [type, tick]);
+  const free = (rows || []).filter(x => !x.used), used = (rows || []).filter(x => x.used);
+  const add = async () => {
+    const have = new Set((rows || []).map(x => String(x.code).toUpperCase()));
+    const codes = [...new Set(txt.split(/[\s,;]+/).map(s => s.trim()).filter(s => /^[A-Za-z0-9_-]{4,40}$/.test(s)))].filter(c => !have.has(c.toUpperCase()));
+    if (!codes.length) return toast('Không có mã mới hợp lệ (mỗi mã một dòng, đã có trong kho thì bỏ qua)');
+    const at = new Date().toISOString();
+    try {
+      for (const c of codes) { const id = uid('VP'); await svcPut('pool', id, { id, type, code: c, used: false, at, by: user.id }); }
+      toast('Đã nạp ' + codes.length + ' mã vào kho "' + C[type].label + '"'); setTxt(''); setTick(t => t + 1);
+    } catch (e) { toast('Nạp mã lỗi: ' + (e.message || e)); }
+  };
+  return (
+    <div className="grid" style={{ gap: 10 }}>
+      <Seg value={type} onChange={setType} options={SVC_TYPES.map(t => ({ v: t, l: C[t].label, n: rows && t === type ? free.length : undefined }))} />
+      {err ? <div className="svc-warn">Không đọc được kho mã: {err}. Bạn cần được admin bật “Được xác minh voucher” và bấm Cập nhật danh sách.</div> : (<>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <span className={'tag ' + (free.length < 10 ? 't-red' : 't-green')}>Còn trống: <b>{free.length}</b></span>
+          <span className="tag t-gray">Đã cấp: <b>{used.length}</b></span>
+        </div>
+        <Field label={'Nạp mã cho "' + C[type].label + '"'} hint="Tạo chiến dịch voucher trên KiotViet, xuất danh sách mã, dán vào đây — mỗi mã một dòng">
+          <textarea className="inp mono" rows={5} value={txt} onChange={e => setTxt(e.target.value)} placeholder={'VC0001\nVC0002\n…'} />
+        </Field>
+        <div><button className="btn btn-p" disabled={!txt.trim()} onClick={add}><Ic.upload size={15} /> Nạp mã</button></div>
+        <div className="scroll-x"><table className="tb tb-compact">
+          <thead><tr><th>Mã</th><th>Trạng thái</th><th>Cấp lúc</th></tr></thead>
+          <tbody>{(rows || []).slice().sort((a, b) => (a.used - b.used) || String(b.usedAt || '').localeCompare(String(a.usedAt || ''))).slice(0, 200).map(x => (
+            <tr key={x.id}><td className="mono">{x.code}</td><td>{x.used ? <span className="tag t-gray">Đã cấp</span> : <span className="tag t-green">Còn trống</span>}{x.strayInv && <span className="tag t-red" title="Mã chưa được app cấp mà đã xuất hiện trên hoá đơn KiotViet"> Dùng ngoài app · {x.strayInv}</span>}</td><td className="mono">{x.usedAt ? fmtDT(x.usedAt) : '—'}</td></tr>
+          ))}</tbody>
+        </table></div>
+      </>)}
+    </div>
+  );
+}
+
+/* Demo: kho mã mẫu để thử luồng xin — xác minh */
+if (typeof DEMO !== 'undefined' && DEMO) {
+  ['free1', 'pct20'].forEach(t => { for (let i = 1; i <= 6; i++) { const id = 'VPDEMO' + t + i; SVC_MEM.pool[id] = { id, type: t, code: (t === 'free1' ? 'HHFREE' : 'HH20P') + String(1000 + i), used: false, at: '2026-11-01T00:00:00Z' }; } });
+}
+
 function VoucherView() {
   useNeed('vou');
   const { user, vouchers, employees, addVouchers, saveVoucher, cfg, toast } = useApp();
   const canIssue = !!roleOf(user.role).manage;
   const isBoss = roleOf(user.role).level >= 99;
+  const canSvc = canIssue || !!user.vcVerify || user.role === 'ADMIN';
   const [tab, setTab] = useState('mine');
   const [imp, setImp] = useState(false);
   const [form, setForm] = useState(null);
@@ -12248,6 +12698,7 @@ function VoucherView() {
 
   return (
     <div className="grid" style={{ gap: 14 }}>
+      <SvcCards />
       <div className="grid g4" style={{ gap: 10 }}>
         <Stat icon={<Ic.ticket size={13} />} k="Voucher của tôi" v={mine.filter(v => v.status !== 'used' && !expired(v)).length} d="đang còn dùng được" color="var(--brand-dark)" />
         <Stat icon={<Ic.money size={13} />} k="Tổng giá trị" v={money(mine.filter(v => v.status !== 'used' && !expired(v)).reduce((a, v) => a + (v.value || 0), 0))} d="voucher còn hiệu lực" />
@@ -12260,6 +12711,7 @@ function VoucherView() {
           <Seg value={tab} onChange={setTab} options={[
             { v: 'mine', l: 'Ví của tôi', n: mine.length },
             ...(canIssue ? [{ v: 'team', l: 'Đã cấp cho nhân sự', n: team.length }] : []),
+            ...(canSvc ? [{ v: 'svc', l: 'Voucher nhân viên' }] : []),
           ]} />
           {canIssue && (tab === 'mine' || tab === 'team') && (
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
@@ -12268,6 +12720,7 @@ function VoucherView() {
             </div>
           )}
         </div>
+        {tab === 'svc' && canSvc && <SvcAdmin />}
         {(tab === 'mine' || tab === 'team') && (
           <div className="card-b grid" style={{ gap: 10 }}>
             {list.map(v => <Card key={v.id} v={v} owner={tab === 'team'} />)}
@@ -37260,6 +37713,12 @@ function StaffModal({ emp, onClose }) {
                 <button className={f.onFloor === false ? 'on' : ''} onClick={() => set('onFloor', false)}>Không — khối quản lý</button>
               </div>
             </Field>
+            <Field label="Được xác minh voucher" hint="Thu ngân: bấm Xác minh khi nhân viên xin voucher và cầm mã KiotViet">
+              <div className="seg">
+                <button className={f.vcVerify ? 'on' : ''} onClick={() => set('vcVerify', true)}>Có</button>
+                <button className={!f.vcVerify ? 'on' : ''} onClick={() => set('vcVerify', false)}>Không</button>
+              </div>
+            </Field>
             <Field label="Loại hợp đồng">
               <select className="inp" value={f.contract} onChange={e => set('contract', e.target.value)}>
                 <option>Thử việc</option><option>Chính thức</option><option>Bán thời gian</option><option>Thời vụ</option>
@@ -59708,6 +60167,7 @@ function App() {
         <ZsTitleBar search={<TopFind user={scoped} go={go} />} reloading={reloading}
           onLogout={askOut} onReload={forceReload} onMini={() => setQr(true)} />
         {/* Tai thỏ (dynamic island) đã bỏ theo yêu cầu: tin mới chỉ cộng vào chuông thông báo */}
+        {scoped && scoped.id && <SvcCashierWatch />}
         <Nav user={scoped} page={page} go={go} badgeBy={badgeBy}
           min={navMin} onToggle={() => setNavMin(v => !v)} />
         <div className="main">

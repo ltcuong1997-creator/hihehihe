@@ -5,7 +5,22 @@ service cloud.firestore {
   match /databases/{database}/documents {
     /* ops_stock (bản ghi đếm kho từng ngày) đi luật riêng bên dưới — không qua luật chung */
     match /{collection}/{docId=**} {
-      allow read, write: if request.auth != null && collection != 'ops_stock';
+      allow read, write: if request.auth != null && !(collection in ['ops_stock', 'ops_vpool', 'ops_vacl']);
+    }
+
+    /* ---- Voucher nhân viên: KHO MÃ voucher KiotViet ----
+       Chỉ email nằm trong ops_vacl/main.emails (người được bật "Được xác minh voucher" + admin) mới đọc/ghi
+       kho mã. Danh sách đó chỉ admin (ops_vacl/main.admins) sửa được; lần đầu chưa có thì người tạo đầu
+       tiên phải tự có tên trong admins — admin mở tab Voucher nhân viên → Cài đặt → Cập nhật danh sách
+       NGAY sau khi deploy luật này. Robot KiotViet dùng quyền admin SDK nên không bị luật chặn. */
+    match /ops_vacl/{id} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.token.email in request.resource.data.admins;
+      allow update, delete: if request.auth != null && request.auth.token.email in resource.data.admins;
+    }
+    match /ops_vpool/{id} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email in get(/databases/$(database)/documents/ops_vacl/main).data.emails;
     }
 
     /* Đếm kho: CẤM mọi lệnh ghi làm MẤT phần số đang đếm (live). App bản mới luôn ghi gộp nên luôn giữ live;
