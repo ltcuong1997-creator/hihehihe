@@ -12231,7 +12231,7 @@ function VoucherImport({ onClose }) {
 
 /* ===================== VOUCHER NHÂN VIÊN (giống ZSpace) =====================
    Hai loại, mỗi loại một KHO MÃ voucher tạo sẵn trên KiotViet:
-     · free1 — Free 1 ly nước: 4 lượt/tháng, dùng lúc nào cũng được.
+     · free1 — Free 1 ly nước: tối đa 2 lượt/tuần (T2–CN) và 8 lượt/tháng, dùng lúc nào cũng được.
      · pct20 — Giảm 20% tổng bill: không giới hạn lượt (quota 0), chỉ dùng NGOÀI CA.
    Luồng xin — xác minh: nhân viên bấm lấy, tick cam kết, nhập mã thu ngân → máy thu ngân hiện popup,
    thu ngân phải ĐANG TRONG CA và nhìn thấy đúng người mới bấm Xác minh → app rút một mã khỏi kho,
@@ -12244,12 +12244,14 @@ function VoucherImport({ onClose }) {
      · Đối soát: robot KiotViet tìm mã đã cấp trong hoá đơn thật rồi ghi inv* vào lượt (sync.mjs). */
 const SVC_COL = { req: 'ops_vreq', pool: 'ops_vpool', acl: 'ops_vacl' };
 const SVC_DEF = {
-  free1: { on: true, label: 'Free 1 ly nước', short: 'FREE 1 LY', quota: 4, mins: 60, offShift: false, desc: 'Tặng 1 ly nước bất kỳ' },
-  pct20: { on: true, label: 'Giảm 20% tổng bill', short: '20%', quota: 0, mins: 60, offShift: true, desc: 'Giảm 20% tổng hoá đơn của bàn' },
+  free1: { on: true, label: 'Free 1 ly nước', short: 'FREE 1 LY', quota: 8, week: 2, mins: 60, offShift: false, desc: 'Tặng 1 ly nước bất kỳ' },
+  pct20: { on: true, label: 'Giảm 20% tổng bill', short: '20%', quota: 0, week: 0, mins: 60, offShift: true, desc: 'Giảm 20% tổng hoá đơn của bàn' },
 };
 const SVC_TYPES = ['free1', 'pct20'];
 const svcCfg = (cfg) => { const c = (cfg && cfg.svc) || {}; const o = {}; SVC_TYPES.forEach(t => { o[t] = { ...SVC_DEF[t], ...(c[t] || {}) }; }); return o; };
 const svcYm = (d) => { const x = d ? new Date(d) : new Date(); return x.getFullYear() + '-' + pad(x.getMonth() + 1); };
+/* Đầu tuần (Thứ Hai 00:00, giờ máy) — hạn mức tuần đếm lượt đã xác minh từ mốc này */
+const svcWeekStart = (now) => { const d = now ? new Date(now) : new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; };
 const svcMmss = (ms) => pad(Math.floor(ms / 60000)) + ':' + pad(Math.floor(ms / 1000) % 60);
 const svcLive = (r, now) => r && r.status === 'wait' && new Date(r.expireAt).getTime() > (now || Date.now());
 const SVC_ST = { wait: ['Đang chờ thu ngân', 't-amber'], ok: ['Đã xác minh', 't-green'], no: ['Thu ngân từ chối', 't-red'], exp: ['Hết hạn', 't-gray'], cancel: ['Đã huỷ', 't-gray'] };
@@ -12368,6 +12370,9 @@ function SvcCards() {
   const C = svcCfg(cfg);
   const ym = svcYm();
   const mine = useSvcReqs({ empId: user.id, ym });
+  /* Tuần bắt đầu từ tháng trước (vd T2 27/10 – CN 2/11) thì nạp thêm lượt của tháng trước để đếm hạn mức tuần */
+  const wk0 = svcWeekStart(), prevYm = svcYm(wk0) !== ym ? svcYm(wk0) : null;
+  const prev = useSvcReqs({ empId: user.id, ym: prevYm || '-' }, !!prevYm);
   const [ask, setAsk] = useState(null);
   const pend = (mine || []).find(r => svcLive(r));
   useSvcTick(!!pend || (mine || []).some(r => r.status === 'ok' && new Date(r.expireAt) > new Date()));
@@ -12380,6 +12385,8 @@ function SvcCards() {
         const T = C[t];
         const used = (mine || []).filter(r => r.type === t && r.status === 'ok').length;
         const left = T.quota > 0 ? Math.max(0, T.quota - used) : null;
+        const usedW = [...(mine || []), ...(prev || [])].filter(r => r.type === t && r.status === 'ok' && new Date(r.okAt || r.at) >= wk0).length;
+        const leftW = T.week > 0 ? Math.max(0, T.week - usedW) : null;
         const cur = (mine || []).filter(r => r.type === t).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
         const live = cur && svcLive(cur);
         const okFresh = cur && cur.status === 'ok' && new Date(cur.expireAt) > new Date();
@@ -12389,7 +12396,7 @@ function SvcCards() {
             <div className="svc-badge">{T.short}</div>
             <div className="svc-body">
               <b>{T.label}</b>
-              <span>{T.desc} · {T.quota > 0 ? <>tháng này còn <em>{left}</em>/{T.quota} lượt</> : 'không giới hạn lượt'} · hiệu lực {T.mins} phút{T.offShift ? ' · chỉ dùng ngoài ca' : ''}</span>
+              <span>{T.desc} · {T.week > 0 && <>tuần này còn <em>{leftW}</em>/{T.week} · </>}{T.quota > 0 ? <>tháng này còn <em>{left}</em>/{T.quota} lượt</> : (T.week > 0 ? 'không giới hạn tháng' : 'không giới hạn lượt')} · hiệu lực {T.mins} phút{T.offShift ? ' · chỉ dùng ngoài ca' : ''}</span>
               {live && (
                 <div className="svc-st wait">
                   Đang chờ <b>{cashier ? cashier.name : 'thu ngân'}</b> xác minh · còn <b className="mono">{svcMmss(new Date(cur.expireAt) - Date.now())}</b>
@@ -12406,8 +12413,8 @@ function SvcCards() {
               )}
             </div>
             {!live && !okFresh && (
-              <button className="btn btn-p" disabled={mine == null || !!pend || left === 0}
-                title={pend ? 'Đang có một lượt chờ xác minh' : left === 0 ? 'Đã hết lượt tháng này' : ''}
+              <button className="btn btn-p" disabled={mine == null || (!!prevYm && prev == null) || !!pend || left === 0 || leftW === 0}
+                title={pend ? 'Đang có một lượt chờ xác minh' : left === 0 ? 'Đã hết lượt tháng này' : leftW === 0 ? 'Đã hết lượt tuần này — Thứ Hai tuần sau lấy lại được' : ''}
                 onClick={() => setAsk(t)}>Lấy voucher</button>
             )}
           </div>
@@ -12626,6 +12633,7 @@ function SvcAdmin() {
             <div key={t} className="card" style={{ boxShadow: 'none' }}><div className="card-b grid g4" style={{ gap: 10, alignItems: 'end' }}>
               <Field label="Loại voucher"><b>{T.label}</b></Field>
               <Field label="Bật"><select className="inp" value={T.on ? '1' : '0'} onChange={e => set({ on: e.target.value === '1' })}><option value="1">Đang bật</option><option value="0">Tắt</option></select></Field>
+              <Field label="Lượt / tuần" hint="Tuần T2–CN · 0 = không giới hạn"><input className="inp mono" type="number" min="0" value={T.week || 0} onChange={e => set({ week: Math.max(0, +e.target.value || 0) })} /></Field>
               <Field label="Lượt / tháng" hint="0 = không giới hạn"><input className="inp mono" type="number" min="0" value={T.quota} onChange={e => set({ quota: Math.max(0, +e.target.value || 0) })} /></Field>
               <Field label="Hiệu lực (phút)"><input className="inp mono" type="number" min="5" value={T.mins} onChange={e => set({ mins: Math.max(5, +e.target.value || 60) })} /></Field>
               <Field label="Chỉ dùng ngoài ca"><select className="inp" value={T.offShift ? '1' : '0'} onChange={e => set({ offShift: e.target.value === '1' })}><option value="1">Có</option><option value="0">Không — lúc nào cũng được</option></select></Field>
