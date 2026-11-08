@@ -11768,19 +11768,17 @@ const payAudit = ({ list, att, cfg, sched, ftlogs, mo, days }) => {
       if (raw > 12 * 60) items.push({ t: 'long', d, x: sl + ' · ' + io + ' (' + hoursTxt(raw) + ')' });
       else if (raw - m >= 90) items.push({ t: 'over', d, x: sl + ' · ' + io + ' · tính ' + hoursTxt(m) + '/' + hoursTxt(raw) });
       if (m > 0 && m < 60) items.push({ t: 'short', d, x: sl + ' · ' + io + ' (' + m + ' phút)' });
-      const bid = a.branchId || (e.branches || [])[0];
-      if (a.shift && scheduled && !((sched[schedKey(bid, d, a.shift)] || []).includes(e.id))) items.push({ t: 'free', d, x: sl + ' · ' + io });
     });
     Object.keys(dayMins).forEach(d => { if (dayMins[d] > 12 * 60) items.push({ t: 'day12', d, x: hoursTxt(dayMins[d]) }); });
-    /* có lịch mà không chấm công — chỉ xét ngày đã qua */
-    if (sched) (cfg.branches || []).forEach(b => days.forEach(d => {
-      if (d >= today) return;
-      (cfg.shifts || []).forEach(s => {
-        if (!((sched[schedKey(b.id, d, s.id)] || []).includes(e.id))) return;
-        const has = Object.keys(rec).some(k => k.split('~')[0] === d && rec[k] && (rec[k].shift === s.id || !rec[k].shift) && (rec[k].inAt || rec[k].outAt));
-        if (!has) items.push({ t: 'miss', d, x: s.code + ' ' + s.start + '–' + s.end + ' · ' + branchOf(b.id).code });
+    /* Có lịch mà không chấm công / chấm ngoài lịch: dựng ĐÚNG các dòng như màn Chấm công (attRowsForEmpDay)
+       — ca trùng giờ khác id, ca đã xoá, đổi ca chồng giờ đều đã gộp ở đó, nên không báo oan */
+    if (sched) days.forEach(d => {
+      attRowsForEmpDay(cfg, sched, att || {}, { ...e, branches: e.branches || [] }, d).forEach(r => {
+        const sl = r.s ? r.s.code + ' ' + r.s.start + '–' + r.s.end : 'không ca';
+        if (r.outOfSchedule) { if (scheduled && r.a && r.a.inAt && r.a.outAt) items.push({ t: 'free', d, x: sl + ' · ' + fmtTime(new Date(r.a.inAt)) + '→' + fmtTime(new Date(r.a.outAt)) }); }
+        else if (!attHas(r.a) && d < today) items.push({ t: 'miss', d, x: sl + ' · ' + branchOf(r.branchId).code });
       });
-    }));
+    });
     const lg = ((ftlogs || {})[ftKey(e.id, mo)] || {}).days || {};
     Object.keys(lg).forEach(d => { if (lg[d] === 'P' && keys.some(k => k.split('~')[0] === d && rec[k] && rec[k].inAt)) items.push({ t: 'leave', d, x: 'P + có chấm công' }); });
     if (lates >= 3) items.push({ t: 'late', d: '', x: lates + ' lần' });
