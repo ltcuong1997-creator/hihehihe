@@ -12471,10 +12471,11 @@ function VoucherImport({ onClose }) {
 const SVC_COL = { req: 'ops_vreq', pool: 'ops_vpool', acl: 'ops_vacl' };
 const SVC_DEF = {
   free1: { on: true, label: 'Free 1 ly nước', short: 'FREE 1 LY', quota: 8, week: 2, mins: 60, offShift: false, desc: 'Tặng 1 ly nước bất kỳ' },
-  pct20: { on: true, label: 'Giảm 20% tổng bill', short: '20%', quota: 0, week: 0, mins: 60, offShift: true, desc: 'Giảm 20% tổng hoá đơn của bàn' },
+  pct20: { on: true, label: 'Giảm 20% tổng bill', short: '20%', quota: 0, week: 0, mins: 60, offShift: false, desc: 'Giảm 20% tổng hoá đơn của bàn' },
 };
 const SVC_TYPES = ['free1', 'pct20'];
-const svcCfg = (cfg) => { const c = (cfg && cfg.svc) || {}; const o = {}; SVC_TYPES.forEach(t => { o[t] = { ...SVC_DEF[t], ...(c[t] || {}) }; }); return o; };
+/* Nhân viên ĐANG TRONG CA cũng dùng được voucher — bỏ hẳn hạn chế "chỉ dùng ngoài ca" (kể cả cấu hình cũ đã lưu offShift) */
+const svcCfg = (cfg) => { const c = (cfg && cfg.svc) || {}; const o = {}; SVC_TYPES.forEach(t => { o[t] = { ...SVC_DEF[t], ...(c[t] || {}), offShift: false }; }); return o; };
 const svcYm = (d) => { const x = d ? new Date(d) : new Date(); return x.getFullYear() + '-' + pad(x.getMonth() + 1); };
 /* Đầu tuần (Thứ Hai 00:00, giờ máy) — hạn mức tuần đếm lượt đã xác minh từ mốc này */
 const svcWeekStart = (now) => { const d = now ? new Date(now) : new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; };
@@ -12862,7 +12863,7 @@ function SvcAdmin() {
               <Field label="Lượt / tuần" hint="Tuần T2–CN · 0 = không giới hạn"><input className="inp mono" type="number" min="0" value={T.week || 0} onChange={e => set({ week: Math.max(0, +e.target.value || 0) })} /></Field>
               <Field label="Lượt / tháng" hint="0 = không giới hạn"><input className="inp mono" type="number" min="0" value={T.quota} onChange={e => set({ quota: Math.max(0, +e.target.value || 0) })} /></Field>
               <Field label="Hiệu lực (phút)"><input className="inp mono" type="number" min="5" value={T.mins} onChange={e => set({ mins: Math.max(5, +e.target.value || 60) })} /></Field>
-              <Field label="Chỉ dùng ngoài ca"><select className="inp" value={T.offShift ? '1' : '0'} onChange={e => set({ offShift: e.target.value === '1' })}><option value="1">Có</option><option value="0">Không — lúc nào cũng được</option></select></Field>
+              
             </div></div>); })}
           <div className="card" style={{ boxShadow: 'none' }}><div className="card-b">
             <b>Ai được cầm mã (xác minh voucher)</b>
