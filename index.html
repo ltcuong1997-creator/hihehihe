@@ -9125,7 +9125,7 @@ function ShiftView() {
    chấm công hiện 2 dòng cùng một ca: một dòng có giờ, một dòng trống. */
 const attHas = (a) => !!(a && (a.inAt || a.outAt));
 /* Hai ca khác id nhưng trùng giờ bắt đầu–kết thúc (VD cấu hình có 2 ca "12-18") coi là MỘT ca */
-const attSig = (sid) => { const s = shiftOf(sid); return s && s.start ? s.start + '-' + s.end : 'id:' + (sid || ''); };
+const attSig = (sid) => { const s = shiftOf(sid); const n = (t) => String(t || '').padStart(5, '0'); return s && s.start ? n(s.start) + '-' + n(s.end) : 'id:' + (sid || ''); };
 const nextAttKey = (att, empId, date) => {
   const recs = (att && att[empId]) || {};
   let n = 1, key = date;
