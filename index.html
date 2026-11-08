@@ -11750,6 +11750,84 @@ const payAudit = ({ list, att, cfg, sched, ftlogs, mo, days }) => {
   const red = (r) => r.items.filter(i => PAY_AUD[i.t].tag === 't-red').length;
   return out.sort((a, b) => red(b) - red(a) || b.items.length - a.items.length);
 };
+/* Ảnh bảng công tháng (chỉ GIỜ, không tiền): tên + ảnh đại diện, giờ từng ngày, tổng — vẽ canvas 2x để copy dán Zalo */
+function drawPayCongImg({ rows, days, mo, scopeName, avs }) {
+  const S = 2, PAD = 20, NAME_W = 210, DAY_W = 40, HEAD_H = 92, TH_H = 46, ROW_H = 44;
+  const TOT = [['Công', 50], ['Giờ ×1', 62], ['Tăng ca', 62], ['Tổng giờ', 70], ['Thực tế', 70]];
+  const TOT_W = TOT.reduce((a, t) => a + t[1], 0);
+  const W = PAD * 2 + NAME_W + DAY_W * days.length + TOT_W;
+  const H = HEAD_H + 12 + TH_H + ROW_H * Math.max(1, rows.length) + ROW_H + 40;
+  const font = (getComputedStyle(document.body).fontFamily || 'system-ui, sans-serif');
+  const F = (w, px) => w + ' ' + px + 'px ' + font;
+  const C = { brand: '#18484A', brandDk: '#123A3B', wash: '#E8F1F0', ink: '#2E2019', ink3: '#8A7B70', line: '#EADFD3', zebra: '#FBF7F3', sun: '#FFF4EE', off: '#C9BDB2', ot: '#B45309', leave: '#7C3AED' };
+  const cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
+  const g = cv.getContext('2d'); g.scale(S, S);
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  const fit = (t, max) => { t = String(t || ''); if (g.measureText(t).width <= max) return t; while (t && g.measureText(t + '…').width > max) t = t.slice(0, -1); return t + '…'; };
+  const h1 = (m) => m ? String(Math.round(m / 60 * 10) / 10).replace('.', ',') : '';
+  const isSun = (k) => new Date(k + 'T12:00:00').getDay() === 0;
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  g.fillStyle = C.brand; g.fillRect(0, 0, W, HEAD_H); g.fillStyle = C.brandDk; g.fillRect(0, HEAD_H - 6, W, 6);
+  g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+  g.fillStyle = '#fff'; g.font = F(800, 28); g.fillText('BẢNG CÔNG THÁNG ' + mo.slice(5) + '/' + mo.slice(0, 4), PAD, 44);
+  g.font = F(600, 16); g.fillStyle = '#CFE3E1'; g.fillText(rows.length + ' nhân sự · giờ làm từng ngày (đơn vị: giờ)', PAD, 72);
+  g.font = F(800, 20); g.textAlign = 'right';
+  const bn = fit(scopeName, W / 3); const bw = g.measureText(bn).width + 32;
+  g.fillStyle = '#fff'; rr(W - PAD - bw, 26, bw, 42, 21); g.fill(); g.fillStyle = C.brand; g.fillText(bn, W - PAD - 16, 54);
+  let y = HEAD_H + 12;
+  const x0 = PAD, xd = PAD + NAME_W, xt = xd + DAY_W * days.length;
+  g.fillStyle = C.wash; rr(x0, y, W - PAD * 2, TH_H, 10); g.fill();
+  g.fillStyle = C.brand; g.font = F(800, 14); g.textAlign = 'left'; g.fillText('Nhân sự', x0 + 12, y + 28);
+  g.textAlign = 'center';
+  days.forEach((k, i) => {
+    const cx = xd + i * DAY_W + DAY_W / 2, sun = isSun(k);
+    g.fillStyle = sun ? '#C0392B' : C.brand; g.font = F(800, 14); g.fillText(k.slice(8, 10), cx, y + 21);
+    g.fillStyle = sun ? '#C0392B' : C.ink3; g.font = F(600, 10.5); g.fillText(WDS[new Date(k + 'T12:00:00').getDay()], cx, y + 36);
+  });
+  let tx = xt; TOT.forEach(([l, w]) => { g.fillStyle = C.brand; g.font = F(800, 12.5); g.fillText(l, tx + w / 2, y + 28); tx += w; });
+  y += TH_H;
+  const yb = y, sum = { work: 0, reg: 0, ot: 0, tot: 0, real: 0 }, daySum = {};
+  rows.forEach((r, ri) => {
+    const e = r.e;
+    if (ri % 2) { g.fillStyle = C.zebra; g.fillRect(x0, y, W - PAD * 2, ROW_H); }
+    days.forEach((k, i) => { if (isSun(k) && !(ri % 2)) { g.fillStyle = C.sun; g.fillRect(xd + i * DAY_W, y, DAY_W, ROW_H); } });
+    const AV = 30, ax = x0 + 8, ay = y + (ROW_H - AV) / 2, im = (avs || {})[e.id];
+    g.save(); g.beginPath(); g.arc(ax + AV / 2, ay + AV / 2, AV / 2, 0, Math.PI * 2); g.closePath(); g.clip();
+    if (im) { const s = Math.max(AV / im.width, AV / im.height), iw = im.width * s, ih = im.height * s; g.drawImage(im, ax + (AV - iw) / 2, ay + (AV - ih) / 2, iw, ih); }
+    else { const hu = hueOf(e.name || 'x'); g.fillStyle = 'hsl(' + hu + ',55%,48%)'; g.fillRect(ax, ay, AV, AV); g.fillStyle = '#fff'; g.font = F(800, 12); g.textAlign = 'center'; g.fillText(initials(e.name).toUpperCase(), ax + AV / 2, ay + AV / 2 + 4); }
+    g.restore();
+    const nx = ax + AV + 8, nw = NAME_W - (nx - x0) - 6;
+    g.textAlign = 'left'; g.fillStyle = C.ink; g.font = F(700, 13.5); g.fillText(fit(e.name, nw), nx, y + 20);
+    g.fillStyle = C.ink3; g.font = F(600, 10.5); g.fillText(fit((e.code || '') + ' · ' + (r.isPT ? 'Parttime' : 'Fulltime'), nw), nx, y + 34);
+    g.textAlign = 'center';
+    days.forEach((k, i) => {
+      const c = r.day[k], cx = xd + i * DAY_W + DAY_W / 2, cy = y + ROW_H / 2 + 4;
+      if (c && c.mark === 'P') { g.fillStyle = C.leave; g.font = F(800, 12); g.fillText('P', cx, cy); return; }
+      if (c && c.mark === 'X') { g.fillStyle = '#C0392B'; g.font = F(800, 12); g.fillText('X', cx, cy); return; }
+      if (c && c.mins) { daySum[k] = (daySum[k] || 0) + c.mins; g.fillStyle = c.mins > 8 * 60 ? C.ot : C.ink; g.font = F(700, 12); g.fillText(h1(c.mins), cx, cy); }
+      else { g.fillStyle = C.off; g.font = F(600, 11); g.fillText('·', cx, cy); }
+    });
+    const vals = [r.workDays || '', h1((r.regMins || 0) + (r.leaveMins || 0)), h1(r.otMins || 0), h1((r.mins || 0) + (r.leaveMins || 0)), h1((r.realMins || 0) + (r.leaveMins || 0))];
+    sum.work += +r.workDays || 0; sum.reg += (r.regMins || 0) + (r.leaveMins || 0); sum.ot += r.otMins || 0; sum.tot += (r.mins || 0) + (r.leaveMins || 0); sum.real += (r.realMins || 0) + (r.leaveMins || 0);
+    let x = xt; vals.forEach((v, j) => { const w = TOT[j][1]; if (j >= 3) { g.fillStyle = j === 4 ? '#E8F1F0' : '#F4F8F7'; g.fillRect(x, y, w, ROW_H); } g.fillStyle = j === 2 && v ? C.ot : (j >= 3 ? C.brand : C.ink); g.font = F(j >= 3 ? 800 : 700, 13); g.fillText(String(v), x + w / 2, y + ROW_H / 2 + 5); x += w; });
+    y += ROW_H;
+    g.strokeStyle = C.line; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, y); g.lineTo(W - PAD, y); g.stroke();
+  });
+  if (!rows.length) { g.fillStyle = C.ink3; g.font = F(600, 14); g.textAlign = 'center'; g.fillText('Chưa có nhân sự', W / 2, y + 28); y += ROW_H; }
+  /* dòng tổng */
+  g.fillStyle = C.wash; g.fillRect(x0, y, W - PAD * 2, ROW_H);
+  g.textAlign = 'left'; g.fillStyle = C.brand; g.font = F(800, 14); g.fillText('TỔNG', x0 + 12, y + ROW_H / 2 + 5);
+  g.textAlign = 'center'; g.font = F(700, 10.5);
+  days.forEach((k, i) => { if (daySum[k]) { g.fillStyle = C.brand; g.fillText(String(Math.round(daySum[k] / 60)), xd + i * DAY_W + DAY_W / 2, y + ROW_H / 2 + 4); } });
+  let sx = xt; [Math.round(sum.work * 10) / 10 || '', h1(sum.reg), h1(sum.ot), h1(sum.tot), h1(sum.real)].forEach((v, j) => { g.fillStyle = C.brand; g.font = F(800, 13); g.fillText(String(String(v).replace('.', ',')), sx + TOT[j][1] / 2, y + ROW_H / 2 + 5); sx += TOT[j][1]; });
+  y += ROW_H;
+  g.strokeStyle = C.line; g.lineWidth = 1;
+  for (let i = 0; i <= days.length; i++) { const x = xd + i * DAY_W; g.beginPath(); g.moveTo(x, yb); g.lineTo(x, y); g.stroke(); }
+  tx = xt; TOT.forEach(([, w]) => { tx += w; g.beginPath(); g.moveTo(tx, yb); g.lineTo(tx, y); g.stroke(); });
+  g.textAlign = 'left'; g.fillStyle = C.ink3; g.font = F(600, 11.5);
+  g.fillText('Số = giờ làm trong ngày (cam: trên 8 tiếng) · P = phép năm · X = nghỉ không lương · Thực tế = giờ ×1 + tăng ca × hệ số · Xuất lúc ' + fmtTime(new Date()) + ' ' + todayKey().split('-').reverse().join('/'), PAD, y + 26);
+  return cv;
+}
 function PayAuditTab({ list, mo, days }) {
   const { att, cfg, sched, ftlogs, needSchedMonth } = useApp();
   useEffect(() => { if (needSchedMonth) needSchedMonth(mo); }, [mo]);
@@ -11959,14 +12037,10 @@ function PayrollView() {
     XLSX.writeFile(wb, expName + '.xlsx');
     toast('Đã xuất Excel bảng lương · ' + scopeName);
   };
+  const [congCv, setCongCv] = useState(null);
   const copyCong = async () => {
-    const t = payCopyTsv(rows, days);
-    try { await navigator.clipboard.writeText(t); toast('Đã chép bảng công ' + rows.length + ' người — dán (Ctrl+V) vào Excel / Google Sheets'); }
-    catch (e) {
-      const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); toast('Đã chép bảng công ' + rows.length + ' người'); } catch (e2) { toast('Trình duyệt chặn chép — dùng nút Excel'); }
-      ta.remove();
-    }
+    const avs = await loadAvatarImgs(rows.map(r => r.e));
+    setCongCv(drawPayCongImg({ rows, days, mo, scopeName, avs }));
   };
   const expPdf = () => {
     const data = expRows();
@@ -12028,7 +12102,7 @@ function PayrollView() {
             )}
             {canEdit && <button className="btn btn-o" onClick={() => setPick(true)}><Ic.users size={15} /> Chọn người tính lương</button>}
             <input className="inp" type="month" style={{ width: 'auto' }} value={mo} onChange={e => setMo(e.target.value)} />
-            <button className="btn btn-o" onClick={copyCong} title="Chép bảng giờ công (tên, giờ từng ngày, tổng giờ — không có số tiền) để dán vào Excel / Google Sheets"><Ic.clip size={15} /> Copy công</button>
+            <button className="btn btn-o" onClick={copyCong} title="Tạo ảnh bảng công (tên, giờ từng ngày, tổng giờ — không có số tiền) để copy dán Zalo"><Ic.clip size={15} /> Copy công</button>
             <button className="btn btn-o" onClick={expExcel}><Ic.upload size={15} /> Excel</button>
             <button className="btn btn-p" onClick={expPdf}><Ic.file size={15} /> PDF trình ký</button>
           </div>
@@ -12082,6 +12156,7 @@ function PayrollView() {
 
         {tab === 'rep' && <PayrollBranchReport mo={mo} rows={rows} canEdit={canEdit} />}
         {tab === 'aud' && <PayAuditTab list={list} mo={mo} days={days} />}
+        {congCv && <SchedImgModal canvas={congCv} title="Ảnh bảng công" sub={'Tháng ' + mo.slice(5) + '/' + mo.slice(0, 4) + ' · chỉ có giờ, không có lương'} fileName={'bang-cong-' + mo + '.png'} onClose={() => setCongCv(null)} />}
 
         {tab === 'tbl' && (<>
           <div className="card-b" style={{ paddingBottom: 6, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', fontSize: 12 }}>
@@ -16518,7 +16593,7 @@ function drawWeekSchedImg({ branch, days, rows, shifts, sched, bid, cfg, avs }) 
   return cv;
 }
 
-function SchedImgModal({ canvas, fileName, onClose }) {
+function SchedImgModal({ canvas, fileName, onClose, title, sub }) {
   const { toast } = useApp();
   const url = useMemo(() => canvas.toDataURL('image/png'), [canvas]);
   const blobP = () => new Promise(res => canvas.toBlob(res, 'image/png'));
@@ -16542,7 +16617,7 @@ function SchedImgModal({ canvas, fileName, onClose }) {
     } catch (e) { if (e && e.name !== 'AbortError') toast('Không mở được khung chia sẻ — thử Copy ảnh hoặc Tải về'); }
   };
   return (
-    <Modal title="Ảnh lịch tuần" sub="Copy rồi dán thẳng vào Zalo" onClose={onClose} wide
+    <Modal title={title || 'Ảnh lịch tuần'} sub={sub || 'Copy rồi dán thẳng vào Zalo'} onClose={onClose} wide
       footer={<>
         <button className="btn btn-o" style={{ marginRight: 'auto' }} onClick={dl}><Ic.upload size={15} style={{ transform: 'rotate(180deg)' }} /> Tải về</button>
         {canShare && <button className="btn btn-o" onClick={share}><Ic.send size={15} /> Gửi</button>}
