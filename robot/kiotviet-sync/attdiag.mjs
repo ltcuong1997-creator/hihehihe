@@ -56,9 +56,18 @@ for (const k of allKeys) {
     bump(t); keep(t, who + ' chấm ' + sLbl(r.v.shift) + ' key ' + r.key + ' | lịch: ' + sc.map(x => sLbl(x.s) + '@' + String(x.b).slice(-4)).join(','));
   });
   /* 5. bản ghi rỗng (không in, không out) */
-  recs.filter(r => !r.v.inAt && !r.v.outAt).forEach(r => { bump('CHẤM: bản ghi rỗng (không vào/ra)'); keep('RỖNG', who + ' ' + sLbl(r.v.shift) + ' key ' + r.key + ' fields:' + Object.keys(r.v).sort().join(',')); });
+  recs.filter(r => !r.v.inAt && !r.v.outAt).forEach(r => { bump('CHẤM: bản ghi rỗng (không vào/ra)'); keep('RỖNG', who + ' vỏ ' + sLbl(r.v.shift) + ' key ' + r.key + ' | cả ngày chấm: ' + recs.map(x => x.key + '=' + sLbl(x.v.shift) + (x.v.inAt ? '[in]' : '[-]')).join(' ') + ' | lịch: ' + sc.map(x => sLbl(x.s)).join(',')); });
   /* 6. key không khớp date */
   recs.forEach(r => { if (r.key.split('~')[0] !== r.v.date) { bump('CHẤM: key lệch field date'); keep('KEY', who + ' key ' + r.key); } });
+}
+/* FIX=yes: dọn VỎ RỖNG (không giờ vào, không giờ ra) — sao lưu nguyên văn vào ops_attbak trước khi xoá */
+if (env('FIX') === 'yes') {
+  const shells = att.docs.filter(d => { const v = d.data(); return !v.inAt && !v.outAt; });
+  for (const d of shells) {
+    await db.collection('ops_attbak').doc(d.id).set({ ...d.data(), _bakAt: new Date().toISOString(), _why: 'vỏ rỗng gây dòng trùng' });
+    await d.ref.delete();
+  }
+  console.log('ĐÃ DỌN', shells.length, 'vỏ rỗng (đã sao lưu ở ops_attbak)');
 }
 console.log('\n===== TỔNG HỢP =====');
 Object.entries(stat).sort((a, b) => b[1] - a[1]).forEach(([t, n]) => console.log(String(n).padStart(5), t));
