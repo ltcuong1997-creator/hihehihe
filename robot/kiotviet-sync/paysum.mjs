@@ -32,11 +32,14 @@ ${code}
 ${extra}
 return { payCalc, attMinsOf, stdDaysOf, shiftOf };`)(CFG);
 const probe = (L) => L.payCalc({ id: '_', type: 'Parttime', hourRate: 1, base: 1, branches: [] }, { att: { _: { [MO + '-01']: { shift: '', inAt: MO + '-01T01:00:00Z', outAt: MO + '-01T09:00:00Z' } } }, cfg, ftlogs: {}, mo: MO, days: [MO + '-01'], stdDays: 26, my: [] });
-for (let i = 0; i < 40; i++) {
-  try { lib = mk(); probe(lib); break; }
-  catch (e) { const n = /^(\w+) is not defined/.exec(e.message); if (!n) throw e; extra += '\n' + stmtOf(n[1]); lib = null; }
-}
-if (!lib) throw new Error('không dựng được payCalc');
+const build = (test) => {
+  for (let i = 0; i < 60; i++) {
+    try { lib = mk(); test(lib); return; }
+    catch (e) { const n = /^(\w+) is not defined/.exec(e.message); if (!n) throw e; extra += '\n' + stmtOf(n[1]); lib = null; }
+  }
+  throw new Error('không dựng được payCalc');
+};
+build(probe);
 const att = {};
 (await db.collection('ops_attendance').get()).docs.forEach(d => {
   const v = d.data(), pre = (v.empId || '') + '_';
@@ -58,6 +61,8 @@ const list = pool.filter(e => chosen.includes(e.id));
 const H = (m) => (Math.round((m || 0) / 6) / 10).toLocaleString('vi-VN');
 console.log(`Tháng ${MO} · công chuẩn ${stdDays} · đã chốt danh sách: ${run.emps ? 'có' : 'chưa (lấy mọi người có dấu vết)'} · ${list.length} người tính lương`);
 const G = { FT: { n: 0, mins: 0, reg: 0, ot: 0, real: 0, wd: 0, leave: 0, zero: 0 }, PT: { n: 0, mins: 0, reg: 0, ot: 0, real: 0, wd: 0, leave: 0, zero: 0 } };
+/* chạy thử trên dữ liệu thật để bóc nốt hằng/hàm còn thiếu ở các nhánh probe chưa đi qua */
+build((L) => list.forEach(e => L.payCalc(e, { att, cfg, ftlogs, mo: MO, days, stdDays, my: adjs.filter(a => a.empId === e.id) })));
 const rows = list.map(e => {
   const my = adjs.filter(a => a.empId === e.id);
   const r = lib.payCalc(e, { att, cfg, ftlogs, mo: MO, days, stdDays, my });
