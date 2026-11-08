@@ -9,6 +9,9 @@ on:
       fix:
         description: 'yes = dọn vỏ chấm công rỗng (có sao lưu)'
         default: 'no'
+      dedup:
+        description: 'yes = xoá bản chấm công trùng ca (giữ bản tự chấm, có sao lưu)'
+        default: 'no'
 permissions:
   contents: read
 jobs:
@@ -31,4 +34,5 @@ jobs:
           FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
           MONTH: ${{ github.event.inputs.month }}
           FIX: ${{ github.event.inputs.fix }}
+          DEDUP: ${{ github.event.inputs.dedup }}
         run: node attdiag.mjs
