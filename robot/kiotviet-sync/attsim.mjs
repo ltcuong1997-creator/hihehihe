@@ -10,9 +10,13 @@ const MONTH = env('MONTH', new Date().toISOString().slice(0, 7));
 const h6 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex').slice(0, 6);
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(env('FIREBASE_SA'))) });
 const db = admin.firestore();
-const html = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+/* REF=<commit>: chạy code của một bản app cũ (để biết máy chưa cập nhật đang thấy gì) */
+const REF = env('REF', '');
+const html = REF ? await (await fetch(`https://raw.githubusercontent.com/ltcuong1997-creator/hihehihe/${REF}/index.html`)).text() : fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
 const cut = (a, b) => { const i = html.indexOf(a), j = html.indexOf(b, i); if (i < 0 || j < 0) throw new Error('không bóc được ' + a); return html.slice(i, j); };
-const code = cut('const attHas = (a)', 'const attStOf = (r)') + '\n' + cut('const myShiftsOn = ', 'const myShiftOn = ');
+const first = html.includes('const attHas = (a)') ? 'const attHas = (a)' : 'const nextAttKey = ';
+const code = cut(first, 'const attStOf = (r)') + '\n' + cut('const myShiftsOn = ', 'const myShiftOn = ') + (html.includes('const attHas = (a)') ? '' : '\nconst attHas = (a) => !!(a && (a.inAt || a.outAt));');
+console.log('Code app:', REF || 'bản hiện tại');
 const cfg = (await db.collection('ops_config').doc('main').get()).data() || {};
 const CFG = cfg;
 const shiftOf = (id) => (CFG.shifts || []).find(s => s.id === id) || null;

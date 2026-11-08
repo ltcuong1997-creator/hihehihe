@@ -12,6 +12,9 @@ on:
       dedup:
         description: 'yes = xoá bản chấm công trùng ca (giữ bản tự chấm, có sao lưu)'
         default: 'no'
+      ref:
+        description: 'commit app cũ để mô phỏng (bỏ trống = bản hiện tại)'
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -40,4 +43,5 @@ jobs:
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
           MONTH: ${{ github.event.inputs.month }}
+          REF: ${{ github.event.inputs.ref }}
         run: node attsim.mjs
