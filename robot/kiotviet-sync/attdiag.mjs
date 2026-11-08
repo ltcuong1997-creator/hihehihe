@@ -18,7 +18,7 @@ const oldShift = {};
 (await db.collection('ops_cfgbak').get()).docs.forEach(d => { try { (JSON.parse(d.data().data || '{}').shifts || []).forEach(s => { if (s && s.id && !oldShift[s.id]) oldShift[s.id] = s; }); } catch (e) {} });
 const sOf = (id) => shifts.find(s => s.id === id);
 /* Ca hiện hành trùng giờ bắt đầu–kết thúc với ca cũ (chỉ khi DUY NHẤT một ca khớp) */
-const twinOf = (id) => { const o = oldShift[id]; if (!o) return null; const l = shifts.filter(s => s.start === o.start && s.end === o.end); return l.length ? l[0] : null; };
+const twinOf = (id) => { const o = oldShift[id]; if (!o) return null; const n = (t) => String(t || '').padStart(5, '0'); const l = shifts.filter(s => n(s.start) === n(o.start) && n(s.end) === n(o.end)); return l.length ? l[0] : null; };
 const sLbl = (id) => { const s = sOf(id); if (s) return `${s.code}(${s.start}-${s.end})#${String(id).slice(-4)}`; const o = oldShift[id]; return o ? `ĐÃ-XOÁ:${o.code}(${o.start}-${o.end})#${String(id).slice(-4)}` : (id ? 'LẠ#' + String(id).slice(-4) : 'KHÔNG-CA'); };
 console.log('Tháng', MONTH, '· số ca cấu hình', shifts.length, '· chi nhánh', branches.length);
 /* ca trùng mã/giờ trong cấu hình */
