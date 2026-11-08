@@ -99,6 +99,28 @@ if (env('FIX') === 'yes') {
   }
   console.log('ĐÃ CHUYỂN', re, 'bản ghi chấm công và', rs, 'ô lịch từ ca đã xoá sang ca cùng giờ');
 }
+/* DEDUP=yes: cùng người, cùng ngày, cùng ca mà có ≥2 bản ghi ĐỀU có giờ -> giữ bản tự chấm (không phải
+   sửa tay; nếu đều sửa tay thì giữ key gốc), xoá bản thừa — sao lưu nguyên văn vào ops_attbak trước */
+if (env('DEDUP') === 'yes') {
+  const hm = (t) => t ? new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : '--';
+  let n = 0;
+  for (const k of Object.keys(byEmpDay)) {
+    const by = {};
+    byEmpDay[k].forEach(r => { if (r.v.inAt || r.v.outAt) (by[r.v.shift || ''] = by[r.v.shift || ''] || []).push(r); });
+    for (const l of Object.values(by)) {
+      if (l.length < 2) continue;
+      l.sort((a, b) => (!!a.v.fixed - !!b.v.fixed) || a.key.localeCompare(b.key));
+      const [keep, ...drop] = l;
+      for (const r of drop) {
+        await db.collection('ops_attbak').doc(r.id + '__dup').set({ ...r.v, _bakAt: new Date().toISOString(), _why: 'bản trùng ca, giữ ' + keep.key });
+        await db.collection('ops_attendance').doc(r.id).delete();
+        console.log('XOÁ TRÙNG', h6(k.split('|')[0]), k.split('|')[1], sLbl(r.v.shift), '· giữ', keep.key, hm(keep.v.inAt) + '→' + hm(keep.v.outAt), keep.v.fixed ? '(sửa tay)' : '(tự chấm)', '· xoá', r.key, hm(r.v.inAt) + '→' + hm(r.v.outAt), r.v.fixed ? '(sửa tay)' : '(tự chấm)');
+        n++;
+      }
+    }
+  }
+  console.log('ĐÃ XOÁ', n, 'bản ghi trùng ca (đã sao lưu ở ops_attbak)');
+}
 console.log('\n===== TỔNG HỢP =====');
 Object.entries(stat).sort((a, b) => b[1] - a[1]).forEach(([t, n]) => console.log(String(n).padStart(5), t));
 console.log('\n===== VÍ DỤ (mã NV đã băm) =====');
