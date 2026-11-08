@@ -121,6 +121,36 @@ if (env('DEDUP') === 'yes') {
   }
   console.log('ĐÃ XOÁ', n, 'bản ghi trùng ca (đã sao lưu ở ops_attbak)');
 }
+/* ---- Mô phỏng ĐÚNG màn Chấm công: mỗi người mỗi ngày ra bao nhiêu dòng, dòng nào trống; và các bản ghi
+   có giờ CHỒNG LÊN NHAU (bị tính giờ 2 lần) ---- */
+{
+  const hm = (t) => t ? new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : '--';
+  const n5 = (t) => String(t || '').padStart(5, '0');
+  const sig = (id) => { const x = sOf(id); return x ? n5(x.start) + '-' + n5(x.end) : 'id:' + id; };
+  const live = await db.collection('ops_attendance').where('date', '>=', lo).where('date', '<=', hi).get();
+  const liveSch = await db.collection('ops_schedule').where('date', '>=', lo).where('date', '<=', hi).get();
+  const R = {}, S = {};
+  live.docs.forEach(d => { const v = d.data(); const k = v.empId + '|' + v.date; (R[k] = R[k] || []).push({ key: d.id.slice(String(v.empId).length + 1), v }); });
+  liveSch.docs.forEach(d => { const v = d.data(); if (!sOf(v.shiftId)) return; (v.empIds || []).forEach(e => { const k = e + '|' + v.date; (S[k] = S[k] || []).push(v.shiftId); }); });
+  let dupRows = 0, ovl = 0;
+  for (const k of [...new Set([...Object.keys(R), ...Object.keys(S)])].sort((a, b) => a.split('|')[1].localeCompare(b.split('|')[1]))) {
+    const recs = (R[k] || []).sort((a, b) => a.key.localeCompare(b.key)), has = (v) => !!(v && (v.inAt || v.outAt));
+    const asg = []; (S[k] || []).forEach(id => { if (!asg.some(x => sig(x) === sig(id))) asg.push(id); });
+    const used = new Set();
+    const rows = asg.map(id => {
+      const r = recs.find(r => !used.has(r.key) && r.v.shift === id && has(r.v)) || recs.find(r => !used.has(r.key) && sig(r.v.shift) === sig(id) && has(r.v)) || recs.find(r => !used.has(r.key) && r.v.shift === id);
+      if (r) used.add(r.key); return { id, r };
+    });
+    rows.forEach(row => { if (row.r && has(row.r.v)) return; const r = recs.find(x => !used.has(x.key) && has(x.v) && !sOf(x.v.shift)); if (r) { if (row.r) used.delete(row.r.key); used.add(r.key); row.r = r; } });
+    recs.filter(r => !used.has(r.key) && has(r.v)).forEach(r => rows.push({ id: r.v.shift, r, free: 1 }));
+    const [emp, date] = k.split('|');
+    const desc = () => rows.map(x => sLbl(x.id) + '=' + (x.r ? x.r.key.replace(date, '') + '[' + hm(x.r.v.inAt) + '→' + hm(x.r.v.outAt) + (x.r.v.fixed ? ' sửa' : '') + ']' : '[trống]') + (x.free ? '*ngoài lịch' : '')).join(' | ');
+    if (rows.length > 1 && rows.some(x => !x.r || !has(x.r.v)) && rows.some(x => x.r && has(x.r.v))) { dupRows++; console.log('DÒNG TRỐNG CẠNH DÒNG CÓ GIỜ', h6(emp), date, desc()); }
+    const iv = recs.filter(r => r.v.inAt && r.v.outAt).map(r => ({ r, a: +new Date(r.v.inAt), b: +new Date(r.v.outAt) }));
+    for (let i = 0; i < iv.length; i++) for (let j = i + 1; j < iv.length; j++) if (Math.min(iv[i].b, iv[j].b) - Math.max(iv[i].a, iv[j].a) > 15 * 60000) { ovl++; console.log('CHỒNG GIỜ', h6(emp), date, desc()); }
+  }
+  console.log('TỔNG: ', dupRows, 'ngày có dòng trống cạnh dòng có giờ ·', ovl, 'cặp bản ghi chồng giờ');
+}
 console.log('\n===== TỔNG HỢP =====');
 Object.entries(stat).sort((a, b) => b[1] - a[1]).forEach(([t, n]) => console.log(String(n).padStart(5), t));
 console.log('\n===== VÍ DỤ (mã NV đã băm) =====');
