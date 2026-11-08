@@ -44,4 +44,11 @@ jobs:
           FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
           MONTH: ${{ github.event.inputs.month }}
           REF: ${{ github.event.inputs.ref }}
+          TZ: Asia/Ho_Chi_Minh
         run: node attsim.mjs
+      - name: Tổng hợp công tháng (chỉ giờ, không tiền) + rà lỗi
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+          MONTH: ${{ github.event.inputs.month }}
+          TZ: Asia/Ho_Chi_Minh
+        run: node paysum.mjs
