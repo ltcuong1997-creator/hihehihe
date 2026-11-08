@@ -13,8 +13,13 @@ const db = admin.firestore();
 const lo = MONTH + '-01', hi = MONTH + '-31';
 const cfg = (await db.collection('ops_config').doc('main').get()).data() || {};
 const shifts = cfg.shifts || [], branches = cfg.branches || [];
+/* Ca đã bị xoá khỏi cấu hình: tra lại định nghĩa cũ trong các bản sao lưu ops_cfgbak */
+const oldShift = {};
+(await db.collection('ops_cfgbak').get()).docs.forEach(d => { try { (JSON.parse(d.data().data || '{}').shifts || []).forEach(s => { if (s && s.id && !oldShift[s.id]) oldShift[s.id] = s; }); } catch (e) {} });
 const sOf = (id) => shifts.find(s => s.id === id);
-const sLbl = (id) => { const s = sOf(id); return s ? `${s.code}(${s.start}-${s.end})#${String(id).slice(-4)}` : (id ? 'LẠ#' + String(id).slice(-4) : 'KHÔNG-CA'); };
+/* Ca hiện hành trùng giờ bắt đầu–kết thúc với ca cũ (chỉ khi DUY NHẤT một ca khớp) */
+const twinOf = (id) => { const o = oldShift[id]; if (!o) return null; const l = shifts.filter(s => s.start === o.start && s.end === o.end); return l.length ? l[0] : null; };
+const sLbl = (id) => { const s = sOf(id); if (s) return `${s.code}(${s.start}-${s.end})#${String(id).slice(-4)}`; const o = oldShift[id]; return o ? `ĐÃ-XOÁ:${o.code}(${o.start}-${o.end})#${String(id).slice(-4)}` : (id ? 'LẠ#' + String(id).slice(-4) : 'KHÔNG-CA'); };
 console.log('Tháng', MONTH, '· số ca cấu hình', shifts.length, '· chi nhánh', branches.length);
 /* ca trùng mã/giờ trong cấu hình */
 const sig = {}; shifts.forEach(s => { const k = s.code + '|' + s.start + '|' + s.end; (sig[k] = sig[k] || []).push(s); });
@@ -22,6 +27,10 @@ Object.entries(sig).filter(([, l]) => l.length > 1).forEach(([k, l]) => console.
 const att = await db.collection('ops_attendance').where('date', '>=', lo).where('date', '<=', hi).get();
 const sch = await db.collection('ops_schedule').where('date', '>=', lo).where('date', '<=', hi).get();
 console.log('Bản ghi chấm công', att.size, '· ô lịch', sch.size);
+const gone = {};
+att.docs.forEach(d => { const v = d.data(); if (v.shift && !sOf(v.shift)) gone[v.shift] = (gone[v.shift] || 0) + 1; });
+sch.docs.forEach(d => { const v = d.data(); if (v.shiftId && !sOf(v.shiftId)) gone[v.shiftId] = (gone[v.shiftId] || 0) + 0.001; });
+Object.keys(gone).forEach(id => { const t = twinOf(id); console.log('CA ĐÃ XOÁ', sLbl(id), '· chấm công', Math.floor(gone[id]), '· ca hiện hành cùng giờ:', t ? sLbl(t.id) : 'KHÔNG CÓ'); });
 const byEmpDay = {};
 att.docs.forEach(d => { const v = d.data(); const k = (v.empId || d.id.split('_')[0]) + '|' + v.date; (byEmpDay[k] = byEmpDay[k] || []).push({ id: d.id, key: d.id.slice(String(v.empId || '').length + 1), v }); });
 const schedOf = {};
@@ -68,6 +77,27 @@ if (env('FIX') === 'yes') {
     await d.ref.delete();
   }
   console.log('ĐÃ DỌN', shells.length, 'vỏ rỗng (đã sao lưu ở ops_attbak)');
+  /* Chấm công gắn ca ĐÃ XOÁ -> chuyển sang ca hiện hành cùng giờ (sao lưu trước) */
+  let re = 0;
+  for (const d of att.docs) {
+    const v = d.data(); if (!v.shift || sOf(v.shift) || (!v.inAt && !v.outAt)) continue;
+    const t = twinOf(v.shift); if (!t) continue;
+    await db.collection('ops_attbak').doc(d.id + '__shift').set({ ...v, _bakAt: new Date().toISOString(), _why: 'đổi ca đã xoá sang ca cùng giờ' });
+    await d.ref.update({ shift: t.id, shiftOld: v.shift }); re++;
+  }
+  /* Ô lịch của ca ĐÃ XOÁ -> gộp người vào ô ca cùng giờ, rồi xoá ô cũ (sao lưu trước) */
+  let rs = 0;
+  for (const d of sch.docs) {
+    const v = d.data(); if (!v.shiftId || sOf(v.shiftId)) continue;
+    const t = twinOf(v.shiftId); if (!t) continue;
+    const ref = db.collection('ops_schedule').doc(`${v.branchId}_${v.date}_${t.id}`);
+    const cur = (await ref.get()).data();
+    const ids = [...new Set([...((cur && cur.empIds) || []), ...(v.empIds || [])])];
+    await db.collection('ops_schbak').doc(d.id).set({ ...v, _bakAt: new Date().toISOString() });
+    await ref.set({ branchId: v.branchId, date: v.date, shiftId: t.id, empIds: ids }, { merge: true });
+    await d.ref.delete(); rs++;
+  }
+  console.log('ĐÃ CHUYỂN', re, 'bản ghi chấm công và', rs, 'ô lịch từ ca đã xoá sang ca cùng giờ');
 }
 console.log('\n===== TỔNG HỢP =====');
 Object.entries(stat).sort((a, b) => b[1] - a[1]).forEach(([t, n]) => console.log(String(n).padStart(5), t));

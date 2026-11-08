@@ -9175,6 +9175,15 @@ const attRowsForEmpDay = (cfg, sched, att, empObj, k) => {
     return { d: new Date(k + 'T00:00:00'), k, rk: rk || null, shiftId: asg.shift.id, branchId: asg.branchId, a: rk ? all[rk] : null, e: empObj, s: asg.shift };
   });
   /* Bản ghi chấm công không khớp ca nào đã xếp (VD chấm ca đột xuất ngoài lịch) vẫn hiện để không mất dữ liệu thật */
+  /* Bản ghi có giờ nhưng gắn ca ĐÃ XOÁ khỏi cấu hình (xoá ca rồi tạo lại) -> gắn vào dòng lịch còn
+     trống giờ thay vì đẻ thêm một dòng "ngoài lịch" bên cạnh dòng trống */
+  out.forEach(row => {
+    if (attHas(row.a)) return;
+    const rk = dayRecKeys.find(rk2 => !matched.has(rk2) && attHas(all[rk2]) && !shiftOf(all[rk2].shift));
+    if (!rk) return;
+    if (row.rk) matched.delete(row.rk);
+    matched.add(rk); row.rk = rk; row.a = all[rk];
+  });
   /* Vỏ rỗng không khớp dòng lịch nào thì bỏ qua — không có giờ, hiện ra chỉ thành dòng trùng */
   dayRecKeys.filter(rk2 => !matched.has(rk2) && attHas(all[rk2])).forEach(rk2 => {
     const a = all[rk2];
