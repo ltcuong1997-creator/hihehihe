@@ -1,0 +1,30 @@
+# Chẩn đoán chấm công trùng ca — chạy tay, CHỈ ĐỌC Firestore. Log không có tên/tiền.
+name: Chẩn đoán chấm công
+on:
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Tháng YYYY-MM'
+        default: ''
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: robot/kiotviet-sync
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: robot/kiotviet-sync/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Chẩn đoán
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+          MONTH: ${{ github.event.inputs.month }}
+        run: node attdiag.mjs
