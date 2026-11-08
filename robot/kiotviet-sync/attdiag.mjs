@@ -147,7 +147,17 @@ if (env('DEDUP') === 'yes') {
     const desc = () => rows.map(x => sLbl(x.id) + '=' + (x.r ? x.r.key.replace(date, '') + '[' + hm(x.r.v.inAt) + '→' + hm(x.r.v.outAt) + (x.r.v.fixed ? ' sửa' : '') + ']' : '[trống]') + (x.free ? '*ngoài lịch' : '')).join(' | ');
     if (rows.length > 1 && rows.some(x => !x.r || !has(x.r.v)) && rows.some(x => x.r && has(x.r.v))) { dupRows++; console.log('DÒNG TRỐNG CẠNH DÒNG CÓ GIỜ', h6(emp), date, desc()); }
     const iv = recs.filter(r => r.v.inAt && r.v.outAt).map(r => ({ r, a: +new Date(r.v.inAt), b: +new Date(r.v.outAt) }));
-    for (let i = 0; i < iv.length; i++) for (let j = i + 1; j < iv.length; j++) if (Math.min(iv[i].b, iv[j].b) - Math.max(iv[i].a, iv[j].a) > 15 * 60000) { ovl++; console.log('CHỒNG GIỜ', h6(emp), date, desc()); }
+    for (let i = 0; i < iv.length; i++) for (let j = i + 1; j < iv.length; j++) if (Math.min(iv[i].b, iv[j].b) - Math.max(iv[i].a, iv[j].a) > 15 * 60000) {
+      ovl++; console.log('CHỒNG GIỜ', h6(emp), date, desc());
+      /* DEDUP=yes: bản KHÔNG gắn ca hợp lệ chồng giờ lên bản có ca -> xoá bản không ca (sao lưu trước) */
+      const A = iv[i].r, B = iv[j].r, okA = !!sOf(A.v.shift), okB = !!sOf(B.v.shift);
+      if (env('DEDUP') === 'yes' && okA !== okB) {
+        const drop = okA ? B : A, id = emp + '_' + drop.key;
+        await db.collection('ops_attbak').doc(id + '__ovl').set({ ...drop.v, _bakAt: new Date().toISOString(), _why: 'chồng giờ với bản có ca' });
+        await db.collection('ops_attendance').doc(id).delete();
+        console.log('   → ĐÃ XOÁ bản không ca', drop.key, hm(drop.v.inAt) + '→' + hm(drop.v.outAt));
+      }
+    }
   }
   console.log('TỔNG: ', dupRows, 'ngày có dòng trống cạnh dòng có giờ ·', ovl, 'cặp bản ghi chồng giờ');
 }
