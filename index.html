@@ -8189,7 +8189,7 @@ function CheckinCard() {
      của ngày hôm qua. Chỉ giữ ca thật sự vắt đêm (giờ kết thúc <= giờ bắt đầu), chỉ tới khi ca đó
      kết thúc, và bỏ những ca hôm qua đã có bản ghi rồi để không bấm trùng. */
   const nowM0 = now.getHours() * 60 + now.getMinutes();
-  const yUsed = yEntries.map(([, r]) => r.shift);
+  const yUsed = yEntries.filter(([, r]) => attHas(r)).map(([, r]) => r.shift);
   const nightCarry = myShiftsOn(cfg, sched, user, yd)
     .filter(a => minutesOf(a.shift.end) <= minutesOf(a.shift.start))
     .filter(a => nowM0 <= minutesOf(a.shift.end))
@@ -8374,9 +8374,12 @@ function CheckinCard() {
       const late = diff > grace ? diff : 0;
       /* Số thứ tự ca đếm theo ĐÚNG ngày của ca (dk), không phải theo hôm nay — nếu không, ca đêm bấm
          sau 00:00 sẽ nhận seq=1 và ghi đè mất ca đầu ngày hôm qua */
-      const seq = recsOn(dk).filter(([, r]) => r.inAt).length + 1;
-      /* Ca thứ 2 trở lên trong ngày -> key riêng ~seq, tránh ghi đè bản ghi ca trước */
-      const key = seq > 1 ? dk + '~' + seq : dk;
+      /* Key: vỏ rỗng của đúng ca này (bị Xoá giờ) thì ghi lại vào đó, không thì key trống đầu tiên
+         chưa có dữ liệu. Trước đây đếm số bản ghi có giờ vào rồi +1 -> có vỏ rỗng chen giữa là ghi ĐÈ
+         mất ca khác, hoặc để lại vỏ rỗng thành dòng trùng. */
+      const shell = recsOn(dk).find(([, r]) => !attHas(r) && r.shift === shift.id);
+      const key = shell ? shell[0] : nextAttKey(att, user.id, dk);
+      const seq = key.includes('~') ? +key.split('~')[1] : 1;
       saveAtt(user.id, key, {
         shift: shift.id, branchId: bid, inAt: now.toISOString(), outAt: '',
         late, geoIn: g || null, wifiIn: w || null, mult: hol.mult, seq, date: dk,
@@ -9117,36 +9120,63 @@ function ShiftView() {
 /* ===================== CHẤM CÔNG ===================== */
 /* Tìm key trống tiếp theo cho 1 ngày của 1 nhân sự — dùng khi Admin thêm ca chấm công bổ sung thứ 2, 3...
    cùng ngày, để không ghi đè bản ghi ca trước (đồng bộ cơ chế key ~seq mà tự chấm công đang dùng) */
+/* Bản ghi "có dữ liệu" = có giờ vào hoặc giờ ra. Bản ghi rỗng (bị Xoá giờ) chỉ là vỏ, được tái dùng
+   chứ không bao giờ đẻ thêm key mới bên cạnh — trước đây vỏ rỗng nằm lại rồi ca mới ghi sang ~2, màn
+   chấm công hiện 2 dòng cùng một ca: một dòng có giờ, một dòng trống. */
+const attHas = (a) => !!(a && (a.inAt || a.outAt));
+/* Hai ca khác id nhưng trùng giờ bắt đầu–kết thúc (VD cấu hình có 2 ca "12-18") coi là MỘT ca */
+const attSig = (sid) => { const s = shiftOf(sid); return s && s.start ? s.start + '-' + s.end : 'id:' + (sid || ''); };
 const nextAttKey = (att, empId, date) => {
   const recs = (att && att[empId]) || {};
   let n = 1, key = date;
-  while (recs[key]) { n++; key = date + '~' + n; }
+  while (attHas(recs[key])) { n++; key = date + '~' + n; }
   return key;
 };
 /* Khoá bản ghi đúng của 1 ca trong ngày — nếu đã chấm công ca đó rồi thì trả đúng key đang lưu,
    chưa có thì trả key trống tiếp theo (dùng chung cho hiển thị dòng & khi lưu để không lẫn ca) */
 const attKeyForShift = (att, empId, date, shiftId) => {
   const recs = (att && att[empId]) || {};
-  const found = Object.keys(recs).find(k => (k === date || k.startsWith(date + '~')) && recs[k] && recs[k].shift === shiftId);
+  const day = Object.keys(recs).filter(k => (k === date || k.startsWith(date + '~')) && recs[k]).sort();
+  const sig = attSig(shiftId);
+  const found = day.find(k => recs[k].shift === shiftId && attHas(recs[k]))
+    || day.find(k => attSig(recs[k].shift) === sig && attHas(recs[k]))
+    || day.find(k => recs[k].shift === shiftId)
+    || day.find(k => attSig(recs[k].shift) === sig);
   return found || nextAttKey(att, empId, date);
 };
 /* Dòng chấm công/ngày dựa hoàn toàn theo lịch đã xếp (ops_schedule): không xếp ca -> không có dòng nào,
    xếp mấy ca thì ra mấy dòng (1 dòng/1 ca), khớp đúng bản ghi chấm công của ca đó nếu đã chấm */
 const attRowsForEmpDay = (cfg, sched, att, empObj, k) => {
-  const assigns = myShiftsOn(cfg, sched, empObj, k);
   const all = att[empObj.id] || {};
-  const dayRecKeys = Object.keys(all).filter(rk => rk === k || rk.startsWith(k + '~'));
+  const dayRecKeys = Object.keys(all).filter(rk => rk === k || rk.startsWith(k + '~')).sort();
+  /* Cùng một khung giờ bị xếp 2 lần (2 ca trùng giờ khác id, hoặc 2 ô lịch) -> chỉ 1 dòng, ưu tiên ca
+     đã có chấm công */
+  const assigns = [];
+  myShiftsOn(cfg, sched, empObj, k).forEach(asg => {
+    const sg = attSig(asg.shift.id), i = assigns.findIndex(x => attSig(x.shift.id) === sg);
+    if (i < 0) return assigns.push(asg);
+    const hit = (sid) => dayRecKeys.some(rk => all[rk] && all[rk].shift === sid && attHas(all[rk]));
+    if (!hit(assigns[i].shift.id) && hit(asg.shift.id)) assigns[i] = asg;
+  });
   /* Không xếp ca và cũng chưa chấm công gì -> ẩn hẳn ngày này. Nhưng nếu đã có bản ghi thật (VD cấp quản lý
      vào ca ngoài lịch xếp) thì vẫn phải hiện để HR review, không được nuốt mất dữ liệu */
   if (!assigns.length && !dayRecKeys.length) return [];
   const matched = new Set();
+  /* Khớp dòng lịch với bản ghi: đúng id có giờ -> cùng khung giờ có giờ -> đúng id (vỏ rỗng) */
+  const pick = (asg) => {
+    const ok = (rk2) => !matched.has(rk2) && all[rk2];
+    return dayRecKeys.find(rk2 => ok(rk2) && all[rk2].shift === asg.shift.id && attHas(all[rk2]))
+      || dayRecKeys.find(rk2 => ok(rk2) && attSig(all[rk2].shift) === attSig(asg.shift.id) && attHas(all[rk2]))
+      || dayRecKeys.find(rk2 => ok(rk2) && all[rk2].shift === asg.shift.id);
+  };
   const out = assigns.map(asg => {
-    const rk = dayRecKeys.find(rk2 => !matched.has(rk2) && all[rk2] && all[rk2].shift === asg.shift.id);
+    const rk = pick(asg);
     if (rk) matched.add(rk);
     return { d: new Date(k + 'T00:00:00'), k, rk: rk || null, shiftId: asg.shift.id, branchId: asg.branchId, a: rk ? all[rk] : null, e: empObj, s: asg.shift };
   });
   /* Bản ghi chấm công không khớp ca nào đã xếp (VD chấm ca đột xuất ngoài lịch) vẫn hiện để không mất dữ liệu thật */
-  dayRecKeys.filter(rk2 => !matched.has(rk2)).forEach(rk2 => {
+  /* Vỏ rỗng không khớp dòng lịch nào thì bỏ qua — không có giờ, hiện ra chỉ thành dòng trùng */
+  dayRecKeys.filter(rk2 => !matched.has(rk2) && attHas(all[rk2])).forEach(rk2 => {
     const a = all[rk2];
     out.push({ d: new Date(k + 'T00:00:00'), k, rk: rk2, shiftId: a.shift, branchId: a.branchId, a, e: empObj, s: shiftOf(a.shift), outOfSchedule: true });
   });
@@ -9567,7 +9597,7 @@ function AttendanceView() {
           /* nowrap: 3 nút luôn nằm cùng 1 hàng với dữ liệu, không rớt xuống dòng làm cao gấp đôi */
           ? <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
               <button className="btn btn-o btn-sm" title="Sửa hoặc bổ sung giờ vào/ra của đúng ca này"
-                onClick={() => setFix({ emp: r.e || emp, recKey: attKeyForShift(att, (r.e || emp).id, r.k, r.shiftId), k: r.k, shiftHint: r.shiftId, branchHint: r.branchId })}>
+                onClick={() => setFix({ emp: r.e || emp, recKey: r.rk || attKeyForShift(att, (r.e || emp).id, r.k, r.shiftId), k: r.k, shiftHint: r.shiftId, branchHint: r.branchId })}>
                 <Ic.edit size={13} /> Sửa công
               </button>
               {r.a && (

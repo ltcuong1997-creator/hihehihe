@@ -6,6 +6,9 @@ on:
       month:
         description: 'Tháng YYYY-MM'
         default: ''
+      fix:
+        description: 'yes = dọn vỏ chấm công rỗng (có sao lưu)'
+        default: 'no'
 permissions:
   contents: read
 jobs:
@@ -27,4 +30,5 @@ jobs:
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
           MONTH: ${{ github.event.inputs.month }}
+          FIX: ${{ github.event.inputs.fix }}
         run: node attdiag.mjs
