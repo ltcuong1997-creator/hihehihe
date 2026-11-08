@@ -39803,6 +39803,9 @@ function ShiftsTab() {
   const add = () => saveCfg({ shifts: [...cfg.shifts, { id: uid('S'), code: 'CA-M', name: 'Ca mới', start: '08:00', end: '16:00', grace: 5, color: '#18484A', branches: [] }] });
   const del = (i) => {
     const sh = cfg.shifts[i];
+    /* Xoá ca rồi tạo lại ca y hệt là nguồn gốc dòng chấm công trùng (lịch & công cũ vẫn trỏ id ca cũ).
+       Bắt xác nhận và khuyên sửa thẳng giờ/tên ca thay vì xoá */
+    if (!window.confirm('Xoá ca ' + (sh.code || sh.name) + '?\n\nLịch và chấm công cũ của ca này sẽ thành "ca đã xoá". Nếu chỉ muốn đổi giờ hoặc tên thì SỬA ca, đừng xoá rồi tạo ca mới — làm vậy sẽ sinh dòng chấm công trùng.')) return;
     const st = { ...(cfg.staffing || {}) };
     Object.keys(st).forEach(b => { if (st[b] && st[b][sh.id]) { st[b] = { ...st[b] }; delete st[b][sh.id]; } });
     saveCfg({ shifts: cfg.shifts.filter((_, idx) => idx !== i), staffing: st });
