@@ -10988,15 +10988,140 @@ function PayAdjList({ mo, rows, canEdit }) {
   );
 }
 
+/* ---- Ma trận người có mặt theo giờ (dò đột biến) ----
+   Dòng: khung 1 tiếng từ 08:00 tới 02:00 sáng hôm sau. Cột: từng ngày trong kỳ (khung 00–02 tính
+   cho NGÀY KINH DOANH trước đó). Ô = số người THỰC TẾ có mặt theo giờ vào/ra chấm công (không
+   theo lịch, không làm tròn khung ca), có mặt ít nhất 30 phút trong khung đó mới đếm.
+   Tô đậm theo số người; ô lệch so với trung vị cùng khung giờ ≥ 2 người (và ≥ 50%) thì viền đỏ
+   (đông bất thường) hoặc viền xanh (vắng bất thường) để bắt đột biến bằng mắt. */
+const HH_SLOTS = Array.from({ length: 18 }, (_, i) => 8 + i);
+const hhLbl = (h) => pad(h % 24) + ':00';
+function HourHeatTable({ mo, rows, brs }) {
+  const { att } = useApp();
+  const [bid, setBid] = useState('all');
+  const [boss, setBoss] = useState(false);
+  const [cell, setCell] = useState(null);
+  const dim = new Date(+mo.slice(0, 4), +mo.slice(5), 0).getDate();
+  const days = useMemo(() => Array.from({ length: dim }, (_, i) => mo + '-' + pad(i + 1)), [mo, dim]);
+  const M = useMemo(() => {
+    const who = {}; days.forEach(d => { who[d] = HH_SLOTS.map(() => []); });
+    const t0 = new Date(days[0] + 'T08:00:00').getTime(), tEnd = t0 + dim * 864e5;
+    const now = Date.now();
+    rows.forEach(r => {
+      const e = r.e;
+      if (!boss && !isFloor(e)) return;
+      const rec = (att || {})[e.id] || {};
+      Object.keys(rec).forEach(k => {
+        const a = rec[k]; if (!a || !a.inAt) return;
+        if (bid !== 'all' && (a.branchId || (e.branches || [])[0]) !== bid) return;
+        const ti = new Date(a.inAt).getTime();
+        let to = a.outAt ? new Date(a.outAt).getTime() : (now - ti < 16 * 36e5 ? now : 0);
+        if (!to || to <= ti || to - ti > 24 * 36e5 || to <= t0 || ti >= tEnd) return;
+        /* duyệt các khung giờ mà bản ghi chạm tới */
+        const first = Math.max(0, Math.floor((ti - t0) / 36e5)), last = Math.min(dim * 24 - 1, Math.floor((to - 1 - t0) / 36e5));
+        for (let h = first; h <= last; h++) {
+          const di = Math.floor(h / 24), si = h % 24; if (si >= HH_SLOTS.length) continue;
+          const s0 = t0 + h * 36e5, ov = Math.min(to, s0 + 36e5) - Math.max(ti, s0);
+          if (ov < 30 * 6e4) continue;
+          const list = who[days[di]][si];
+          if (!list.some(x => x.e.id === e.id)) list.push({ e, a, bid: a.branchId || (e.branches || [])[0] });
+        }
+      });
+    });
+    const med = HH_SLOTS.map((_, si) => {
+      const v = days.map(d => who[d][si].length).filter(n => n > 0).sort((x, y) => x - y);
+      return v.length ? v[Math.floor(v.length / 2)] : 0;
+    });
+    const avg = HH_SLOTS.map((_, si) => { const v = days.map(d => who[d][si].length).filter(n => n > 0); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : 0; });
+    const max = Math.max(1, ...days.map(d => Math.max(...who[d].map(l => l.length))));
+    return { who, med, avg, max };
+  }, [att, rows, days, bid, boss, dim]);
+  const flag = (n, m) => (n - m >= 2 && n >= m * 1.5) ? 'hi' : (m >= 2 && m - n >= 2 && n <= m * 0.5) ? 'lo' : '';
+  let nHi = 0, nLo = 0;
+  days.forEach(d => HH_SLOTS.forEach((_, si) => { const f = flag(M.who[d][si].length, M.med[si]); if (f === 'hi') nHi++; else if (f === 'lo') nLo++; }));
+  const bg = (n) => n ? 'rgba(24,72,74,' + (0.08 + 0.72 * n / M.max).toFixed(2) + ')' : '#F7F6F5';
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 300px' }}>
+          <h3 style={{ fontSize: 15, marginBottom: 2 }}>Số người có mặt thực tế theo giờ · tháng {mo.slice(5)}/{mo.slice(0, 4)}</h3>
+          <p className="hint" style={{ marginTop: 0 }}>
+            Mỗi ô = số người đang có mặt trong khung giờ đó theo <b>giờ vào/ra chấm công thật</b> (có mặt từ 30 phút trong khung mới đếm).
+            Khung 00:00–02:00 tính cho ngày hôm trước. Màu càng đậm càng đông. <b style={{ color: '#C0392B' }}>Viền đỏ</b> = đông hơn hẳn mức thường
+            của khung giờ đó, <b style={{ color: '#2563EB' }}>viền xanh</b> = vắng hơn hẳn. Bấm ô để xem ai.
+          </p>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 6 }}>
+            <span className={'tag ' + (nHi ? 't-red' : 't-green')}>{nHi} ô đông bất thường</span>
+            <span className={'tag ' + (nLo ? 't-blue' : 't-green')}>{nLo} ô vắng bất thường</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <select className="inp" style={{ width: 'auto', padding: '6px 8px' }} value={bid} onChange={e => setBid(e.target.value)}>
+            <option value="all">Tất cả cơ sở</option>
+            {brs.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>
+            <input type="checkbox" checked={boss} onChange={e => setBoss(e.target.checked)} /> Tính cả quản lý
+          </label>
+        </div>
+      </div>
+      <div className="sg-wrap" style={{ marginTop: 8 }}>
+        <table className="tb tb-compact sg-tb hh-tb">
+          <thead><tr>
+            <th>Khung giờ</th>
+            <th className="sg-h" title="Trung bình số người những ngày có người">TB</th>
+            {days.map(d => {
+              const wd = new Date(d + 'T00:00:00').getDay();
+              return <th key={d} className={'sg-h' + (wd === 0 ? ' sg-sun' : '')}>{WDS[wd]}<br />{d.slice(-2)}</th>;
+            })}
+          </tr></thead>
+          <tbody>
+            {HH_SLOTS.map((h, si) => (
+              <tr key={h}>
+                <td><b className="mono">{hhLbl(h)}–{hhLbl(h + 1)}</b>{h >= 24 && <span className="rc-sub"> hôm sau</span>}</td>
+                <td className="mono" style={{ textAlign: 'center', fontWeight: 800, fontSize: 11.5 }}>{M.avg[si] ? String(Math.round(M.avg[si] * 10) / 10).replace('.', ',') : '–'}</td>
+                {days.map(d => {
+                  const n = M.who[d][si].length, f = flag(n, M.med[si]);
+                  return (
+                    <td key={d}>
+                      <button className="sg-c" style={{ background: bg(n), color: n / M.max > 0.5 ? '#fff' : (n ? '#123A3B' : '#D3CDC9'),
+                        boxShadow: f === 'hi' ? 'inset 0 0 0 2px #C0392B' : f === 'lo' ? 'inset 0 0 0 2px #2563EB' : 'none' }}
+                        onClick={() => setCell({ d, h, si })}
+                        title={dShort(d) + ' · ' + hhLbl(h) + '–' + hhLbl(h + 1) + ': ' + n + ' người (thường ' + M.med[si] + ')'}>
+                        {n || '·'}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {cell && (
+        <Modal title={'Có mặt ' + hhLbl(cell.h) + '–' + hhLbl(cell.h + 1) + ' · ' + dShort(cell.d) + (cell.h >= 24 ? ' (rạng sáng hôm sau)' : '')}
+          sub={M.who[cell.d][cell.si].length + ' người · mức thường của khung này: ' + M.med[cell.si] + ' người'} onClose={() => setCell(null)}>
+          {!M.who[cell.d][cell.si].length ? <Empty title="Không ai có mặt" desc="Không có bản ghi chấm công nào phủ khung giờ này." /> : (
+            <table className="tb tb-compact"><thead><tr><th>Nhân sự</th><th>Cơ sở</th><th>Vào → Ra</th></tr></thead>
+              <tbody>{M.who[cell.d][cell.si].map(x => (
+                <tr key={x.e.id}><td><b>{x.e.name}</b> <span className="rc-sub">{x.e.code}</span></td>
+                  <td>{branchOf(x.bid).code}</td>
+                  <td className="mono">{fmtTime(new Date(x.a.inAt))} → {x.a.outAt ? fmtTime(new Date(x.a.outAt)) : 'chưa ra'}</td></tr>
+              ))}</tbody></table>
+          )}
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 function PayrollBranchReport({ mo, rows, canEdit }) {
   const { cfg, att, sched, employees, user, needSchedMonth } = useApp();
   /* Lịch xếp ca chỉ nghe realtime 60 ngày — kỳ cũ hơn phải tải bù mới đối chiếu được định biên */
   useEffect(() => {
     if (needSchedMonth) needSchedMonth(mo);
   }, [mo]);
-  const [src, setSrc] = useState('sched');
   const [openB, setOpenB] = useState(null);
-  const [cell, setCell] = useState(null);
   /* Chỉ những cơ sở người xem được phép nhìn — dữ liệu lương là dữ liệu nhạy cảm.
      `rows` truyền vào đã lọc theo quyền từ bảng lương, đây là chặn thêm ở phần định biên.
      Lấy CẢ đơn vị không phải cơ sở kinh doanh (bộ phận booking, trụ sở) — họ cũng đứng ca,
@@ -11088,37 +11213,6 @@ function PayrollBranchReport({ mo, rows, canEdit }) {
   /* CON SỐ TỔNG: quầy + quản lý/văn phòng. Bằng đúng tổng thực nhận của bảng lương kỳ này. */
   const grand = floorTotal + offTotal;
 
-  /* ---- III. Đối chiếu định biên theo ca, suốt kỳ ---- */
-  const idx = useMemo(() => attShiftIdx(att, mo), [att, mo]);
-  const off = useMemo(() => offQuota(employees), [employees]);
-  const grid = useMemo(() => brs.map(b => ({
-    b,
-    lines: staffedShifts(cfg, b.id).map(s => {
-      const cells = days.map(d => {
-        const wd = new Date(d + 'T00:00:00').getDay();
-        const need = needOf(cfg, b.id, s.id, wd);
-        /* Chỉ đếm người trong định biên — quản lý ghé cơ sở không làm ca bị coi là vượt */
-        const have = inQuota(off, src === 'att'
-          ? attWho(idx, b.id, d, s.id)
-          : (sched[schedKey(b.id, d, s.id)] || [])).length;
-        return { d, wd, need, have };
-      });
-      return {
-        s, cells,
-        need: cells.reduce((a, c) => a + c.need, 0),
-        have: cells.reduce((a, c) => a + c.have, 0),
-        over: cells.filter(c => c.have > c.need).length,
-        lack: cells.filter(c => c.need > 0 && c.have < c.need).length,
-      };
-    /* Ca chưa khai định biên và cũng chẳng ai đứng thì là ca không dùng ở đơn vị này — bỏ đi
-       cho bảng gọn. Nhờ vậy bộ phận booking / trụ sở chỉ hiện đúng ca họ thật sự chạy. */
-    }).filter(l => l.need || l.have),
-  })).filter(g => g.lines.length), [brs, cfg, days, sched, idx, src, off]);
-  const G = grid.reduce((a, g) => g.lines.reduce((x, l) => ({
-    need: x.need + l.need, have: x.have + l.have, over: x.over + l.over, lack: x.lack + l.lack,
-  }), a), { need: 0, have: 0, over: 0, lack: 0 });
-
-  const cls = (c) => (!c.need && !c.have) ? 'sg-zero' : c.have > c.need ? 'sg-over' : c.have < c.need ? 'sg-lack' : 'sg-ok';
 
   return (
     <div className="card-b" style={{ display: 'grid', gap: 16 }}>
@@ -11305,110 +11399,8 @@ function PayrollBranchReport({ mo, rows, canEdit }) {
       {/* ---- Bảng 3: từng phiếu bổ sung / khấu trừ của kỳ, xem và xoá ngay tại đây ---- */}
       <PayAdjList mo={mo} rows={rows} canEdit={canEdit} />
 
-      {/* ---- Bảng 4: đối chiếu định biên từng ca, suốt kỳ ---- */}
-      <div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 260px' }}>
-            <h3 style={{ fontSize: 15, marginBottom: 2 }}>Đối chiếu định biên theo ca · {dShort(days[0] || from)} – {dShort(days[days.length - 1] || to)}</h3>
-            <p className="hint" style={{ marginTop: 0 }}>
-              Mỗi ô là số nhân sự trong ca đó / định biên đã khai ở Cấu hình. Vượt định biên tô tím, thiếu tô đỏ.
-              Bấm vào ô để xem đích danh ai đứng ca hôm đó. Chỉ đếm người đứng quầy, không đếm cấp quản lý.
-            </p>
-            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 6 }}>
-              <span className={'tag ' + (G.have >= G.need ? 't-green' : 't-amber')}>
-                Đã xếp / định biên: {G.have}/{G.need}
-              </span>
-              <span className={'tag ' + (G.over + G.lack ? 't-red' : 't-green')}>
-                Lệch định biên: {G.over} ca vượt · {G.lack} ca thiếu
-              </span>
-              <span className="tag t-gray">{days.length} ngày đã chốt · theo {src === 'att' ? 'chấm công' : 'xếp lịch'}</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Chốt tới hôm qua: ngày chưa tới thì chưa xếp lịch, đếm vào sẽ báo "thiếu người" oan */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>Từ
-              <input className="inp" type="date" style={{ width: 'auto', padding: '6px 8px' }}
-                min={mo + '-01'} max={moEnd} value={from} onChange={e => setFrom(e.target.value)} />
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5 }}>tới
-              <input className="inp" type="date" style={{ width: 'auto', padding: '6px 8px' }}
-                min={mo + '-01'} max={moEnd} value={to} onChange={e => setTo(e.target.value)} />
-            </label>
-            <button className="btn btn-o btn-sm" onClick={() => { setFrom(mo + '-01'); setTo(defTo()); }}
-              title="Đầu kỳ tới hết ngày hôm qua — khoảng đã chốt xong, số liệu mới đáng tin">Tới hôm qua</button>
-            <button className="btn btn-o btn-sm" onClick={() => { setFrom(mo + '-01'); setTo(moEnd); }}
-              title="Xem trọn tháng, kể cả những ngày chưa tới">Trọn kỳ</button>
-            <Seg value={src} onChange={setSrc} options={[
-              { v: 'sched', l: 'Theo xếp lịch' },
-              { v: 'att', l: 'Theo chấm công thực tế' },
-            ]} />
-          </div>
-        </div>
-        <div className="sg-wrap" style={{ marginTop: 8 }}>
-          <table className="tb tb-compact sg-tb">
-            <thead><tr>
-              <th>Ca</th>
-              <th className="sg-h">Cả kỳ</th>
-              {days.map(d => {
-                const wd = new Date(d + 'T00:00:00').getDay();
-                return <th key={d} className={'sg-h' + (wd === 0 ? ' sg-sun' : '')}>{WDS[wd]}<br />{d.slice(-2)}</th>;
-              })}
-            </tr></thead>
-            <tbody>
-              {grid.map(g => (
-                <React.Fragment key={g.b.id}>
-                  <tr className="sg-brh"><td colSpan={days.length + 2}>
-                    <span className="sg-brn">
-                      {g.b.name} <span className="rc-sub">{g.b.code}</span>
-                      {!isBiz(g.b) && <span className="tag t-violet" style={{ marginLeft: 6 }}>Bộ phận / trụ sở</span>}
-                    </span>
-                  </td></tr>
-                  {g.lines.map(l => (
-                    <tr key={l.s.id}>
-                      <td>
-                        <b>{l.s.code || l.s.name}</b> <span className="rc-sub">{l.s.start}–{l.s.end}</span>
-                        {l.over ? <span className="tag t-violet" style={{ marginLeft: 5 }}>{l.over} ngày vượt</span> : null}
-                        {l.lack ? <span className="tag t-red" style={{ marginLeft: 4 }}>{l.lack} ngày thiếu</span> : null}
-                      </td>
-                      <td className="mono" style={{ textAlign: 'center', fontWeight: 800, fontSize: 11.5 }}
-                        title={'Cả kỳ: ' + l.have + ' lượt người trên định biên ' + l.need}>
-                        {l.have}/{l.need}
-                      </td>
-                      {l.cells.map(c => (
-                        <td key={c.d}>
-                          <button className={'sg-c ' + cls(c)} onClick={() => setCell({ b: g.b, s: l.s, c })}
-                            title={dShort(c.d) + ' · ' + (l.s.code || l.s.name) + ' · ' + g.b.name
-                              + ' — ' + (src === 'att' ? 'chấm công' : 'đã xếp') + ': ' + c.have + ' người, định biên: ' + c.need
-                              + (c.have > c.need ? ' → VƯỢT ' + (c.have - c.need) : c.need > c.have ? ' → thiếu ' + (c.need - c.have) : ' → đúng định biên')
-                              + '. Bấm để xem tên người đứng ca.'}>
-                            {c.have}<small>/{c.need}</small>
-                          </button>
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </React.Fragment>
-              ))}
-              {!grid.length && (
-                <tr><td colSpan={days.length + 2}>
-                  <Empty title="Chưa cơ sở nào khai định biên" desc="Vào Cấu hình → Ca làm để đặt định biên cho từng ca của từng chi nhánh." />
-                </td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="sg-leg">
-          <span><i className="sg-ok" />Đúng định biên</span>
-          <span><i className="sg-lack" />Thiếu người</span>
-          <span><i className="sg-over" />Vượt định biên</span>
-          <span><i className="sg-zero" />Ca không chạy</span>
-          {src === 'sched' && mo + '-01' < dAdd(todayKey(), -60) && (
-            <span style={{ color: 'var(--amber)' }}>Kỳ này cũ hơn 60 ngày — đang tải bù lịch xếp ca, số liệu có thể hiện chậm vài giây.</span>
-          )}
-        </div>
-      </div>
-
-      {cell && <ShiftWhoModal cell={cell} idx={idx} sched={sched} employees={employees} off={off} onClose={() => setCell(null)} />}
+      {/* ---- Bảng 4: ma trận số người có mặt thực tế theo từng giờ × từng ngày ---- */}
+      <HourHeatTable mo={mo} rows={rows} brs={brs} />
     </div>
   );
 }
