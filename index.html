@@ -11681,6 +11681,107 @@ function PayslipModal({ r, mo, days, onClose }) {
   );
 }
 
+/* ===== CÔNG LƯƠNG: COPY CÔNG + RÀ SOÁT BẤT THƯỜNG =====
+   payCopyTsv: bảng CHỈ CÓ GIỜ (không một con số tiền nào) — tên, giờ từng ngày, tổng giờ — dạng TSV
+   để dán thẳng vào Excel / Google Sheets / Zalo.
+   payAudit: soát từng bản ghi chấm công của kỳ, trả danh sách bất thường theo người để quản lý xử lý. */
+const payNum = (mins) => mins ? String(Math.round(mins / 60 * 100) / 100).replace('.', ',') : '';
+const payCopyTsv = (rows, days) => {
+  const head = ['STT', 'Mã NV', 'Họ và tên', 'Chi nhánh', 'Loại', ...days.map(d => d.slice(8, 10) + '/' + d.slice(5, 7)), 'Ngày công', 'Phép năm (ngày)', 'Giờ thường ×1', 'Giờ tăng ca', 'Tổng giờ', 'Tổng giờ thực tế'];
+  const out = rows.map((r, i) => [i + 1, r.e.code || '', r.e.name || '', (r.e.branches || []).map(b => branchOf(b).code).join(' '), r.isPT ? 'Parttime' : 'Fulltime',
+    ...days.map(d => { const c = r.day[d]; if (c && c.mark === 'P') return 'P' + (c.mins ? ' ' + payNum(c.mins) : ''); if (c && c.mark === 'X') return 'X'; return c ? payNum(c.mins) : ''; }),
+    r.workDays, r.leaveDays || '', payNum((r.regMins || 0) + (r.leaveMins || 0)), payNum(r.otMins || 0), payNum((r.mins || 0) + (r.leaveMins || 0)), payNum((r.realMins || 0) + (r.leaveMins || 0))]);
+  return [head, ...out].map(row => row.map(v => String(v == null ? '' : v).replace(/[\t\n]/g, ' ')).join('\t')).join('\n');
+};
+const PAY_AUD = {
+  noout: { l: 'Thiếu giờ ra', tag: 't-red', d: 'Ca có giờ vào mà không có giờ ra — giờ của ca này KHÔNG được tính' },
+  noin: { l: 'Thiếu giờ vào', tag: 't-red', d: 'Có giờ ra mà không có giờ vào' },
+  miss: { l: 'Có lịch, không chấm công', tag: 't-red', d: 'Được xếp ca nhưng không có bản ghi chấm công ca đó (vắng, quên chấm, hoặc đổi ca không báo)' },
+  long: { l: 'Ca kéo dài bất thường', tag: 't-red', d: 'Giờ vào → giờ ra trên 12 tiếng — thường là quên bấm ra rồi hôm sau mới bấm' },
+  over: { l: 'Ở quá ca nhiều', tag: 't-amber', d: 'Bấm vào/ra lệch khung ca từ 90 phút trở lên — phần ngoài ca không được tính giờ' },
+  short: { l: 'Ca quá ngắn', tag: 't-amber', d: 'Ca dưới 1 tiếng — có thể bấm nhầm vào/ra' },
+  day12: { l: 'Ngày làm trên 12 tiếng', tag: 't-amber', d: 'Cộng các ca trong ngày quá 12 tiếng' },
+  free: { l: 'Chấm ngoài lịch', tag: 't-amber', d: 'Có chấm công nhưng ngày/ca đó không được xếp lịch' },
+  late: { l: 'Đi trễ nhiều', tag: 't-amber', d: 'Từ 3 lần đi trễ trở lên trong tháng' },
+  fixed: { l: 'Nhiều công sửa tay', tag: 't-violet', d: 'Từ 3 bản ghi công bổ sung / sửa tay trở lên trong tháng' },
+  leave: { l: 'Ghi phép mà vẫn chấm công', tag: 't-violet', d: 'Ngày đánh P (phép năm) nhưng có chấm công — có thể trả lương 2 lần' },
+};
+const payAudit = ({ list, att, cfg, sched, ftlogs, mo, days }) => {
+  const today = todayKey(), out = [];
+  list.forEach(e => {
+    const rec = (att || {})[e.id] || {}, items = [], dayMins = {};
+    let lates = 0, fixed = 0;
+    const keys = Object.keys(rec).filter(k => k.slice(0, 7) === mo).sort();
+    /* Người cả tháng không có ca nào trong lịch (quản lý, khối văn phòng) thì không soát "ngoài lịch" — tránh báo tràn */
+    const scheduled = !!sched && Object.keys(sched).some(k => k.split('_')[1] && k.split('_')[1].slice(0, 7) === mo && (sched[k] || []).includes(e.id));
+    keys.forEach(k => {
+      const a = rec[k]; if (!a) return;
+      const d = k.split('~')[0], s = shiftOf(a.shift), sl = s ? s.code + ' ' + s.start + '–' + s.end : '';
+      if (a.late) lates++;
+      if (a.fixed) fixed++;
+      if (a.inAt && !a.outAt) { if (d < today) items.push({ t: 'noout', d, x: sl + ' · vào ' + fmtTime(new Date(a.inAt)) }); return; }
+      if (!a.inAt && a.outAt) { items.push({ t: 'noin', d, x: sl }); return; }
+      if (!a.inAt) return;
+      const raw = spanMins(a.inAt, a.outAt), m = attMinsOf(a, cfg);
+      dayMins[d] = (dayMins[d] || 0) + m;
+      const io = fmtTime(new Date(a.inAt)) + '→' + fmtTime(new Date(a.outAt));
+      if (raw > 12 * 60) items.push({ t: 'long', d, x: sl + ' · ' + io + ' (' + hoursTxt(raw) + ')' });
+      else if (raw - m >= 90) items.push({ t: 'over', d, x: sl + ' · ' + io + ' · tính ' + hoursTxt(m) + '/' + hoursTxt(raw) });
+      if (m > 0 && m < 60) items.push({ t: 'short', d, x: sl + ' · ' + io + ' (' + m + ' phút)' });
+      const bid = a.branchId || (e.branches || [])[0];
+      if (a.shift && scheduled && !((sched[schedKey(bid, d, a.shift)] || []).includes(e.id))) items.push({ t: 'free', d, x: sl + ' · ' + io });
+    });
+    Object.keys(dayMins).forEach(d => { if (dayMins[d] > 12 * 60) items.push({ t: 'day12', d, x: hoursTxt(dayMins[d]) }); });
+    /* có lịch mà không chấm công — chỉ xét ngày đã qua */
+    if (sched) (cfg.branches || []).forEach(b => days.forEach(d => {
+      if (d >= today) return;
+      (cfg.shifts || []).forEach(s => {
+        if (!((sched[schedKey(b.id, d, s.id)] || []).includes(e.id))) return;
+        const has = Object.keys(rec).some(k => k.split('~')[0] === d && rec[k] && (rec[k].shift === s.id || !rec[k].shift) && (rec[k].inAt || rec[k].outAt));
+        if (!has) items.push({ t: 'miss', d, x: s.code + ' ' + s.start + '–' + s.end + ' · ' + branchOf(b.id).code });
+      });
+    }));
+    const lg = ((ftlogs || {})[ftKey(e.id, mo)] || {}).days || {};
+    Object.keys(lg).forEach(d => { if (lg[d] === 'P' && keys.some(k => k.split('~')[0] === d && rec[k] && rec[k].inAt)) items.push({ t: 'leave', d, x: 'P + có chấm công' }); });
+    if (lates >= 3) items.push({ t: 'late', d: '', x: lates + ' lần' });
+    if (fixed >= 3) items.push({ t: 'fixed', d: '', x: fixed + ' bản ghi' });
+    if (items.length) out.push({ e, items: items.sort((a, b) => String(a.d).localeCompare(String(b.d))) });
+  });
+  const red = (r) => r.items.filter(i => PAY_AUD[i.t].tag === 't-red').length;
+  return out.sort((a, b) => red(b) - red(a) || b.items.length - a.items.length);
+};
+function PayAuditTab({ list, mo, days }) {
+  const { att, cfg, sched, ftlogs, needSchedMonth } = useApp();
+  useEffect(() => { if (needSchedMonth) needSchedMonth(mo); }, [mo]);
+  const [only, setOnly] = useState('all');
+  const res = useMemo(() => payAudit({ list, att, cfg, sched, ftlogs, mo, days }), [list, att, cfg, sched, ftlogs, mo, days]);
+  const cnt = {}; res.forEach(r => r.items.forEach(i => { cnt[i.t] = (cnt[i.t] || 0) + 1; }));
+  const shown = res.map(r => ({ ...r, items: r.items.filter(i => only === 'all' || i.t === only) })).filter(r => r.items.length);
+  return (
+    <div className="card-b grid" style={{ gap: 12 }}>
+      <p className="hint" style={{ margin: 0 }}>Soát chấm công kỳ <b>{mo.slice(5)}/{mo.slice(0, 4)}</b> của {list.length} người đang tính lương. Đỏ = ảnh hưởng thẳng tới giờ công, cần xử lý trước khi chốt lương.</p>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button className={'btn btn-sm ' + (only === 'all' ? 'btn-p' : 'btn-o')} onClick={() => setOnly('all')}>Tất cả · {Object.values(cnt).reduce((a, b) => a + b, 0)}</button>
+        {Object.keys(PAY_AUD).filter(k => cnt[k]).map(k => (
+          <button key={k} className={'btn btn-sm ' + (only === k ? 'btn-p' : 'btn-o')} onClick={() => setOnly(k)} title={PAY_AUD[k].d}>{PAY_AUD[k].l} · {cnt[k]}</button>
+        ))}
+      </div>
+      {!shown.length ? <Empty title="Không thấy gì bất thường" desc="Mọi ca trong kỳ đều có đủ giờ vào/ra, đúng lịch và trong khung bình thường." /> : (
+        <div className="scroll-x"><table className="tb tb-compact">
+          <thead><tr><th>Nhân sự</th><th>Ngày</th><th>Bất thường</th><th>Chi tiết</th></tr></thead>
+          <tbody>{shown.map(r => r.items.map((i, j) => (
+            <tr key={r.e.id + j}>
+              {j === 0 && <td rowSpan={r.items.length} style={{ verticalAlign: 'top' }}><b>{r.e.name}</b><div className="hint">{r.e.code} · {r.items.length} mục</div></td>}
+              <td className="mono">{i.d ? i.d.slice(8, 10) + '/' + i.d.slice(5, 7) : 'cả tháng'}</td>
+              <td><span className={'tag ' + PAY_AUD[i.t].tag} title={PAY_AUD[i.t].d}>{PAY_AUD[i.t].l}</span></td>
+              <td className="mono" style={{ fontSize: 12.5 }}>{i.x}</td>
+            </tr>)))}</tbody>
+        </table></div>
+      )}
+    </div>
+  );
+}
+
 function PayrollView() {
   useNeed('pay');
   const { user, employees, att, cfg, adjs, ftlogs, saveFtlog, saveFtlogSoon, saveAtt, toast, fetchAttMonth } = useApp();
@@ -11858,6 +11959,15 @@ function PayrollView() {
     XLSX.writeFile(wb, expName + '.xlsx');
     toast('Đã xuất Excel bảng lương · ' + scopeName);
   };
+  const copyCong = async () => {
+    const t = payCopyTsv(rows, days);
+    try { await navigator.clipboard.writeText(t); toast('Đã chép bảng công ' + rows.length + ' người — dán (Ctrl+V) vào Excel / Google Sheets'); }
+    catch (e) {
+      const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); toast('Đã chép bảng công ' + rows.length + ' người'); } catch (e2) { toast('Trình duyệt chặn chép — dùng nút Excel'); }
+      ta.remove();
+    }
+  };
   const expPdf = () => {
     const data = expRows();
     const th = data[0].map(h => '<th>' + h + '</th>').join('');
@@ -11898,6 +12008,7 @@ function PayrollView() {
           <Seg value={tab} onChange={setTab} options={[
             { v: 'tbl', l: 'Bảng lương', n: rows.length },
             { v: 'rep', l: 'Báo cáo' },
+            { v: 'aud', l: 'Rà soát' },
           ]} />
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             {canEdit && (
@@ -11917,6 +12028,7 @@ function PayrollView() {
             )}
             {canEdit && <button className="btn btn-o" onClick={() => setPick(true)}><Ic.users size={15} /> Chọn người tính lương</button>}
             <input className="inp" type="month" style={{ width: 'auto' }} value={mo} onChange={e => setMo(e.target.value)} />
+            <button className="btn btn-o" onClick={copyCong} title="Chép bảng giờ công (tên, giờ từng ngày, tổng giờ — không có số tiền) để dán vào Excel / Google Sheets"><Ic.clip size={15} /> Copy công</button>
             <button className="btn btn-o" onClick={expExcel}><Ic.upload size={15} /> Excel</button>
             <button className="btn btn-p" onClick={expPdf}><Ic.file size={15} /> PDF trình ký</button>
           </div>
@@ -11969,6 +12081,7 @@ function PayrollView() {
         )}
 
         {tab === 'rep' && <PayrollBranchReport mo={mo} rows={rows} canEdit={canEdit} />}
+        {tab === 'aud' && <PayAuditTab list={list} mo={mo} days={days} />}
 
         {tab === 'tbl' && (<>
           <div className="card-b" style={{ paddingBottom: 6, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', fontSize: 12 }}>
