@@ -11736,6 +11736,8 @@ const payCopyTsv = (rows, days) => {
 const PAY_AUD = {
   noout: { l: 'Thiếu giờ ra', tag: 't-red', d: 'Ca có giờ vào mà không có giờ ra — giờ của ca này KHÔNG được tính' },
   noin: { l: 'Thiếu giờ vào', tag: 't-red', d: 'Có giờ ra mà không có giờ vào' },
+  dbl: { l: 'Double ca (chồng giờ)', tag: 't-red', d: 'Hai bản ghi cùng ngày chồng giờ lên nhau — khúc chồng bị tính giờ 2 lần' },
+  zero: { l: 'Giờ ra = giờ vào', tag: 't-red', d: 'Có giờ vào/ra nhưng ra trùng vào (bấm nhầm / sửa sai) — ca này đang tính 0 giờ' },
   miss: { l: 'Có lịch, không chấm công', tag: 't-red', d: 'Được xếp ca nhưng không có bản ghi chấm công ca đó (vắng, quên chấm, hoặc đổi ca không báo)' },
   long: { l: 'Ca kéo dài bất thường', tag: 't-red', d: 'Giờ vào → giờ ra trên 12 tiếng — thường là quên bấm ra rồi hôm sau mới bấm' },
   over: { l: 'Ở quá ca nhiều', tag: 't-amber', d: 'Bấm vào/ra lệch khung ca từ 90 phút trở lên — phần ngoài ca không được tính giờ' },
@@ -11762,6 +11764,7 @@ const payAudit = ({ list, att, cfg, sched, ftlogs, mo, days }) => {
       if (a.inAt && !a.outAt) { if (d < today) items.push({ t: 'noout', d, x: sl + ' · vào ' + fmtTime(new Date(a.inAt)) }); return; }
       if (!a.inAt && a.outAt) { items.push({ t: 'noin', d, x: sl }); return; }
       if (!a.inAt) return;
+      if (+new Date(a.outAt) - +new Date(a.inAt) < 60000) { items.push({ t: 'zero', d, x: sl + ' · ' + fmtTime(new Date(a.inAt)) + '→' + fmtTime(new Date(a.outAt)) }); return; }
       const raw = spanMins(a.inAt, a.outAt), m = attMinsOf(a, cfg);
       dayMins[d] = (dayMins[d] || 0) + m;
       const io = fmtTime(new Date(a.inAt)) + '→' + fmtTime(new Date(a.outAt));
@@ -11770,6 +11773,14 @@ const payAudit = ({ list, att, cfg, sched, ftlogs, mo, days }) => {
       if (m > 0 && m < 60) items.push({ t: 'short', d, x: sl + ' · ' + io + ' (' + m + ' phút)' });
     });
     Object.keys(dayMins).forEach(d => { if (dayMins[d] > 12 * 60) items.push({ t: 'day12', d, x: hoursTxt(dayMins[d]) }); });
+    /* Double ca: 2 bản ghi cùng ngày chồng giờ nhau quá 15 phút */
+    const iv = {};
+    keys.forEach(k => { const a = rec[k]; if (a && a.inAt && a.outAt) (iv[k.split('~')[0]] = iv[k.split('~')[0]] || []).push(a); });
+    Object.keys(iv).forEach(d => { const l = iv[d]; for (let i = 0; i < l.length; i++) for (let j = i + 1; j < l.length; j++) {
+      const ov = Math.min(+new Date(l[i].outAt), +new Date(l[j].outAt)) - Math.max(+new Date(l[i].inAt), +new Date(l[j].inAt));
+      if (ov > 15 * 60000) { const f = (a) => { const s = shiftOf(a.shift); return (s ? s.code + ' ' : '') + fmtTime(new Date(a.inAt)) + '→' + fmtTime(new Date(a.outAt)); };
+        items.push({ t: 'dbl', d, x: f(l[i]) + ' & ' + f(l[j]) + ' · chồng ' + hoursTxt(Math.round(ov / 60000)) }); }
+    } });
     /* Có lịch mà không chấm công / chấm ngoài lịch: dựng ĐÚNG các dòng như màn Chấm công (attRowsForEmpDay)
        — ca trùng giờ khác id, ca đã xoá, đổi ca chồng giờ đều đã gộp ở đó, nên không báo oan */
     if (sched) days.forEach(d => {
