@@ -36,3 +36,8 @@ jobs:
           FIX: ${{ github.event.inputs.fix }}
           DEDUP: ${{ github.event.inputs.dedup }}
         run: node attdiag.mjs
+      - name: Mô phỏng màn Chấm công bằng code app
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+          MONTH: ${{ github.event.inputs.month }}
+        run: node attsim.mjs
