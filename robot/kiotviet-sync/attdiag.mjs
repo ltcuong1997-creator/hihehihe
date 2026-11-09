@@ -20,6 +20,21 @@ const sOf = (id) => shifts.find(s => s.id === id);
 /* Ca hiện hành trùng giờ bắt đầu–kết thúc với ca cũ (chỉ khi DUY NHẤT một ca khớp) */
 const twinOf = (id) => { const o = oldShift[id]; if (!o) return null; const n = (t) => String(t || '').padStart(5, '0'); const l = shifts.filter(s => n(s.start) === n(o.start) && n(s.end) === n(o.end)); return l.length ? l[0] : null; };
 const sLbl = (id) => { const s = sOf(id); if (s) return `${s.code}(${s.start}-${s.end})#${String(id).slice(-4)}`; const o = oldShift[id]; return o ? `ĐÃ-XOÁ:${o.code}(${o.start}-${o.end})#${String(id).slice(-4)}` : (id ? 'LẠ#' + String(id).slice(-4) : 'KHÔNG-CA'); };
+/* GRACE0=yes: đặt ân hạn (grace) = 0 cho MỌI ca. Chỉ sửa đúng field shifts[].grace, giữ nguyên mọi thứ khác;
+   sao lưu nguyên cấu hình vào ops_cfgbak trước (cùng khuôn backupCfg của app) — khôi phục được. */
+if (env('GRACE0') === 'yes') {
+  const ref = db.collection('ops_config').doc('main');
+  await db.runTransaction(async (tx) => {
+    const cur = (await tx.get(ref)).data() || {};
+    const sh = cur.shifts || [];
+    const id = new Date().toISOString().replace(/[:.]/g, '-');
+    tx.set(db.collection('ops_cfgbak').doc(id), { id, at: new Date().toISOString(), by: 'robot: ân hạn = 0', branches: (cur.branches || []).length, shifts: sh.length, data: JSON.stringify(cur) });
+    tx.update(ref, { shifts: sh.map(x => ({ ...x, grace: 0 })) });
+    sh.forEach(x => console.log('ÂN HẠN', x.code, x.start + '-' + x.end, ':', x.grace == null ? '(trống=5)' : x.grace, '→ 0'));
+  });
+  console.log('ĐÃ ĐẶT ân hạn = 0 cho mọi ca (đã sao lưu cấu hình vào ops_cfgbak)');
+  cfg.shifts = (cfg.shifts || []).map(x => ({ ...x, grace: 0 }));
+}
 console.log('Tháng', MONTH, '· số ca cấu hình', shifts.length, '· chi nhánh', branches.length);
 /* ca trùng mã/giờ trong cấu hình */
 const sig = {}; shifts.forEach(s => { const k = s.code + '|' + s.start + '|' + s.end; (sig[k] = sig[k] || []).push(s); });
