@@ -13110,7 +13110,7 @@ function ShiftImport({ onClose }) {
       s: {
         id: exist ? exist.id : uid('S'), code, name: val(r, 'name') || code,
         start: hhmm(val(r, 'start')), end: hhmm(val(r, 'end')) || '00:00',
-        grace: String(val(r, 'grace') ?? '').trim() === '' ? 5 : Math.max(0, +val(r, 'grace') || 0), color: exist ? exist.color : ['#E8930C', '#2D7FF9', '#6C5CE7', '#18484A', '#E85D9E'][i % 5],
+        grace: Math.max(0, +val(r, 'grace') || 0), color: exist ? exist.color : ['#E8930C', '#2D7FF9', '#6C5CE7', '#18484A', '#E85D9E'][i % 5],
         branches,
       },
     };
@@ -39835,7 +39835,7 @@ function ShiftsTab() {
     const cur = cfg.shifts[i].branches || [];
     upd(i, 'branches', cur.includes(bid) ? cur.filter(x => x !== bid) : [...cur, bid]);
   };
-  const add = () => saveCfg({ shifts: [...cfg.shifts, { id: uid('S'), code: 'CA-M', name: 'Ca mới', start: '08:00', end: '16:00', grace: 5, color: '#18484A', branches: [] }] });
+  const add = () => saveCfg({ shifts: [...cfg.shifts, { id: uid('S'), code: 'CA-M', name: 'Ca mới', start: '08:00', end: '16:00', grace: 0, color: '#18484A', branches: [] }] });
   const del = (i) => {
     const sh = cfg.shifts[i];
     /* Xoá ca rồi tạo lại ca y hệt là nguồn gốc dòng chấm công trùng (lịch & công cũ vẫn trỏ id ca cũ).
