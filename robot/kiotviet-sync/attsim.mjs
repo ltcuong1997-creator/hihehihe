@@ -24,7 +24,8 @@ const schedKey = (b, d, s) => `${b}_${d}_${s}`;
 const api = new Function('CFG', 'shiftOf', 'schedKey', code + '\nreturn { attRowsForEmpDay, attHas };')(CFG, shiftOf, schedKey);
 /* nạp TOÀN BỘ chấm công, khoá lấy theo document id như app (attKeyOf) — không lọc theo field date */
 const att = {}; let nAtt = 0;
-(await db.collection('ops_attendance').get()).docs.forEach(d => {
+/* CHỈ đọc đúng tháng (field date) — đọc cả collection mỗi lần chạy là đốt quota đọc Firestore */
+(await db.collection('ops_attendance').where('date', '>=', MONTH + '-01').where('date', '<=', MONTH + '-31').get()).docs.forEach(d => {
   const v = d.data(), pre = (v.empId || '') + '_';
   const key = v.empId && d.id.startsWith(pre) ? d.id.slice(pre.length) : (v.date + (v.seq > 1 ? '~' + v.seq : ''));
   if (key.slice(0, 7) !== MONTH && String(v.date || '').slice(0, 7) !== MONTH) return;

@@ -41,13 +41,15 @@ const build = (test) => {
 };
 build(probe);
 const att = {};
-(await db.collection('ops_attendance').get()).docs.forEach(d => {
+/* CHỈ đọc đúng tháng (field date) — đọc cả collection mỗi lần chạy là đốt quota đọc Firestore */
+(await db.collection('ops_attendance').where('date', '>=', MO + '-01').where('date', '<=', MO + '-31').get()).docs.forEach(d => {
   const v = d.data(), pre = (v.empId || '') + '_';
   const key = v.empId && d.id.startsWith(pre) ? d.id.slice(pre.length) : (v.date + (v.seq > 1 ? '~' + v.seq : ''));
   if (key.slice(0, 7) !== MO) return;
   (att[v.empId] = att[v.empId] || {})[key] = v;
 });
-const ftlogs = {}; (await db.collection('ops_ftlogs').get()).docs.forEach(d => { ftlogs[d.id] = d.data(); });
+const ftlogs = {}; (await db.collection('ops_ftlogs').where('period', '==', MO).get()).docs.forEach(d => { ftlogs[d.id] = d.data(); });
+{ const r0 = await db.collection('ops_ftlogs').doc('RUN_' + MO).get(); if (r0.exists) ftlogs[r0.id] = r0.data(); }
 const adjs = (await db.collection('ops_payadj').where('period', '==', MO).get()).docs.map(d => d.data());
 const emps = (await db.collection('ops_employees').get()).docs.map(d => ({ id: d.id, ...d.data() })).map(e => ({ ...e, branches: e.branches || [] }));
 const dim = new Date(+MO.slice(0, 4), +MO.slice(5), 0).getDate();
