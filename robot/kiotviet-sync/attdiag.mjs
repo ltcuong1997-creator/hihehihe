@@ -15,7 +15,7 @@ const cfg = (await db.collection('ops_config').doc('main').get()).data() || {};
 const shifts = cfg.shifts || [], branches = cfg.branches || [];
 /* Ca đã bị xoá khỏi cấu hình: tra lại định nghĩa cũ trong các bản sao lưu ops_cfgbak */
 const oldShift = {};
-(await db.collection('ops_cfgbak').get()).docs.forEach(d => { try { (JSON.parse(d.data().data || '{}').shifts || []).forEach(s => { if (s && s.id && !oldShift[s.id]) oldShift[s.id] = s; }); } catch (e) {} });
+(await db.collection('ops_cfgbak').orderBy('at', 'desc').limit(10).get()).docs.forEach(d => { try { (JSON.parse(d.data().data || '{}').shifts || []).forEach(s => { if (s && s.id && !oldShift[s.id]) oldShift[s.id] = s; }); } catch (e) {} });
 const sOf = (id) => shifts.find(s => s.id === id);
 /* Ca hiện hành trùng giờ bắt đầu–kết thúc với ca cũ (chỉ khi DUY NHẤT một ca khớp) */
 const twinOf = (id) => { const o = oldShift[id]; if (!o) return null; const n = (t) => String(t || '').padStart(5, '0'); const l = shifts.filter(s => n(s.start) === n(o.start) && n(s.end) === n(o.end)); return l.length ? l[0] : null; };
