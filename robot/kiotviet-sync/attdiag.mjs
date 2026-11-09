@@ -161,6 +161,33 @@ if (env('DEDUP') === 'yes') {
   }
   console.log('TỔNG: ', dupRows, 'ngày có dòng trống cạnh dòng có giờ ·', ovl, 'cặp bản ghi chồng giờ');
 }
+/* LATEFIX: tính lại số phút trễ của MỌI bản ghi trong tháng theo đúng công thức app (attLateOf):
+   trễ = giờ vào − giờ bắt đầu ca (đủ phút), ân hạn chỉ quyết định có tính trễ hay không.
+   LATEFIX=dry chỉ báo; LATEFIX=yes ghi lại (sao lưu giá trị cũ vào field lateOld). Ca đã xoá thì bỏ qua. */
+if (env('LATEFIX') === 'dry' || env('LATEFIX') === 'yes') {
+  const hm = (t) => t ? new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' }) : '--';
+  const mOf = (x) => { const [h, m] = String(x || '00:00').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+  const lateOf = (sh, inAt) => {
+    const t = new Date(inAt); if (isNaN(t)) return 0;
+    const vn = new Date(t.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    let d = vn.getHours() * 60 + vn.getMinutes() - mOf(sh.start);
+    if (d < -720) d += 1440; if (d > 720) d -= 1440;
+    const g = sh.grace != null && sh.grace !== '' ? +sh.grace : 5;
+    return d > g ? d : 0;
+  };
+  const live = await db.collection('ops_attendance').where('date', '>=', lo).where('date', '<=', hi).get();
+  let ch = 0, up = 0, down = 0, same = 0, skip = 0;
+  for (const d of live.docs) {
+    const v = d.data(); if (!v.inAt) continue;
+    const sh = sOf(v.shift); if (!sh) { skip++; continue; }
+    const nl = lateOf(sh, v.inAt), ol = +v.late || 0;
+    if (nl === ol) { same++; continue; }
+    ch++; nl > ol ? up++ : down++;
+    console.log(`TRỄ ${h6(v.empId)} ${v.date} ${sLbl(v.shift)} vào ${hm(v.inAt)} (ân hạn ${sh.grace ?? 5}′): đang ghi ${ol}′ → đúng ${nl}′${v.fixed ? ' · sửa tay' : ' · tự chấm'}`);
+    if (env('LATEFIX') === 'yes') await d.ref.update({ late: nl, lateOld: ol });
+  }
+  console.log(`TỔNG TRỄ: ${ch} bản ghi lệch (${up} báo thiếu phút, ${down} báo dư) · ${same} đúng · ${skip} bỏ qua (ca đã xoá)` + (env('LATEFIX') === 'yes' ? ' · ĐÃ GHI LẠI' : ' · chỉ xem, chưa ghi'));
+}
 console.log('\n===== TỔNG HỢP =====');
 Object.entries(stat).sort((a, b) => b[1] - a[1]).forEach(([t, n]) => console.log(String(n).padStart(5), t));
 console.log('\n===== VÍ DỤ (mã NV đã băm) =====');

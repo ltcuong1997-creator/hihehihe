@@ -12,6 +12,9 @@ on:
       dedup:
         description: 'yes = xoá bản chấm công trùng ca (giữ bản tự chấm, có sao lưu)'
         default: 'no'
+      latefix:
+        description: 'dry = xem số phút trễ ghi sai · yes = tính lại và ghi'
+        default: 'no'
       ref:
         description: 'commit app cũ để mô phỏng (bỏ trống = bản hiện tại)'
         default: ''
@@ -38,6 +41,7 @@ jobs:
           MONTH: ${{ github.event.inputs.month }}
           FIX: ${{ github.event.inputs.fix }}
           DEDUP: ${{ github.event.inputs.dedup }}
+          LATEFIX: ${{ github.event.inputs.latefix }}
         run: node attdiag.mjs
       - name: Mô phỏng màn Chấm công bằng code app
         env:
