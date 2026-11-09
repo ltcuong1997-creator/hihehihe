@@ -6709,6 +6709,21 @@ const initials = (name) => { const p = (name || '? ?').trim().split(' '); return
 const hueOf = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h); return Math.abs(h) % 360; };
 const avaStyle = (name) => ({ background: `linear-gradient(140deg, hsl(${hueOf(name || 'x')},58%,52%), hsl(${(hueOf(name || 'x') + 38) % 360},62%,40%))` });
 const minutesOf = (hhmm) => { const [h, m] = String(hhmm || '00:00').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+/* ---- ĐI TRỄ: MỘT công thức duy nhất cho mọi nguồn (tự chấm, sửa công, nhập Excel, duyệt đề xuất) ----
+   Số phút trễ = giờ vào − giờ bắt đầu ca, tính ĐỦ phút. Ân hạn (grace, mặc định 5′) chỉ quyết định CÓ
+   tính là trễ hay không: vào trễ 4′ → không trễ; trễ 9′ → ghi trễ 9′ (KHÔNG phải 9 − 5 = 4).
+   Trước đây tự chấm tính đủ phút còn sửa công/Excel/duyệt lại trừ ân hạn → cùng trễ 9′ mà nơi báo 9 nơi báo 4. */
+const attLateDiff = (sh, inAt) => {
+  if (!sh || !inAt) return 0;
+  const t = new Date(inAt);
+  if (isNaN(t)) return 0;
+  let diff = t.getHours() * 60 + t.getMinutes() - minutesOf(sh.start);
+  /* Ca vắt qua đêm bấm vào sau 00:00 (ca 22:00, vào 00:30 là trễ 150′) / vào trước 00:00 cho ca bắt đầu 00:xx */
+  if (diff < -720) diff += 1440;
+  if (diff > 720) diff -= 1440;
+  return diff;
+};
+const attLateOf = (sh, inAt) => { const d = attLateDiff(sh, inAt), g = sh && sh.grace != null && sh.grace !== '' ? +sh.grace : 5; return d > g ? d : 0; };
 let _uidSeq = 0;
 const uid = (p) => p + (Date.now().toString(36).slice(-4) + (_uidSeq++).toString(36) + Math.random().toString(36).slice(2, 4)).toUpperCase();
 const money = (n) => (Number(n) || 0).toLocaleString('vi-VN') + '₫';
@@ -8365,13 +8380,9 @@ function CheckinCard() {
 
   const doIn = (g, w) => {
     try {
-      let diff = now.getHours() * 60 + now.getMinutes() - minutesOf(shift.start);
-      /* Ca vắt qua đêm mà bấm vào ca sau 00:00: đồng hồ đã quay về 0 giờ nên phép trừ ra số âm rất lớn,
-         phải cộng bù một ngày mới ra đúng số phút trễ (ca 22:00, vào lúc 00:30 là TRỄ 150 phút,
-         không phải sớm 1290 phút). */
-      if (diff < -720 && minutesOf(shift.end) <= minutesOf(shift.start)) diff += 1440;
-      const grace = shift.grace == null ? 5 : shift.grace;
-      const late = diff > grace ? diff : 0;
+      const diff = attLateDiff(shift, now);
+      const grace = shift.grace == null ? 5 : +shift.grace;
+      const late = attLateOf(shift, now);
       /* Số thứ tự ca đếm theo ĐÚNG ngày của ca (dk), không phải theo hôm nay — nếu không, ca đêm bấm
          sau 00:00 sẽ nhận seq=1 và ghi đè mất ca đầu ngày hôm qua */
       /* Key: vỏ rỗng của đúng ca này (bị Xoá giờ) thì ghi lại vào đó, không thì key trống đầu tiên
@@ -9993,11 +10004,7 @@ function ImportAttModal({ onClose }) {
       let outAt = r.outTime ? new Date(r.date + 'T' + r.outTime + ':00').toISOString() : (cur.outAt || null);
       if (inAt && outAt && outAt <= inAt) outAt = new Date(new Date(outAt).getTime() + 86400000).toISOString();
       const sh = shiftOf(shiftId);
-      let late = 0;
-      if (sh && inAt) {
-        const m = new Date(inAt).getHours() * 60 + new Date(inAt).getMinutes();
-        late = Math.max(0, m - (minutesOf(sh.start) + (sh.grace == null ? 5 : sh.grace)));
-      }
+      const late = attLateOf(sh, inAt);
       const rec0 = { ...cur, inAt, outAt, shift: shiftId, branchId, late, fixed: true, fixBy: user.id, fixAt: new Date().toISOString(), date: r.date };
       /* Ghi kèm mins để dòng nhập từ Excel cũng có ngay số giờ, không hiện "—" */
       const rec = { ...rec0, mins: attMinsOf({ ...rec0, mins: 0 }, cfg) };
@@ -10377,11 +10384,7 @@ function AttReqQuick({ r, onClose }) {
     let outAt = r.outTime ? mk(r.outTime) : cur.outAt;
     if (inAt && outAt && outAt <= inAt) outAt = new Date(new Date(outAt).getTime() + 86400000).toISOString();
     const sh = shiftOf(r.shiftId);
-    let late = 0;
-    if (sh && inAt) {
-      const m = new Date(inAt).getHours() * 60 + new Date(inAt).getMinutes();
-      late = Math.max(0, m - (minutesOf(sh.start) + (sh.grace == null ? 5 : sh.grace)));
-    }
+    const late = attLateOf(sh, inAt);
     const recAp = {
       ...cur, inAt, outAt, shift: r.shiftId || cur.shift, branchId: r.branchId || cur.branchId,
       late, fixed: true, fixBy: user.id, fixAt: new Date().toISOString(), date: r.date,
@@ -10546,11 +10549,7 @@ function AttFixModal({ emp, recKey, date, shiftHint, branchHint, onClose }) {
     let inAt = mk(inT), outAt = mk(outT);
     if (inAt && outAt && outAt <= inAt) outAt = new Date(new Date(outAt).getTime() + 86400000).toISOString();
     const sh = shiftOf(sid);
-    let late = 0;
-    if (sh && inAt) {
-      const m = new Date(inAt).getHours() * 60 + new Date(inAt).getMinutes();
-      late = Math.max(0, m - (minutesOf(sh.start) + (sh.grace == null ? 5 : sh.grace)));
-    }
+    const late = attLateOf(sh, inAt);
     /* Ghi luôn mins để bảng chấm công & bảng lương có số giờ ngay, không phải suy ra sau */
     const rec = { ...cur, inAt, outAt, shift: sid, branchId: bid, late, fixed: true, fixBy: user.id, fixAt: new Date().toISOString(), date };
     saveAtt(emp.id, key, { ...rec, mins: attMinsOf({ ...rec, mins: 0 }, cfg) });
