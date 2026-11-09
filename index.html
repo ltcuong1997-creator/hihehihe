@@ -6724,6 +6724,22 @@ const attLateDiff = (sh, inAt) => {
   return diff;
 };
 const attLateOf = (sh, inAt) => { const d = attLateDiff(sh, inAt), g = sh && sh.grace != null && sh.grace !== '' ? +sh.grace : 5; return d > g ? d : 0; };
+/* Số phút trễ của MỘT bản ghi chấm công — MỌI màn hình đều đọc qua hàm này. Luôn TÍNH LẠI từ giờ vào + ca
+   chứ không tin field `late` đã lưu (bản ghi cũ / sửa tay / nhập Excel có thể lưu sai hoặc lưu theo công
+   thức cũ). Ca đã xoá khỏi cấu hình thì dùng ca của dòng lịch (fb), hết cách mới đọc field cũ. */
+const attLate = (a, fb) => {
+  if (!a || !a.inAt) return 0;
+  const sh = (typeof shiftOf === 'function' && shiftOf(a.shift)) || fb || null;
+  return sh && sh.start ? attLateOf(sh, a.inAt) : (+a.late || 0);
+};
+/* Vào sau giờ ca nhưng còn trong ân hạn (không tính trễ) — để hiện rõ chứ không ghi trơn "Đúng giờ" */
+const attGraceIn = (a, fb) => {
+  if (!a || !a.inAt) return 0;
+  const sh = (typeof shiftOf === 'function' && shiftOf(a.shift)) || fb || null;
+  if (!sh || !sh.start) return 0;
+  const d = attLateDiff(sh, a.inAt);
+  return d > 0 && !attLateOf(sh, a.inAt) ? d : 0;
+};
 let _uidSeq = 0;
 const uid = (p) => p + (Date.now().toString(36).slice(-4) + (_uidSeq++).toString(36) + Math.random().toString(36).slice(2, 4)).toUpperCase();
 const money = (n) => (Number(n) || 0).toLocaleString('vi-VN') + '₫';
@@ -6948,7 +6964,7 @@ const payCalc = (e, ctx) => {
     const m = attMinsOf(a, cfg);
     c.n++;
     if (!a.outAt) { c.noOut++; noOut++; }
-    if (a.late) lates++;
+    if (attLate(a)) lates++;
     const ot = otOf(m, cfg);
     /* giờ thường × đơn giá × hệ số ngày; giờ tăng ca × đơn giá × hệ số ngày × hệ số tăng ca */
     const a1 = (m - ot) / 60 * rate * c.mult + ot / 60 * rate * c.mult * otK;
@@ -8688,7 +8704,7 @@ function CheckinCard() {
             <div className="ck-live-h">
               <div style={{ minWidth: 0 }}>
                 <b>Đang trong ca {shift ? shift.code : ''}{openYesterday ? ' · ca đêm ' + dShort(dk) : ''}{(myAtt.seq || 1) > 1 ? ' · lượt ' + myAtt.seq : ''}</b>
-                <small>Vào lúc {fmtTime(new Date(myAtt.inAt))}{myAtt.late ? ` (trễ ${myAtt.late}′)` : ''} · {branchOf(myAtt.branchId || bid).name}</small>
+                <small>Vào lúc {fmtTime(new Date(myAtt.inAt))}{attLate(myAtt) ? ` (trễ ${attLate(myAtt)}′)` : ''} · {branchOf(myAtt.branchId || bid).name}</small>
               </div>
               <span className="ck-livepill"><i />Live</span>
             </div>
@@ -8732,7 +8748,7 @@ function CheckinCard() {
             <>
               <div className="ck-more">
                 <div className="ck-tiles">
-                  <div><small>Vào ca</small><b className={myAtt.late ? 'late' : ''}>{fmtTime(new Date(myAtt.inAt))}</b></div>
+                  <div><small>Vào ca</small><b className={attLate(myAtt) ? 'late' : ''}>{fmtTime(new Date(myAtt.inAt))}</b></div>
                   {payNow
                     ? <div><small>Tạm tính</small><b>{money(payNow.amount)}</b></div>
                     : <div><small>Đã làm</small><b>{hoursTxt(Math.floor(elapsedS / 60))}</b></div>}
@@ -9211,7 +9227,7 @@ const attRowsForEmpDay = (cfg, sched, att, empObj, k) => {
   });
   return out;
 };
-const attStOf = (r) => (r.a && r.a.inAt && r.a.outAt) ? (r.a.late ? 'late' : 'ok') : 'missing';
+const attStOf = (r) => (r.a && r.a.inAt && r.a.outAt) ? (attLate(r.a, r.s) ? 'late' : 'ok') : 'missing';
 const ATT_TABS = [{ v: 'all', l: 'Tất cả' }, { v: 'done', l: 'Hoàn thành' }, { v: 'missing', l: 'Thiếu công' }];
 /* ---- TRẠNG THÁI TỪNG DÒNG CHẤM CÔNG ----
    Ba tab sẵn có (Tất cả / Hoàn thành / Thiếu công) gộp quá thô: "Thiếu công" nhét chung ca chưa chấm,
@@ -9239,7 +9255,7 @@ const attRowSt = (r, cfg) => {
   if (r.a.inAt && !r.a.outAt) return attLapsed(r.a, cfg) ? 'lapsed' : 'noout';
   if (!r.a.inAt && r.a.outAt) return 'noin';
   if (!r.a.inAt && !r.a.outAt) return 'none';
-  return r.a.late ? 'late' : 'ok';
+  return attLate(r.a, r.s) ? 'late' : 'ok';
 };
 const attStMatch = (r, cfg, k) => {
   if (!k || k === 'all') return true;
@@ -9253,7 +9269,7 @@ const ATT_XLS_HEAD = ['Mã NV', 'Tên NV', 'Ngày', 'Mã ca', 'Ca', 'Chi nhánh'
 const attRowToXls = (r) => [
   r.e.code, r.e.name, r.k, r.s ? r.s.code : '', r.s ? r.s.name : '', branchOf(r.branchId || r.e.branches[0]).code,
   r.a && r.a.inAt ? fmtTime(new Date(r.a.inAt)) : '', r.a && r.a.outAt ? fmtTime(new Date(r.a.outAt)) : '',
-  attStOf(r) === 'missing' ? 'Thiếu công' : (r.a.late ? 'Trễ' : 'Hoàn thành'),
+  attStOf(r) === 'missing' ? 'Thiếu công' : (attLate(r.a, r.s) ? 'Trễ ' + attLate(r.a, r.s) + '′' : 'Hoàn thành'),
 ];
 const exportAttXlsx = async (rows, name, toast) => {
   const data = [ATT_XLS_HEAD, ...rows.map(attRowToXls)];
@@ -9566,7 +9582,7 @@ function AttendanceView() {
   const rows = preSt.filter(r => attStMatch(r, cfg, stF));
   const missingRows = allRows.filter(r => attStOf(r) === 'missing' && (whoBranchId !== 'all' || brF === 'all' || r.branchId === brF));
   const worked = rows.filter(r => r.a && r.a.inAt).length;
-  const lates = rows.filter(r => r.a && r.a.late > 0).length;
+  const lates = rows.filter(r => r.a && attLate(r.a, r.s) > 0).length;
   const mins = rows.reduce((a, r) => a + attMinsOf(r.a, cfg), 0);
   /* Tổng giờ thực tế = giờ thường × 1 + giờ tăng ca × hệ số tăng ca (cùng cách tính với cột Tổng giờ thực tế) */
   const otAll = rows.reduce((a, r) => a + otOf(attMinsOf(r.a, cfg), cfg), 0);
@@ -9612,8 +9628,9 @@ function AttendanceView() {
           /* Nhãn lấy từ attRowSt — đúng hàm mà ô lọc đang dùng, nên nhãn và bộ lọc không thể lệch nhau */
           const k = attRowSt(r, cfg);
           const d = ATT_ST.find(x => x.v === k) || ATT_ST[0];
-          const label = k === 'late' ? 'Trễ ' + r.a.late + '′' : (d.short || d.l);
-          const tip = k === 'lapsed'
+          const gIn = k === 'ok' ? attGraceIn(r.a, r.s) : 0;
+          const label = k === 'late' ? 'Trễ ' + attLate(r.a, r.s) + '′' : (gIn ? 'Đúng giờ · +' + gIn + '′' : (d.short || d.l));
+          const tip = gIn ? 'Vào sau giờ ca ' + gIn + ' phút nhưng còn trong ân hạn của ca — không tính đi trễ' : k === 'lapsed'
             ? 'Quá ' + autoCloseMins(cfg) + ' phút sau khi hết ca mà không bấm ra — ca đã tự kết thúc, không tính giờ công. Phải xin bổ sung giờ vào/ra.'
             : k === 'noout' ? 'Ca vẫn đang trong hạn được bấm ra' : '';
           return <span className={'tag ' + d.tag} title={tip}>{label}</span>;
@@ -11758,7 +11775,7 @@ const payAudit = ({ list, att, cfg, sched, ftlogs, mo, days }) => {
     keys.forEach(k => {
       const a = rec[k]; if (!a) return;
       const d = k.split('~')[0], s = shiftOf(a.shift), sl = s ? s.code + ' ' + s.start + '–' + s.end : '';
-      if (a.late) lates++;
+      if (attLate(a)) lates++;
       if (a.fixed) fixed++;
       if (a.inAt && !a.outAt) { if (d < today) items.push({ t: 'noout', d, x: sl + ' · vào ' + fmtTime(new Date(a.inAt)) }); return; }
       if (!a.inAt && a.outAt) { items.push({ t: 'noin', d, x: sl }); return; }
@@ -13093,7 +13110,7 @@ function ShiftImport({ onClose }) {
       s: {
         id: exist ? exist.id : uid('S'), code, name: val(r, 'name') || code,
         start: hhmm(val(r, 'start')), end: hhmm(val(r, 'end')) || '00:00',
-        grace: +val(r, 'grace') || 5, color: exist ? exist.color : ['#E8930C', '#2D7FF9', '#6C5CE7', '#18484A', '#E85D9E'][i % 5],
+        grace: String(val(r, 'grace') ?? '').trim() === '' ? 5 : Math.max(0, +val(r, 'grace') || 0), color: exist ? exist.color : ['#E8930C', '#2D7FF9', '#6C5CE7', '#18484A', '#E85D9E'][i % 5],
         branches,
       },
     };
@@ -25291,7 +25308,7 @@ function CeoReport() {
     const ded = my.filter(x => x.type === 'deduct').reduce((s, x) => s + x.amount, 0);
     return a + (e.type === 'Parttime' ? hrs : (e.base || 0)) + add - ded;
   }, 0);
-  const lateN = active.reduce((a, e) => a + Object.keys(att[e.id] || {}).filter(k => k.startsWith(mo) && (att[e.id][k] || {}).late).length, 0);
+  const lateN = active.reduce((a, e) => a + Object.keys(att[e.id] || {}).filter(k => k.startsWith(mo) && attLate(att[e.id][k])).length, 0);
 
   /* --- III. Vận hành --- */
   const dk = todayKey();
@@ -36661,7 +36678,7 @@ const openReport = (cfg, b, employees, att, dk) => {
   const wd = new Date(dk + 'T00:00:00').getDay();
   const staffed = shifts.filter(x => needOf(cfg, b.id, x.id, wd) > 0);
   const first = (staffed.length ? staffed : []).slice().sort((x, y) => minutesOf(x.start) - minutesOf(y.start))[0];
-  let inMin = null, who = null;
+  let inMin = null, who = null, inIso = null;
   if (first) {
     employees.forEach(e => {
       Object.entries(att[e.id] || {})
@@ -36671,13 +36688,13 @@ const openReport = (cfg, b, employees, att, dk) => {
           if (a.shift !== first.id) return;
           if ((a.branchId || e.branches[0]) !== b.id) return;
           const m = new Date(a.inAt).getHours() * 60 + new Date(a.inAt).getMinutes();
-          if (inMin == null || m < inMin) { inMin = m; who = e; }
+          if (inMin == null || m < inMin) { inMin = m; who = e; inIso = a.inAt; }
         });
     });
   }
   if (!first) return { first: null, inMin: null, who: null, late: 0 };
-  const limit = minutesOf(first.start) + (first.grace == null ? 5 : first.grace);
-  return { first, inMin, who, late: inMin == null ? null : Math.max(0, inMin - limit) };
+  /* Cùng công thức đi trễ với chấm công (attLateOf): đủ phút, ân hạn chỉ quyết định có trễ hay không */
+  return { first, inMin, who, late: inMin == null ? null : attLateOf(first, inIso) };
 };
 
 /* ---- ĐỔI TRẠNG THÁI PHÒNG: MỘT ĐƯỜNG DUY NHẤT ----
@@ -37333,7 +37350,7 @@ function OpsMapView() {
       });
     }
     const openTarget = firstShift ? minutesOf(firstShift.start) : null;
-    const late = (firstIn && openTarget != null) ? Math.max(0, firstIn.v - openTarget) : 0;
+    const late = (firstIn && openTarget != null) ? attLateOf(firstShift, firstIn.x.a.inAt) : 0;
     const early = (firstIn && openTarget != null) ? Math.max(0, openTarget - firstIn.v) : 0;
     const opened = !!firstIn;
 
@@ -37569,7 +37586,7 @@ function OpsMapView() {
                     <div style={{
                       width: 46, height: 46, borderRadius: 15, overflow: 'hidden', background: '#F2F0EF',
                       /* over = vẫn đang mở ca dù quá giờ -> viền xám để phân biệt, nhưng VẪN đếm là có mặt */
-                      border: '2.5px solid ' + (over ? '#B0A59C' : away ? 'var(--violet)' : a.late ? 'var(--amber)' : 'var(--brand)'),
+                      border: '2.5px solid ' + (over ? '#B0A59C' : away ? 'var(--violet)' : attLate(a) ? 'var(--amber)' : 'var(--brand)'),
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       {e.avatar
@@ -37578,7 +37595,7 @@ function OpsMapView() {
                     </div>
                     <span style={{
                       position: 'absolute', bottom: -3, right: -3, width: 15, height: 15, borderRadius: 99,
-                      background: over ? '#B0A59C' : away ? 'var(--violet)' : a.late ? 'var(--amber)' : 'var(--brand)',
+                      background: over ? '#B0A59C' : away ? 'var(--violet)' : attLate(a) ? 'var(--amber)' : 'var(--brand)',
                       border: '2px solid #fff', color: '#fff', fontSize: 8, fontWeight: 800,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>{roleOf(e.role).short.slice(0, 1)}</span>
@@ -37654,7 +37671,7 @@ function OpsMapView() {
                       <td>{shift ? shift.name : (a.shift || '—')}</td>
                       <td className="mono">{fmtTime(new Date(a.inAt))}</td>
                       <td className="mono">{a.outAt ? fmtTime(new Date(a.outAt)) : '—'}</td>
-                      <td>{a.late > 0 ? <span className="tag t-amber">Trễ {a.late}′</span> : <span className="tag t-green">Đúng giờ</span>}</td>
+                      <td>{attLate(a) > 0 ? <span className="tag t-amber">Trễ {attLate(a)}′</span> : <span className="tag t-green">Đúng giờ</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -37719,8 +37736,8 @@ function OpsZoom({ x, onClose }) {
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</div>
                   <div style={{ fontSize: 11.5, color: 'var(--txt-3)' }}>{posOf(e.posId).name}</div>
-                  <div className="mono" style={{ fontSize: 11, color: a.late ? 'var(--amber)' : 'var(--brand-dark)', marginTop: 2 }}>
-                    {sh ? sh.code + ' · ' : ''}{hoursTxt(mins)}{a.late ? ' · trễ ' + a.late + '′' : ''}
+                  <div className="mono" style={{ fontSize: 11, color: attLate(a) ? 'var(--amber)' : 'var(--brand-dark)', marginTop: 2 }}>
+                    {sh ? sh.code + ' · ' : ''}{hoursTxt(mins)}{attLate(a) ? ' · trễ ' + attLate(a) + '′' : ''}
                   </div>
                   {away && <span className="tag t-violet" style={{ marginTop: 3, fontSize: 10 }}>hỗ trợ từ {branchOf(e.branches[0]).code}</span>}
                 </div>
