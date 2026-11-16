@@ -1,22 +1,31 @@
 # Bot Zalo nội bộ Hí Hế — hướng dẫn cài
 
-Port từ bot ZSpace (`zspacemusicbox/functions/zalo.js`), rút gọn còn phần lõi:
+Port từ bot ZSpace (`zspacemusicbox/functions/zalo.js`):
 
-- Nhân viên kết nối Zalo với hồ sơ trong app bằng **mã 6 số**, rồi nhắn **DONG Y** (đồng ý lưu tin nhắn).
-- Lệnh: **LICH** (lịch làm 7 ngày tới của chính mình), **GIUP**, **HUY KET NOI**.
+- Nhân viên kết nối Zalo với hồ sơ trong app bằng **mã 6 số**, rồi nhắn **DONG Y** (đồng ý lưu tin nhắn và cho trợ lý AI xử lý).
+- **Trợ lý AI (Claude)**: nhắn bình thường là bot hiểu. Bot đọc dữ liệu theo đúng quyền của người hỏi trong app (luật quyền trích nguyên văn từ `index.html`):
+  - tra: doanh thu, món bán chạy, ai đang trong ca, sự cố, lịch, việc chờ duyệt, và tra cứu chung (chấm công, đi trễ, đơn công, đề xuất mua, phiếu mua hàng, đề nghị, thông báo, nộp tiền, thu chi, kiểm kho, xuất huỷ / điều chuyển, voucher nhân viên, nhân sự);
+  - ghi vào app: **báo sự cố** (kèm ảnh nếu đã khai Drive), **lập đề xuất mua hàng**, **duyệt / từ chối** đề xuất mua và đơn công. Bot luôn soạn **bản nháp** trước, người dùng nhắn **OK** thì mới ghi thật.
+  - không tra được: lương, phiếu lương, thưởng phạt, thông tin riêng nhân viên, mã voucher.
+- Lệnh nhanh không tốn AI: **LICH**, **GIUP**, **HUY KET NOI**.
+- **Nhóm Zalo ban quản trị**: thêm bot vào nhóm, ADMIN (đã kết nối) gõ `bot ket noi nhom`. Trong nhóm, ai cũng hỏi được bằng `bot` + câu hỏi (số liệu theo quyền ADMIN, mọi chi nhánh). Việc ghi vào app chỉ người đã kết nối Zalo, theo quyền của chính họ, xác nhận bằng `bot ok`. Chat bình thường trong nhóm bot không đọc.
 - Người lạ nhắn bot chỉ nhận 1 câu hướng dẫn mỗi ngày, không lộ dữ liệu gì.
-- Tính giới hạn gói Zalo Bot miễn phí: tối đa 50 người, 3.000 tin gửi đi mỗi tháng (từ 80% bot chỉ trả lời lệnh, 95% báo ADMIN).
-- ADMIN xem danh sách kết nối, nhật ký tin nhắn, hạn mức ở **Cấu hình › Hệ thống › Bot Zalo**.
+- Giới hạn gói Zalo Bot miễn phí: tối đa 50 người, 3.000 tin gửi đi mỗi tháng, 3 nhóm. Chi phí AI có trần USD/tháng, chạm trần thì AI tự tắt tới đầu tháng sau.
+- ADMIN xem danh sách kết nối, nhóm, nhật ký tin nhắn, hạn mức và chi phí AI ở **Cấu hình › Hệ thống › Bot Zalo**; chọn model và trần chi phí ở đó.
 
-Chưa có (ZSpace có, làm sau nếu cần): trợ lý AI, nhóm Zalo, báo cáo 0h, tự báo sự cố.
+Chưa có (ZSpace có): báo cáo 0h tự động, tự báo sự cố quá hạn.
 
 ## Các file
 
 | File | Việc |
 |---|---|
-| `functions/zalo.js` | Toàn bộ logic bot |
-| `functions/index.js` | Khai báo 4 hàm: `zaloHook`, `zaloProcess`, `zaloLinkCode`, `zaloUnlink` (vùng `asia-southeast1`) |
-| `functions/scripts/selftest-zalo.js` | 29 ca kiểm thử, không cần mạng: `cd functions && npm test` |
+| `functions/zalo.js` | Logic bot: webhook, kết nối, lệnh nhanh, nhóm, gọi AI |
+| `functions/zaloai.js` | Gọi Claude: lời dặn, vòng lặp công cụ, tính chi phí |
+| `functions/zalotools.js` | Các công cụ của AI: tra cứu + soạn nháp + ghi sau khi OK |
+| `functions/zalolookup.js` | Tra cứu chung: loại dữ liệu nào, trang app nào mới được xem, trường nào bị che |
+| `functions/apprules.js` | Luật quyền **sinh tự động** từ `index.html` bằng `node tools/zalo-sync-rules.js` — sửa phân quyền trong app thì chạy lại lệnh này rồi deploy functions |
+| `functions/index.js` | Khai báo 5 hàm: `zaloHook`, `zaloProcess`, `zaloLinkCode`, `zaloUnlink`, `zaloGroupOff` (vùng `asia-southeast1`) |
+| `functions/scripts/selftest-zalo.js` | 44 ca kiểm thử (dùng Claude giả), không cần mạng: `cd functions && npm test` |
 | `functions/scripts/zalo-setup.mjs` | Kiểm token, tạo mã bí mật, đặt webhook |
 | `firestore.rules` | Khoá 5 bảng `ops_z*`: chỉ máy chủ ghi, chỉ ADMIN đọc nhật ký |
 | `index.html` | Thẻ "Kết nối Zalo" trong Hồ sơ của tôi + tab "Bot Zalo" |
@@ -100,6 +109,24 @@ Nếu script báo lỗi, bạn cũng có thể đặt webhook trong trang quản
 3. Mở **Cấu hình › Hệ thống › Bot Zalo** và chọn vai trò được dùng bot (mặc định là GS, AM, OM, ADMIN; có thể thêm từng người).
 4. Thử: **Hồ sơ của tôi › Kết nối Zalo › Lấy mã kết nối**. Nhắn mã cho bot, nhắn `DONG Y`, rồi nhắn `LICH`.
 
+## Bật trợ lý AI (khi bot đã chạy)
+
+1. Lưu khoá API Claude lên Firebase (chạy ở folder `hihehihe`, thay `KHOA_API` bằng khoá tạo ở console.anthropic.com):
+   ```powershell
+   "KHOA_API" | firebase functions:secrets:set ANTHROPIC_API_KEY --data-file -
+   ```
+2. Lấy code mới rồi deploy lại luật và functions:
+   ```powershell
+   git pull
+   firebase deploy --only firestore:rules
+   firebase deploy --only functions
+   ```
+3. Vào **Cấu hình › Hệ thống › Bot Zalo**: kiểm tra đã tick **Bật trợ lý AI**, chọn model, đặt trần USD/tháng, rồi bấm **Lưu cài đặt**.
+4. Người đã kết nối từ trước: lần nhắn kế tiếp bot sẽ hỏi đồng ý AI một lần, nhắn `DONG Y` là dùng được.
+5. Nhóm ban quản trị: thêm bot vào nhóm Zalo, ADMIN gõ `bot ket noi nhom`.
+
+Model mặc định là **Claude Opus 5.5** (thông minh nhất, $4 / $20 mỗi triệu token vào / ra). **Haiku 5.5** rẻ hơn khoảng 40 lần ($0,1 / $0,5), ZSpace đang dùng loại này. Đổi model trong tab Bot Zalo, không cần deploy lại.
+
 ## Gỡ lỗi
 
 | Hiện tượng | Nguyên nhân thường gặp |
@@ -109,5 +136,7 @@ Nếu script báo lỗi, bạn cũng có thể đặt webhook trong trang quản
 | App báo "Chưa kết nối được máy chủ" / lỗi `not-found` khi lấy mã | Các hàm chưa được deploy, hoặc deploy sai vùng (phải là `asia-southeast1`). |
 | "Tài khoản của bạn chưa được dùng bot Zalo" | Vai trò của người đó chưa được tick trong tab Bot Zalo. |
 | Tab Bot Zalo báo "Chưa có quyền đọc" | Chưa deploy luật mới (bước 4), hoặc chưa làm bước 6.2. |
+| Bot trả "Trợ lý AI đang tắt" | Chưa lưu `ANTHROPIC_API_KEY` rồi deploy lại functions, hoặc AI đang tắt trong tab Bot Zalo. |
+| Bot trả "Em chưa xử lý được câu này" liên tục | Xem Logs của `zaloProcess`: dòng `zalo: gọi AI lỗi` có mã http (401 = khoá sai, 429 = hết hạn mức tài khoản Anthropic, 400 = báo tao). |
 
 Đổi bot (tạo bot mới) chỉ cần làm lại bước 1, 3, 5, rồi deploy lại functions. Liên kết cũ gắn với tài khoản Zalo của nhân viên, nên mọi người phải kết nối lại với bot mới.
