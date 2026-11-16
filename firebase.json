@@ -19,6 +19,7 @@
       ".firebaserc",
       ".claude/**",
       "robot/**",
+      "functions/**",
       ".github/**",
       "package.json",
       "package-lock.json",
@@ -56,6 +57,11 @@
         ]
       }
     ]
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22",
+    "ignore": ["node_modules", ".git", ".env", "scripts/**", "*.local"]
   },
   "firestore": {
     "rules": "firestore.rules",
