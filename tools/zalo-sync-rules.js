@@ -19,10 +19,17 @@ const NAMES = [
   'canConfirmAtt', 'attApprCfg', 'attChain', 'attStepOK', 'posOf', 'attStepLabel', 'attStepIdx', 'attIsLast', 'attCanStep',
   'noAccent', 'pushCfg', 'pushWho', 'pushTargets', 'pushTokensOf', 'pushSend', 'pushBulk',
   'canAttAll', 'canRecView',
+  /* Kho: phiếu huỷ / nhập bổ sung qua bot */
+  'canStkMove', 'canStkMoveAppr', 'stockItems',
+  /* Đề xuất / đề nghị thanh toán (ops_requests): loại phiếu, chuỗi duyệt */
+  'DEFAULT_REQ_TYPES', 'nextReqId', 'typeList', 'typeListOn', 'tOf', 'DEFAULT_APPROVAL', 'pickerList', 'reqPickDept', 'pickersFor',
+  'stepOK', 'stepLabel', 'apprCfg', 'tierOf', 'reqAmountRaw', 'chainOf', 'stepIdx', 'chainNow', 'curStep', 'skipFrom', 'canStep',
 ];
 const EXPORTS = ['ALL_PAGES', 'BASE_PAGES', 'DEFAULT_ROLES', 'roleList', 'roleOf', 'inScope', 'scopeBranches', 'isBiz', 'bizList', 'canIssue', 'ISSUE_SEV',
   'DEFAULT_ISSUE_CATS', 'itemGroups', 'itemsInGroup', 'canPreq', 'canPreqAll', 'canPreqAppr', 'pqSees', 'canConfirmAtt', 'attChain', 'attStepLabel',
-  'attStepIdx', 'attIsLast', 'attCanStep', 'pad', 'hoursTxt', 'dShort', 'uid', 'noAccent', 'pushCfg', 'pushTargets', 'pushBulk', 'canAttAll', 'canRecView'];
+  'attStepIdx', 'attIsLast', 'attCanStep', 'pad', 'hoursTxt', 'dShort', 'uid', 'noAccent', 'pushCfg', 'pushTargets', 'pushBulk', 'canAttAll', 'canRecView',
+  'canStkMove', 'canStkMoveAppr', 'stockItems', 'nextReqId', 'typeListOn', 'tOf', 'apprCfg', 'pickersFor', 'reqPickDept', 'stepLabel',
+  'chainOf', 'chainNow', 'curStep', 'skipFrom', 'canStep', 'reqAmountRaw'];
 
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'functions', 'apprules.js');

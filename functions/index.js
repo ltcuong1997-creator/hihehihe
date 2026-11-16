@@ -48,6 +48,40 @@ const ZALO_BOT_TOKEN = defineSecret('ZALO_BOT_TOKEN');
 const ZALO_WEBHOOK_SECRET = defineSecret('ZALO_WEBHOOK_SECRET');
 /* Trợ lý AI — chỉ nạp vào zaloProcess */
 const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
+
+/* ---- Ảnh gửi qua Zalo (ảnh lịch) -> Firebase Storage, link có mã tải ----
+   Tên kho: dự án tạo trước 10/2024 thường là "<dự án>.appspot.com", sau đó là "<dự án>.firebasestorage.app"
+   -> thử lần lượt, nhớ tên chạy được. Chưa bật Storage (Firebase Console › Storage › Bắt đầu) thì lỗi,
+   bot tự quay về gửi lịch bằng chữ. Ảnh cũ hơn 14 ngày tự xoá (dọn mỗi lần gửi, tối đa 1 lần/giờ). */
+const crypto = require('crypto');
+const IMG_PREFIX = 'zalo-img/';
+let okBucket = null, lastClean = 0;
+const bucketNames = () => {
+  let cfgB = '', pid = process.env.GCLOUD_PROJECT || '';
+  try { const fc = JSON.parse(process.env.FIREBASE_CONFIG || '{}'); cfgB = fc.storageBucket || ''; pid = pid || fc.projectId || ''; } catch (e) { /* bỏ qua */ }
+  return [...new Set([cfgB, pid && pid + '.firebasestorage.app', pid && pid + '.appspot.com'].filter(Boolean))];
+};
+async function uploadImage(png, name) {
+  const tries = okBucket ? [okBucket] : bucketNames().map(n => admin.storage().bucket(n));
+  const errs = [];
+  for (const bucket of tries) {
+    const file = bucket.file(IMG_PREFIX + name);
+    const token = crypto.randomUUID();
+    try {
+      await file.save(png, { resumable: false, contentType: 'image/png', metadata: { cacheControl: 'public, max-age=604800', metadata: { firebaseStorageDownloadTokens: token } } });
+    } catch (e) { errs.push(bucket.name + ': ' + String((e && e.message) || e).slice(0, 160)); continue; }
+    okBucket = bucket;
+    if (Date.now() - lastClean > 3600e3) {
+      lastClean = Date.now();
+      bucket.getFiles({ prefix: IMG_PREFIX }).then(([files]) => Promise.all(files
+        .filter(f => Date.now() - Date.parse((f.metadata || {}).timeCreated || 0) > 14 * 864e5).map(f => f.delete().catch(() => {}))))
+        .catch(() => {});
+    }
+    return 'https://firebasestorage.googleapis.com/v0/b/' + bucket.name + '/o/' + encodeURIComponent(IMG_PREFIX + name) + '?alt=media&token=' + token;
+  }
+  throw new Error('Không ghi được ảnh vào Storage (' + errs.join(' | ') + ')');
+}
+
 const zalo = ZL.createZalo({
   db, FV: FieldValue, HttpsError, findEmp, log: logger,
   /* trim: đặt secret bằng `echo ... | firebase functions:secrets:set` sẽ dính ký tự xuống dòng ở cuối
@@ -55,6 +89,7 @@ const zalo = ZL.createZalo({
   getToken: () => String(ZALO_BOT_TOKEN.value() || '').trim(),
   getSecret: () => String(ZALO_WEBHOOK_SECRET.value() || '').trim(),
   getAiKey: () => { try { return String(ANTHROPIC_API_KEY.value() || '').trim(); } catch (e) { return ''; } },
+  uploadImage,
 });
 const ZL_OPTS = { region: REGION, memory: '256MiB', cpu: LOW_CPU };
 
@@ -63,7 +98,7 @@ exports.zaloHook = onRequest({ ...ZL_OPTS, secrets: [ZALO_WEBHOOK_SECRET, ZALO_B
   (req, res) => zalo.hook(req, res));
 
 /* Tin đi (dir 'out') cũng nằm trong ops_zmsg -> lọc ngay từ dữ liệu sự kiện, khỏi tốn lượt đọc */
-exports.zaloProcess = onDocumentCreated({ ...ZL_OPTS, memory: '512MiB', document: ZL.COL.msg + '/{id}', secrets: [ZALO_BOT_TOKEN, ANTHROPIC_API_KEY], timeoutSeconds: 180, retry: false, maxInstances: 5 },
+exports.zaloProcess = onDocumentCreated({ ...ZL_OPTS, memory: '1GiB', document: ZL.COL.msg + '/{id}', secrets: [ZALO_BOT_TOKEN, ANTHROPIC_API_KEY], timeoutSeconds: 180, retry: false, maxInstances: 5 },
   async (ev) => {
     const d = ev.data && ev.data.data();
     if (!d || d.dir !== 'in' || d.st !== 'new') return;
