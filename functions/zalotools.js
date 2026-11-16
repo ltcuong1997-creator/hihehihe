@@ -35,6 +35,19 @@ const isDay = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !isNaN(Date.
 const strip = (s) => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const clip = (s, n) => { const t = String(s == null ? '' : s); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
 
+/* Dòng TUỲ CHỌN của KiotViet (mức đá / đường / ngọt, %, nóng - lạnh, size) bán kèm theo món — không phải
+   món, không tính vào món bán chạy / bán chậm / tổng số ly. Vd: "Đá bình thường", "Đường 75%", "50%",
+   "Ít đá", "Không đường", "Đá riêng", "Nóng", "Size L". Topping có tên riêng (trân châu, thạch...) vẫn là món. */
+const OPT_WORD = '(da|duong|ngot|sua|beo|chua)';
+const OPT_RE = [
+  /%/,
+  new RegExp('^(it|nhieu|khong|ko|k|bot|them|vua|nhe|binh thuong|bt|bth)\\s+' + OPT_WORD + '(\\s|$)'),
+  new RegExp('^' + OPT_WORD + '(\\s+(binh thuong|bt|bth|thuong|vua|it|nhieu|rieng|nhe|khong|ko|tieu chuan|chuan|\\d+))?$'),
+  /^(nong|lanh|da rieng|binh thuong|bt|bth|tieu chuan)$/,
+  /^size\s*[a-z0-9]*$/,
+];
+const isOptionItem = (name) => { const n = String(name == null ? '' : name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').toLowerCase().replace(/\s+/g, ' ').trim(); return !!n && OPT_RE.some(r => r.test(n)); };
+
 /* Tên / mã / id chi nhánh người dùng gõ -> id. "q1", "quan 1", "B1" đều ra đúng id. */
 function matchBranch(branches, q) {
   const s = strip(q);
@@ -345,6 +358,7 @@ function createTools(deps) {
         Object.entries(it.d || {}).forEach(([d, n]) => { if (d >= from && d <= to) q += Number(n) || 0; });
         Object.entries(it.da || {}).forEach(([d, n]) => { if (d >= from && d <= to) m += Number(n) || 0; });
         if (!q && !m) return;
+        if (isOptionItem(it.name)) return;      /* đá / đường / % ... không phải món */
         const o = agg[code] || (agg[code] = { ma: code, mon: it.name || code, nhom: it.group || '', don_vi: it.unit || '', so_luong: 0, doanh_thu: 0 });
         o.so_luong += q; o.doanh_thu += m;
       });
@@ -574,7 +588,7 @@ function createTools(deps) {
     /* Món tăng / giảm: ops_sales theo tháng, cộng theo ngày trong từng kỳ */
     const months = [...new Set([...monthsIn(from, to), ...monthsIn(f2, t2)])];
     const sd = (await db.getAll(...p.ids.flatMap(b => months.map(m => db.collection(COL.sales).doc(b + '_' + m))))).filter(x => x.exists).map(x => x.data() || {});
-    const qty = (x, y) => { const o = {}; sd.forEach(d => Object.entries(d.items || {}).forEach(([code, it]) => { let q = 0; Object.entries(it.d || {}).forEach(([dd, v]) => { if (dd >= x && dd <= y) q += Number(v) || 0; }); if (q) { const r = o[code] || (o[code] = { mon: it.name || code, q: 0 }); r.q += q; } })); return o; };
+    const qty = (x, y) => { const o = {}; sd.forEach(d => Object.entries(d.items || {}).forEach(([code, it]) => { if (isOptionItem(it.name)) return; let q = 0; Object.entries(it.d || {}).forEach(([dd, v]) => { if (dd >= x && dd <= y) q += Number(v) || 0; }); if (q) { const r = o[code] || (o[code] = { mon: it.name || code, q: 0 }); r.q += q; } })); return o; };
     const qa = qty(from, to), qb = qty(f2, t2);
     const diff = keys(qa, qb).map(k => ({ mon: (qa[k] || qb[k]).mon, ky_nay: Math.round((qa[k] || {}).q || 0), ky_truoc: Math.round((qb[k] || {}).q || 0) })).map(x => ({ ...x, chenh: x.ky_nay - x.ky_truoc }));
     return {
@@ -1128,4 +1142,4 @@ function createTools(deps) {
   return { DEFS, run, ctxOf, execPending, fetchImage, pendingFor, sendSchedImage, PHOTO_TTL };
 }
 
-module.exports = { createTools, matchBranch, pickBranches, hmVN, isDay, strip, DEF_ISSUE_CATS, PEND_TTL };
+module.exports = { createTools, matchBranch, pickBranches, hmVN, isDay, strip, isOptionItem, DEF_ISSUE_CATS, PEND_TTL };
