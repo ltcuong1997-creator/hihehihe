@@ -7,6 +7,9 @@
      · zaloLinkCode — nhân viên xin mã 6 số để kết nối (Hồ sơ của tôi › Kết nối Zalo)
      · zaloUnlink   — tự ngắt, hoặc ADMIN ngắt hộ
      · zaloGroupOff — ADMIN gỡ một nhóm Zalo ban quản trị (gắn nhóm bằng lệnh "bot ket noi nhom" trong nhóm)
+     · zaloReportDaily — 23:50 giờ VN: ảnh báo cáo ngày vào nhóm ban quản trị (zaloauto.js)
+     · zaloTick     — mỗi 15 phút 7h–23h45: cảnh báo chưa vào ca / sự cố quá hạn / doanh thu tụt / việc chờ duyệt, 20h nhắc lịch
+     · zaloReportTest — ADMIN gửi thử báo cáo hôm nay vào Zalo của chính mình
    CHỈ ĐỌC ops_config (khoá `zalo`), không bao giờ ghi.
 
    Khoá nằm trong Secret Manager (KHÔNG BAO GIỜ commit — repo này công khai):
@@ -16,6 +19,7 @@
 */
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
 const admin = require('firebase-admin');
@@ -108,3 +112,9 @@ exports.zaloProcess = onDocumentCreated({ ...ZL_OPTS, memory: '1GiB', document: 
 exports.zaloLinkCode = onCall({ ...ZL_OPTS, cpu: 1, secrets: [ZALO_BOT_TOKEN], timeoutSeconds: 30 }, (req) => zalo.linkCode(req));
 exports.zaloUnlink = onCall({ ...ZL_OPTS, cpu: 1, timeoutSeconds: 30 }, (req) => zalo.unlink(req));
 exports.zaloGroupOff = onCall({ ...ZL_OPTS, cpu: 1, timeoutSeconds: 30 }, (req) => zalo.groupOff(req));
+const TZ = 'Asia/Ho_Chi_Minh';
+exports.zaloReportDaily = onSchedule({ ...ZL_OPTS, memory: '1GiB', schedule: '50 23 * * *', timeZone: TZ, retryCount: 0, secrets: [ZALO_BOT_TOKEN], timeoutSeconds: 300 },
+  async () => { const r = await zalo.reportDaily(); logger.info('zalo: báo cáo ngày', { day: r.day, sent: r.sent, skipped: r.skipped || '', imgErr: r.imgErr || '' }); });
+exports.zaloTick = onSchedule({ ...ZL_OPTS, memory: '512MiB', schedule: '*/15 7-23 * * *', timeZone: TZ, retryCount: 0, secrets: [ZALO_BOT_TOKEN], timeoutSeconds: 240 },
+  async () => { const r = await zalo.autoTick(); if (r.sent) logger.info('zalo: tự báo', { sent: r.sent, kinds: r.kinds.join(',') }); });
+exports.zaloReportTest = onCall({ ...ZL_OPTS, cpu: 1, memory: '1GiB', secrets: [ZALO_BOT_TOKEN], timeoutSeconds: 120 }, (req) => zalo.reportTest(req));

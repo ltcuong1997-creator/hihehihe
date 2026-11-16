@@ -50,7 +50,7 @@ const COL = {
 /* Gói Zalo Bot miễn phí: tối đa 50 người dùng / bot, 3.000 tin gửi đi / tháng */
 const DEF = {
   allowRoles: ['GS', 'AM', 'OM', 'ADMIN'], allowEmps: [], maxUsers: 50, monthlyCap: 3000, botName: '',
-  ai: true, aiCapUsd: 20, aiModel: 'claude-opus-5-5', maxGroups: 3,
+  ai: true, aiCapUsd: 20, aiModel: 'claude-opus-5-5', maxGroups: 3, reportRoles: ['OM', 'ADMIN'],
 };
 const AI_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
 /* Phiên bản câu đồng ý: 2 = có thêm ý tin nhắn được trợ lý AI xử lý */
@@ -94,6 +94,7 @@ function zcfg(cfg) {
     ai: z.ai !== false,
     aiModel: AI_MODELS.includes(z.aiModel) ? z.aiModel : DEF.aiModel,
     maxGroups: posInt(z.maxGroups, DEF.maxGroups),
+    reportRoles: strList(z.reportRoles, DEF.reportRoles),
     aiCapUsd: (() => { const n = Number(z.aiCapUsd); return Number.isFinite(n) && n >= 0 ? Math.min(n, 1000) : DEF.aiCapUsd; })(),
   };
 }
@@ -336,6 +337,11 @@ function createZalo(deps) {
     sendPhoto: ({ zaloId, chatId, empId, url, caption }) => send({ zaloId, chatId, empId, kind: 'reply', text: caption || 'Ảnh', cmd: 'photo', photo: url }),
   });
   const ai = require('./zaloai').createAI({ tools, log, now });
+  /* Bot tự báo: báo cáo 23h50, cảnh báo, nhắc lịch (zaloauto.js) — gửi qua send() nên vẫn đếm hạn mức + ghi nhật ký */
+  const auto = require('./zaloauto').createAuto({
+    db, FV, log, now, getCfg: () => getCfg(), zcfg, appRules: require('./apprules'), dayVN, dAdd, monthVN, uploadImage, gapMs: deps.gapMs,
+    send: (o) => send(o),
+  });
   let aiClient = null, aiClientKey = '';
   const aiClientFor = (key) => { if (!aiClient || aiClientKey !== key) { aiClient = makeAiClient(key); aiClientKey = key; } return aiClient; };
 
@@ -951,7 +957,18 @@ function createZalo(deps) {
     return { ok: true, n: 1 };
   }
 
-  return { hook, processIn, linkCode, unlink, groupOff, send, unlinkEmp, getCfg };
+  /* ADMIN bấm "Gửi thử báo cáo cho tôi": báo cáo HÔM NAY (tới giờ này) vào Zalo riêng của chính người bấm */
+  async function reportTest(req) {
+    if (!(req.auth && req.auth.uid)) throw new HttpsError('unauthenticated', 'Chưa đăng nhập');
+    const me = await findEmp(req);
+    if (!me || me.status === 'off' || me.role !== 'ADMIN') throw new HttpsError('permission-denied', 'Chỉ ADMIN được gửi thử báo cáo');
+    const l = (await col('link').where('empId', '==', me.id).get()).docs.find(d => (d.data() || {}).active === true);
+    if (!l) throw new HttpsError('failed-precondition', 'Tài khoản của bạn chưa kết nối Zalo — vào Hồ sơ của tôi › Kết nối Zalo trước');
+    const r = await auto.report({ only: { zaloId: l.id, chatId: (l.data() || {}).chatId || l.id, empId: me.id } });
+    return { day: r.day, sent: r.sent, photo: r.photo, imgErr: r.imgErr || '' };
+  }
+
+  return { hook, processIn, linkCode, unlink, groupOff, reportTest, send, unlinkEmp, getCfg, reportDaily: (o) => auto.report(o || {}), autoTick: () => auto.tick() };
 }
 
 module.exports = {

@@ -285,5 +285,262 @@ const canStep = (cfg, user, r) => {
   if (st.mode === 'price') return (apprCfg(cfg).supplyRoles || []).includes(user.role);
   return stepOK(user, st, r);
 };
-  return { ALL_PAGES, BASE_PAGES, DEFAULT_ROLES, roleList, roleOf, inScope, scopeBranches, isBiz, bizList, canIssue, ISSUE_SEV, DEFAULT_ISSUE_CATS, itemGroups, itemsInGroup, canPreq, canPreqAll, canPreqAppr, pqSees, canConfirmAtt, attChain, attStepLabel, attStepIdx, attIsLast, attCanStep, pad, hoursTxt, dShort, uid, noAccent, pushCfg, pushTargets, pushBulk, canAttAll, canRecView, canStkMove, canStkMoveAppr, stockItems, nextReqId, typeListOn, tOf, apprCfg, pickersFor, reqPickDept, stepLabel, chainOf, chainNow, curStep, skipFrom, canStep, reqAmountRaw };
+const dKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const dAdd = (k, n) => { const d = new Date(k + 'T00:00:00'); d.setDate(d.getDate() + n); return dKey(d); };
+const stkLastClosed = (stocks, bid, upto, since) => {
+  let best = null;
+  Object.keys(stocks || {}).forEach(k => {
+    const r = stocks[k];
+    if (!r || r.branchId !== bid || !r.closed) return;
+    if (upto && r.date > upto) return;
+    if (since && r.date < since) return;
+    if (!best || r.date > best.date) best = r;
+  });
+  return best;
+};
+const isBtp = (r) => r && r.kind === 'btp';
+const rcpUsage = (recipes, sold, all) => {
+  const out = {};
+  const btpBy = {};
+  (all || recipes || []).forEach(r => { if (isBtp(r) && r.code) btpBy[r.code] = r; });
+  const add = (it, q, dish, n, depth) => {
+    if (it.noStock || !q) return;
+    const b = it.sku && btpBy[it.sku];
+    const bq = b ? +((b.batch || {}).qty) || 0 : 0;
+    if (b && bq && depth < 4) {
+      (b.items || []).forEach(x => add(x, (+x.qty || 0) * q / bq, dish, n, depth + 1));
+      return;
+    }
+    const key = it.sku || ('~' + (it.name || it.id));
+    const o = out[key] = out[key] || { sku: it.sku || '', name: it.name, unit: it.unit, qty: 0, cost: 0, from: [] };
+    o.qty += q;
+    o.cost += q * (+it.cost || 0);
+    /* Cùng một món có thể ăn một nguyên liệu qua hai đường (trực tiếp + trong BTP) — cộng dồn
+       vào một dòng, không liệt kê tên món hai lần */
+    const f = o.from.find(x => x.name === dish);
+    if (f) f.each += q / n; else o.from.push({ name: dish, n, each: q / n });
+  };
+  (recipes || []).forEach(r => {
+    const n = +sold[r.id] || 0;
+    if (!n) return;
+    (r.items || []).forEach(it => add(it, (+it.qty || 0) * n, r.name, n, 0));
+  });
+  return Object.values(out).sort((a, b) => b.cost - a.cost || (a.name || '').localeCompare(b.name || ''));
+};
+const stkBomOf = (recipes) => {
+  const byKv = {};
+  (recipes || []).forEach(r => { if (!isBtp(r) && r.kvCode) byKv[String(r.kvCode).trim().toUpperCase()] = r; });
+  const per = {};
+  return (code) => {
+    const r = byKv[String(code || '').trim().toUpperCase()];
+    if (!r) return null;
+    if (!per[r.id]) per[r.id] = rcpUsage([r], { [r.id]: 1 }, recipes).filter(u => u.sku);
+    return { r, per: per[r.id] };
+  };
+};
+const stkGoodsMap = (cfg) => {
+  const o = {};
+  ((cfg || {}).items || []).forEach(m => {
+    if (m && m.type === 'goods') (m.kvCodes || []).forEach(k => { const c = String(k || '').trim().toUpperCase(); if (c) o[c] = m.code; });
+  });
+  return o;
+};
+const stkKey = (bid, date) => bid + '_' + date;
+const stkClosedOn = (stocks, bid, d) => {
+  const r = (stocks || {})[stkKey(bid, d)];
+  return (r && r.closed) ? r : null;
+};
+const poIsDept = (p) => (p || {}).costType === 'dept';
+const poRcBatches = (p) => (Array.isArray((p || {}).rcs) ? p.rcs : []);
+const poReceived = (p) => !!p && ['received', 'done'].includes(p.status);
+const poInDate = (p) => ((p || {}).rc || {}).date || String((((p || {}).rc || {}).at) || '').slice(0, 10) || (p || {}).date || '';
+const poRcLines = (p) => {
+  if (!p) return [];
+  const items = p.items || [];
+  const out = [], got = {};
+  poRcBatches(p).forEach(b => (b.lines || []).forEach(l => {
+    const q = +l.qty || 0;
+    got[l.idx] = (got[l.idx] || 0) + q;
+    out.push({ idx: l.idx, code: l.code || (items[l.idx] || {}).code || '', qty: q,
+      date: l.date || b.date || String(b.at || '').slice(0, 10), batch: b.id });
+  }));
+  /* Phiếu đã sang "Đã nhận" mà chưa ghi đủ từng mã (phiếu cũ, hoặc quản trị đẩy trạng thái bằng tay):
+     phần còn thiếu coi như về đủ vào ngày nhập kho chung của phiếu — không thì tồn kho hụt oan. */
+  if (poReceived(p)) items.forEach((it, idx) => {
+    const left = (+it.qty || 0) - (got[idx] || 0);
+    if (left > 0) out.push({ idx, code: it.code || '', qty: left, date: poInDate(p), batch: '' });
+  });
+  return out;
+};
+const mvAdjIn = (m) => !!m && m.kind === 'adjin' && m.status === 'approved';
+const mvOutOK = (m) => !!m && (m.kind === 'transfer' ? ['sent', 'done'].includes(m.status)
+  : m.kind === 'adjin' ? false : m.status === 'approved');
+const mvInOK = (m) => !!m && ((m.kind === 'transfer' && m.status === 'done') || (m.kind === 'adjin' && m.status === 'approved'));
+const stkRecon = ({ cfg, stocks, pos, sales, moves, bid, baseDate, from, to, only, actDate, actStrict, recipes }) => {
+  const cat = (cfg || {}).items || [];
+  const bomOf = stkBomOf(recipes);
+  const goodsOf = stkGoodsMap(cfg);
+  const soldBom = {};      /* món đã quy theo BOM: { mã KiotViet: { name, qty, noBom } } */
+  const pick = (only && only.length) ? new Set(only) : null;
+  const codes = {};
+  const row = (code) => {
+    if (pick && !pick.has(code)) return null;
+    if (!codes[code]) {
+      const it = cat.find(x => x.code === code) || {};
+      codes[code] = { code, name: it.name || code, unit: it.unit || '', group: it.group || '',
+        price: +it.price || 0,
+        open: 0, inQty: 0, adjIn: 0, sold: 0, disp: 0, tOut: 0, tIn: 0, actual: null, hasOpen: false };
+    }
+    return codes[code];
+  };
+  const add = (code, f, v) => { const r = row(code); if (r) r[f] += v; };
+  /* Tồn đầu kỳ — CHỈ lấy bản chốt của đúng ngày admin chọn */
+  const base = stkClosedOn(stocks, bid, baseDate);
+  if (base) Object.keys(base.items || {}).forEach(c => {
+    const r = row(c); if (!r) return; r.open = +base.items[c] || 0; r.hasOpen = true;
+  });
+  /* Nhập trong kỳ — lấy theo NGÀY NHẬP KHO ghi lúc nghiệm thu, không phải ngày lập phiếu:
+     hàng chỉ vào kho lúc có người ký nhận, phiếu lập từ tháng trước mà tháng này mới về thì
+     thuộc tháng này. Ngày đó do người nhận chọn và quản trị sửa lại được. */
+  (pos || []).forEach(p => {
+    if (!p || poIsDept(p) || p.branchId !== bid) return;
+    /* Từng mã có NGÀY NHẬP KHO riêng, và mã đã về thì tính ngay dù cả phiếu chưa nhận đủ */
+    poRcLines(p).forEach(l => {
+      if (!l.code || !l.date || l.date < from || l.date > to) return;
+      add(l.code, 'inQty', l.qty);
+    });
+  });
+  /* ---- Xuất bán, cắt tới đúng NGÀY ĐẾM ----
+     Bản tóm tắt doanh số lưu theo THÁNG. Tháng nằm trọn trong kỳ thì lấy nguyên số tháng đó.
+     Tháng bị cắt giữa chừng (kỳ tháng 9 mà đếm ngày 11/9) thì phải cộng theo từng ngày của từng mã
+     — đó là `items[mã].d` ghi lúc nạp file. File nạp trước khi có phần theo ngày, hoặc file không
+     có cột ngày, thì KHÔNG cắt được: lúc đó lấy cả tháng và đánh dấu `partial` để báo cáo nói thẳng
+     là số xuất bán đang gồm cả những ngày sau ngày đếm — thà nói ra còn hơn lặng lẽ trừ dư rồi báo
+     hụt hàng oan cho cửa hàng. */
+  let soldPartial = 0, soldCut = 0;
+  Object.keys(sales || {}).forEach(k => {
+    const s = sales[k];
+    if (!s || s.branchId !== bid) return;
+    const ym = String(s.ym || '');
+    if (ym < from.slice(0, 7) || ym > to.slice(0, 7)) return;
+    /* Tháng này có bị cắt đầu hoặc cắt đuôi không */
+    /* Ngày cuối thật của tháng đó — lấy '-31' thì tháng nào cũng bị coi là "cắt dở", và những mã
+       thiếu lịch theo ngày sẽ bị gắn cờ cảnh báo oan dù kỳ đang lấy trọn tháng */
+    const mFrom = ym + '-01';
+    const mTo = ym + '-' + pad(new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate());
+    const cut = mFrom < from || mTo > to;
+    /* Ghi số bán: mã là MÓN có định mức thì trừ vào từng NVL, còn lại trừ đúng mã đó */
+    const sold = (c, q, it) => {
+      if (!q) return;
+      /* Hàng hóa: bán bao nhiêu trừ bấy nhiêu vào mã kho đã gắn */
+      const gc = goodsOf[String(c).trim().toUpperCase()];
+      if (gc) return add(gc, 'sold', q);
+      const b = bomOf(c);
+      if (!b) return add(c, 'sold', q);
+      const o = soldBom[c] || (soldBom[c] = { code: c, name: b.r.name, kvName: it.name || b.r.kvName || '', qty: 0, noBom: !b.per.length });
+      o.qty += q;
+      b.per.forEach(u => add(u.sku, 'sold', u.qty * q));
+    };
+    Object.keys(s.items || {}).forEach(c => {
+      const it = s.items[c] || {};
+      if (!cut) return sold(c, +it.qty || 0, it);
+      if (it.d) {
+        soldCut = 1;
+        let q = 0;
+        Object.keys(it.d).forEach(dd => { if (dd >= from && dd <= to) q += +it.d[dd] || 0; });
+        return sold(c, q, it);
+      }
+      soldPartial = 1;
+      sold(c, +it.qty || 0, it);
+    });
+  });
+  /* Xuất hủy + điều chuyển + nhập bổ sung */
+  (moves || []).forEach(m => {
+    if (!m || !m.date || m.date < from || m.date > to) return;
+    if (m.branchId === bid && mvAdjIn(m)) {
+      (m.items || []).forEach(i => { if (i.code) add(i.code, 'adjIn', +i.qty || 0); });
+    }
+    if (m.branchId === bid && mvOutOK(m)) {
+      (m.items || []).forEach(i => { if (i.code) add(i.code, m.kind === 'transfer' ? 'tOut' : 'disp', +i.qty || 0); });
+    }
+    if (m.toBranchId === bid && m.kind === 'transfer' && mvInOK(m)) {
+      (m.items || []).forEach(i => { if (i.code) add(i.code, 'tIn', +i.qty || 0); });
+    }
+  });
+  /* Tồn thực tế: ưu tiên bản chốt của ĐÚNG ngày đếm đã chọn; cơ sở đó không chốt đúng ngày thì lùi
+     về bản chốt gần nhất TRƯỚC ngày đếm và vẫn nằm trong kỳ — bản của kỳ trước không phải số kỳ này.
+     Ngày thật sự dùng luôn hiện ra ở cột "Đếm ngày" để không ai tưởng mọi cơ sở đều đếm cùng ngày. */
+  /* `actDate` + `actStrict`: xem toàn hệ thống tại MỘT ngày cụ thể. Bật chặt thì chỉ nhận bản
+     chốt của đúng ngày đó — cơ sở nào không đếm ngày đó hiện là "chưa đếm", chứ không lặng lẽ lôi
+     số của ngày khác ra so rồi để cột tổng toàn hệ thống trộn lẫn nhiều mốc thời gian.
+     Không truyền gì thì giữ nguyên hành vi cũ, các màn hình khác không đổi. */
+  const aDate = actDate || to;
+  const act = actStrict
+    ? stkClosedOn(stocks, bid, aDate)
+    : (stkClosedOn(stocks, bid, aDate) || stkLastClosed(stocks, bid, aDate, from));
+  if (act) Object.keys(act.items || {}).forEach(c => { const r = row(c); if (r) r.actual = +act.items[c] || 0; });
+  const rows = Object.values(codes).map(r => {
+    const book = r.open + r.inQty + r.adjIn - r.sold - r.disp - r.tOut + r.tIn;
+    const diff = r.actual == null ? null : r.actual - book;
+    /* Giá trị hao hụt: lệch nhân đơn giá trong danh mục. Âm là mất tiền thật. Mã chưa khai giá
+       thì để 0 và đếm riêng — thà thiếu còn hơn bịa một con số rồi đem đi họp. */
+    return { ...r, book, diff, value: diff == null ? null : diff * r.price };
+  });
+  const cnt = rows.filter(r => r.diff != null && r.diff !== 0);
+  return {
+    rows: rows.sort((a, b) => Math.abs(b.value || 0) - Math.abs(a.value || 0) || Math.abs(b.diff || 0) - Math.abs(a.diff || 0)),
+    base, act, baseOK: !!base, actOK: !!act,
+    /* actOn: bản đếm có đúng ngày mình chọn không. soldPartial: có tháng nào không cắt được theo ngày. */
+    actOn: !!(act && act.date === aDate), actDate: aDate, soldPartial: !!soldPartial, soldCut: !!soldCut,
+    /* Món bán ra đã quy về NVL theo BOM, và món có mã nhưng CHƯA có định mức (không trừ được gì) */
+    soldBom: Object.values(soldBom), soldNoBom: Object.values(soldBom).filter(x => x.noBom),
+    nDiff: cnt.length,
+    absQty: rows.reduce((a, r) => a + Math.abs(r.diff || 0), 0),
+    /* Tách hụt và dư: gộp lại thành một số thì hụt 10 triệu và dư 10 triệu trông như hoàn hảo */
+    lossVal: rows.reduce((a, r) => a + ((r.value || 0) < 0 ? r.value : 0), 0),
+    gainVal: rows.reduce((a, r) => a + ((r.value || 0) > 0 ? r.value : 0), 0),
+    netVal: rows.reduce((a, r) => a + (r.value || 0), 0),
+    noPrice: cnt.filter(r => !r.price).length,
+    noCount: rows.filter(r => r.actual == null).length,
+  };
+};
+const nxtBuild = ({ cfg, stocks, pos, sales, moves, recipes, bid, from, to }) => {
+  const cat = (cfg || {}).items || [];
+  const prev = dAdd(from, -1);
+  const anchor = stkLastClosed(stocks, bid, prev);
+  const openBy = {};
+  if (anchor) {
+    const R0 = stkRecon({ cfg, stocks, pos, sales, moves, bid, recipes, baseDate: anchor.date, from: dAdd(anchor.date, 1), to: prev, only: [] });
+    (R0.rows || []).forEach(r => { openBy[r.code] = r.book; });
+  }
+  /* baseDate rỗng: kỳ này chỉ lấy PHÁT SINH, tồn đầu đã tính riêng ở trên */
+  const R = stkRecon({ cfg, stocks, pos, sales, moves, bid, recipes, baseDate: '', from, to, only: [] });
+  const by = {};
+  (R.rows || []).forEach(r => { by[r.code] = r; });
+  const catSet = new Set(cat.map(x => x.code));
+  const days = Math.max(1, Math.round((new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / 864e5) + 1);
+  const rows = cat.map(it => {
+    const r = by[it.code] || {};
+    const open = +openBy[it.code] || 0;
+    const v = (k) => +r[k] || 0;
+    const outOther = v('disp') + v('tOut') - v('tIn');
+    const close = open + v('inQty') + v('adjIn') - v('sold') - outOther;
+    const perDay = v('sold') / days;
+    return {
+      code: it.code, name: it.name || it.code, group: it.group || '', unit: it.unit || '',
+      buyUnit: it.buyUnit || '', conv: +it.convRatio || 0, price: +it.price || 0,
+      open, inQty: v('inQty'), adjIn: v('adjIn'), sold: v('sold'), disp: v('disp'), tOut: v('tOut'), tIn: v('tIn'),
+      outOther, close, value: close * (+it.price || 0),
+      daysLeft: perDay > 0 ? close / perDay : null,
+      moved: !!(open || v('inQty') || v('adjIn') || v('sold') || v('disp') || v('tOut') || v('tIn')),
+    };
+  });
+  /* Mã bán ra không phải NVL trong danh mục và không khớp công thức nào — không trừ được kho */
+  const kvName = {};
+  Object.values(sales || {}).forEach(s => { if (s && s.branchId === bid) Object.keys(s.items || {}).forEach(c => { if ((s.items[c] || {}).name) kvName[c] = s.items[c].name; }); });
+  const stray = (R.rows || []).filter(r => !catSet.has(r.code) && r.sold > 0)
+    .map(r => ({ code: r.code, name: kvName[r.code] || r.name, qty: r.sold })).sort((a, b) => b.qty - a.qty);
+  return { rows, anchor, days, soldNoBom: R.soldNoBom || [], soldBom: R.soldBom || [], soldPartial: R.soldPartial, stray };
+};
+  return { ALL_PAGES, BASE_PAGES, DEFAULT_ROLES, roleList, roleOf, inScope, scopeBranches, isBiz, bizList, canIssue, ISSUE_SEV, DEFAULT_ISSUE_CATS, itemGroups, itemsInGroup, canPreq, canPreqAll, canPreqAppr, pqSees, canConfirmAtt, attChain, attStepLabel, attStepIdx, attIsLast, attCanStep, pad, hoursTxt, dShort, uid, noAccent, pushCfg, pushTargets, pushBulk, canAttAll, canRecView, canStkMove, canStkMoveAppr, stockItems, nextReqId, typeListOn, tOf, apprCfg, pickersFor, reqPickDept, stepLabel, chainOf, chainNow, curStep, skipFrom, canStep, reqAmountRaw, nxtBuild, rcpUsage, isBtp, dAdd };
 };

@@ -141,7 +141,7 @@ function world(opts = {}) {
   };
   const claude = opts.claude || null;
   const z = Z.createZalo({ db, FV, HttpsError, findEmp, log, now: () => NOW, getToken: () => '123:abc', getSecret: () => SECRET, fetchFn: zl.fetchFn,
-    getAiKey: () => (claude ? 'sk-test' : ''), makeAiClient: () => claude,
+    getAiKey: () => (claude ? 'sk-test' : ''), makeAiClient: () => claude, gapMs: 0,
     uploadImage: opts.noImg ? undefined : async (png, name) => { (w0.imgs = w0.imgs || []).push({ name, size: png.length }); return 'https://img.test/' + name; } });
   /* Gửi một tin như Zalo gọi webhook, rồi chạy zaloProcess như trigger Firestore */
   const say = async (text, o) => {
@@ -632,6 +632,88 @@ function world(opts = {}) {
     await w2.link('u1', 'z1');
     await w2.say('lich');
     assert.ok(/Lịch 7 ngày tới/.test(w2.zl.last()));
+  });
+  console.log('bot tự báo');
+  const at = (iso) => { NOW = Date.parse(iso); };
+  const NOW0 = NOW;
+  await t('báo cáo ngày: gom số liệu đúng, gửi ẢNH vào nhóm đã gắn, chỉ 1 lần/ngày', async () => {
+    const w = world();
+    w.db.store['ops_zgroup/g1'] = { active: true };
+    w.db.store['ops_revenue/B1_2026-11-15'] = { branchId: 'B1', date: '2026-11-15', amount: 2000000, invoices: 40, ch: { dine: 1500000, grab: 500000 }, chN: { dine: 30, grab: 10 } };
+    w.db.store['ops_revenue/B1_2026-11-08'] = { branchId: 'B1', date: '2026-11-08', amount: 2500000, invoices: 50 };
+    w.db.store['ops_revenue/B1_2026-11-01'] = { branchId: 'B1', date: '2026-11-01', amount: 3000000, invoices: 50 };
+    w.db.store['ops_targets/B1_2026-11'] = { branchId: 'B1', period: '2026-11', amount: 60000000 };
+    w.db.store['ops_sales/B1_2026-11'] = { branchId: 'B1', items: { BX: { name: 'Bạc xỉu', unit: 'ly', d: { '2026-11-15': 30 } } } };
+    w.db.store['ops_schedule/B1_2026-11-15_S1'] = { branchId: 'B1', date: '2026-11-15', shiftId: 'S1', empIds: ['E1', 'E2'] };
+    w.db.store['ops_attendance/E1_2026-11-15'] = { empId: 'E1', date: '2026-11-15', branchId: 'B1', shift: 'S1', inAt: '2026-11-15T00:08:00Z', late: 8 };
+    w.db.store['ops_issues/SC1'] = { id: 'SC1', branchId: 'B1', status: 'MOI', sev: 'KHAN', created: '2026-11-15T00:00:00Z', title: 'Mất điện' };
+    at('2026-11-15T16:50:00Z');
+    const r = await w.z.reportDaily();
+    assert.strictEqual(r.sent, 1); assert.ok(r.photo);
+    const msg = w.zl.sent[w.zl.sent.length - 1];
+    assert.strictEqual(msg.chat_id, 'g1'); assert.ok(/baocao\//.test(msg.photo)); assert.ok(/-20% so với chủ nhật tuần trước/.test(msg.caption), msg.caption);
+    const again = await w.z.reportDaily();
+    assert.strictEqual(again.skipped, 'done');
+    const A = require('../zaloauto').createAuto({ db: w.db, FV, log: quietLog(), now: () => NOW, getCfg: async () => w.db.store['ops_config/main'], zcfg: Z.zcfg, appRules: require('../apprules'), dayVN: Z.dayVN, dAdd: Z.dAdd, monthVN: Z.monthVN, send: async () => 'sent', gapMs: 0 });
+    const g = await A.gather(w.db.store['ops_config/main'], '2026-11-15');
+    assert.strictEqual(g.total.mtd, 7500000); assert.strictEqual(g.total.tgt, 60000000);
+    assert.deepStrictEqual(g.sources.map(x => x.l), ['Tại chỗ', 'GrabFood']);
+    assert.strictEqual(g.staff.came, 1); assert.strictEqual(g.staff.late[0].name, 'Lan'); assert.strictEqual(g.staff.absent[0].name, 'Minh');
+    assert.strictEqual(g.ops.issKhan, 1); assert.strictEqual(g.top[0].name, 'Bạc xỉu');
+    NOW = NOW0;
+  });
+  await t('chưa có nhóm: báo cáo nhắn riêng OM/ADMIN đã kết nối, không gửi GS', async () => {
+    const w = world();
+    await w.link('ua', 'za'); await w.link('u1', 'z1');
+    const n0 = w.zl.sent.length;
+    at('2026-11-15T16:50:00Z');
+    const r = await w.z.reportDaily();
+    NOW = NOW0;
+    assert.strictEqual(r.sent, 1);
+    assert.strictEqual(w.zl.sent.slice(n0)[0].chat_id, 'za');
+  });
+  await t('cảnh báo chưa vào ca (sau 15 phút), sự cố khẩn quá 2h — mỗi chuyện 1 lần; tắt trong cấu hình thì im', async () => {
+    const w = world();
+    w.db.store['ops_zgroup/g1'] = { active: true };
+    w.db.store['ops_schedule/B1_2026-11-15_S1'] = { branchId: 'B1', date: '2026-11-15', shiftId: 'S1', empIds: ['E1', 'E2'] };
+    w.db.store['ops_attendance/E1_2026-11-15'] = { empId: 'E1', date: '2026-11-15', branchId: 'B1', shift: 'S1', inAt: '2026-11-15T00:01:00Z' };
+    w.db.store['ops_issues/SC1'] = { id: 'SC1', branchId: 'B1', status: 'MOI', sev: 'KHAN', created: '2026-11-14T22:00:00Z', title: 'Máy pha hỏng' };
+    at('2026-11-15T00:20:00Z');   /* 07:20 VN, ca sáng 07:00 */
+    const r = await w.z.autoTick();
+    const txt = w.zl.sent.map(x => x.text).join('\n');
+    assert.ok(/Chưa vào ca: Minh/.test(txt), txt); assert.ok(!/Chưa vào ca: Lan/.test(txt));
+    assert.ok(/Sự cố KHẨN quá 2 giờ/.test(txt));
+    const n1 = w.zl.sent.length;
+    await w.z.autoTick();
+    assert.strictEqual(w.zl.sent.length, n1, 'không báo lại');
+    const w2 = world({ cfg: { zalo: { auto: { alerts: { late: false, iss: false } } } } });
+    w2.db.store['ops_zgroup/g1'] = { active: true };
+    Object.assign(w2.db.store, { 'ops_schedule/B1_2026-11-15_S1': w.db.store['ops_schedule/B1_2026-11-15_S1'], 'ops_issues/SC1': w.db.store['ops_issues/SC1'] });
+    await w2.z.autoTick();
+    assert.strictEqual(w2.zl.sent.length, 0);
+    NOW = NOW0;
+  });
+  await t('20h: doanh thu tới giờ đó < 60% tuần trước -> cảnh báo; nhắc lịch ngày mai nhắn riêng người có ca', async () => {
+    const w = world();
+    w.db.store['ops_zgroup/g1'] = { active: true };
+    w.db.store['ops_revenue/B1_2026-11-15'] = { branchId: 'B1', date: '2026-11-15', amount: 800000, lines: [{ t: 600, a: 500000 }, { t: 1150, a: 300000 }, { t: 1250, a: 999999 }] };
+    w.db.store['ops_revenue/B1_2026-11-08'] = { branchId: 'B1', date: '2026-11-08', amount: 3000000, lines: [{ t: 700, a: 2000000 }, { t: 1300, a: 1000000 }] };
+    w.db.store['ops_schedule/B1_2026-11-16_S2'] = { branchId: 'B1', date: '2026-11-16', shiftId: 'S2', empIds: ['E1'] };
+    await w.link('u1', 'z1');
+    at('2026-11-15T13:05:00Z');   /* 20:05 VN */
+    await w.z.autoTick();
+    const txt = w.zl.sent.map(x => x.text).join('\n');
+    assert.ok(/Doanh thu tới 20:05 thấp hơn/.test(txt) && /800.000đ/.test(txt) && /2.000.000đ/.test(txt), txt);
+    const rem = w.zl.sent.find(x => /Nhắc lịch/.test(x.text));
+    assert.ok(rem && rem.chat_id === 'z1' && /Ca tối 17:00-22:00/.test(rem.text), JSON.stringify(rem));
+    NOW = NOW0;
+  });
+  await t('ADMIN gửi thử báo cáo cho chính mình; người khác bị chặn', async () => {
+    const w = world();
+    await w.link('ua', 'za');
+    const r = await w.call('reportTest', 'ua');
+    assert.strictEqual(r.sent, 1);
+    await assert.rejects(w.call('reportTest', 'u1'), /Chỉ ADMIN/);
   });
   await t('tra_cuu che trường nhạy cảm (SĐT, lương) ở nhân sự', async () => {
     const L = require('../zalolookup');
