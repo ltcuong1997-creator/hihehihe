@@ -684,6 +684,23 @@ function world(opts = {}) {
     assert.ok(r.ung_vien.some(x => x.ten === 'Minh'));
     assert.strictEqual(r.ung_vien[0].da_dang_ky_ca_nay, true);
   });
+  await t('món bán chạy / báo cáo bỏ dòng tuỳ chọn đá / đường / % của KiotViet', async () => {
+    const { isOptionItem } = require('../zalotools');
+    ['Đá bình thường', 'Đường bth', 'Đường 75%', '50%', 'Ít đá', 'Không đường', 'Đá riêng', 'Nóng', 'Size L'].forEach(x => assert.ok(isOptionItem(x), x));
+    ['Bạc xỉu', 'Cà phê sữa đá', 'Thêm trân châu', 'Đá me', 'Cà phê đen đá', 'Sữa chua đánh đá'].forEach(x => assert.ok(!isOptionItem(x), x));
+    const w = world();
+    w.db.store['ops_sales/B1_2026-11'] = { branchId: 'B1', items: {
+      BX: { name: 'Bạc xỉu', d: { '2026-11-15': 30 }, da: { '2026-11-15': 870000 } },
+      O1: { name: 'Đá bình thường', d: { '2026-11-15': 90 }, da: { '2026-11-15': 0 } },
+      O2: { name: 'Đường 75%', d: { '2026-11-15': 60 }, da: { '2026-11-15': 0 } },
+    } };
+    const T2 = mkTools(w);
+    const r = await T2.run(T2.ctxOf(w.db.store['ops_config/main'], { id: 'A1', role: 'ADMIN', branches: [] }, { zaloId: 'z' }), 'ban_theo_mon', { tu_ngay: '2026-11-15', den_ngay: '2026-11-15' });
+    assert.deepStrictEqual(r.mon.map(x => x.mon), ['Bạc xỉu']); assert.strictEqual(r.tong_so_luong, 30);
+    const A = require('../zaloauto').createAuto({ db: w.db, FV, log: quietLog(), now: () => NOW, getCfg: async () => w.db.store['ops_config/main'], zcfg: Z.zcfg, appRules: require('../apprules'), dayVN: Z.dayVN, dAdd: Z.dAdd, monthVN: Z.monthVN, send: async () => 'sent', gapMs: 0 });
+    const g = await A.gather(w.db.store['ops_config/main'], '2026-11-15');
+    assert.deepStrictEqual(g.top.map(x => x.name), ['Bạc xỉu']);
+  });
   await t('cong_cua_toi + cong_thuc', async () => {
     const w = world();
     const cfg = w.db.store['ops_config/main'];

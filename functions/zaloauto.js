@@ -10,6 +10,7 @@
    Chưa gắn nhóm thì nhắn riêng người đã kết nối có vai trò trong "Nhận báo cáo" mà xem được mọi chi nhánh.
    Chỉ ĐỌC dữ liệu app; ghi duy nhất ops_zguard/auto_{ngày} để nhớ đã báo gì. */
 const IMG = require('./zaloimg');
+const { isOptionItem } = require('./zalotools');   /* bỏ dòng tuỳ chọn đá / đường / % khỏi món bán chạy */
 
 const OPEN_ISS = ['MOI', 'TIEP_NHAN', 'DANG_XU_LY', 'CHO_DUYET'];
 const REV_CH = { dine: 'Tại chỗ', take: 'Mang về', grab: 'GrabFood', shopee: 'ShopeeFood', be: 'beFood', na: 'Chưa rõ nguồn' };
@@ -106,7 +107,7 @@ function createAuto(deps) {
       const ch = v.ch && Object.keys(v.ch).length ? v.ch : (Number(v.amount) ? { na: Number(v.amount) } : {});
       Object.entries(ch).forEach(([k, a]) => { const l = REV_CH[k] || ((v.chL || {})[k]) || k.replace(/^o_/, ''); src[l] = (src[l] || 0) + (Number(a) || 0); });
       const items = sales[i].exists ? ((sales[i].data() || {}).items || {}) : {};
-      Object.entries(items).forEach(([code, it]) => { const q = Number((it.d || {})[day]) || 0; if (q) { const o = top[code] || (top[code] = { name: it.name || code, unit: it.unit || '', qty: 0 }); o.qty += q; } });
+      Object.entries(items).forEach(([code, it]) => { const q = Number((it.d || {})[day]) || 0; if (q && !isOptionItem(it.name)) { const o = top[code] || (top[code] = { name: it.name || code, unit: it.unit || '', qty: 0 }); o.qty += q; } });
       const tg = tgts[i].exists ? Number((tgts[i].data() || {}).amount) || 0 : 0;
       return { id: b.id, name: b.name || b.id, rev: Number(v.amount) || 0, inv: Number(v.invoices) || 0, lw: Number(w.amount) || 0, mtd: mtd[b.id] || 0, tgt: tg };
     });
