@@ -610,7 +610,9 @@ function createZalo(deps) {
     }
     if (!active) {
       /* Nhóm chưa gắn: nhắc cách gắn tối đa 1 lần / ngày / nhóm (đỡ tốn tin) */
-      if (await claim(col('guard').doc('grp_' + gid), 'guideDay', dayVN(t))) await reply(T.groupNotLinked, 'group_guide');
+      /* Ai đang cố gắn nhóm (có chữ "ket noi" / "nhom") thì luôn trả lời — im lặng trông như bot treo */
+      const trying = /\bket noi\b|\bnhom\b|\bgan\b/.test(n);
+      if (trying || await claim(col('guard').doc('grp_' + gid), 'guideDay', dayVN(t))) await reply(T.groupNotLinked, 'group_guide');
       return { cmd: 'group', result: 'group_off', empId };
     }
     await gdoc.set({ lastAtMs: t }, { merge: true }).catch(() => {});
@@ -830,7 +832,9 @@ function createZalo(deps) {
     if (ev.chatType === 'GROUP') {
       const body = ev.event === 'message.text.received' ? ev.text : ev.text.replace(/^\[[^\]]*\]\s*/, '');
       let bn = '';
-      try { bn = zcfg(await getCfg()).botName; } catch (e) { bn = ''; }
+      /* Tên bot: ô "Tên bot" trong app, chưa điền thì hỏi Zalo (getMe, nhớ 6 giờ). Zalo chèn tên này vào
+         đầu tin khi người dùng @tag bot — tên không bắt đầu bằng "Bot" mà không biết tên là bỏ sót tin. */
+      try { bn = await botName(zcfg(await getCfg())); } catch (e) { bn = ''; }
       gtext = groupCall(body, bn);
       if (gtext === null) { res.status(200).json({ message: 'Success' }); return; }
     }
