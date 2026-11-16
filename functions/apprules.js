@@ -136,5 +136,154 @@ const pushBulk = async (cfg, list, title, body, link) => {
 };
 const canAttAll = (u) => { const r = roleOf(u.role); return r.attAll != null ? !!r.attAll : r.scope === 'all'; };
 const canRecView = (u) => { const r = roleOf(u.role); return r.recView != null ? !!r.recView : (r.pages || []).includes('recon'); };
-  return { ALL_PAGES, BASE_PAGES, DEFAULT_ROLES, roleList, roleOf, inScope, scopeBranches, isBiz, bizList, canIssue, ISSUE_SEV, DEFAULT_ISSUE_CATS, itemGroups, itemsInGroup, canPreq, canPreqAll, canPreqAppr, pqSees, canConfirmAtt, attChain, attStepLabel, attStepIdx, attIsLast, attCanStep, pad, hoursTxt, dShort, uid, noAccent, pushCfg, pushTargets, pushBulk, canAttAll, canRecView };
+const canStkMove = (u) => { const r = roleOf(u.role); return r.stkMove != null ? !!r.stkMove : (r.level || 0) >= 40; };
+const canStkMoveAppr = (u) => { const r = roleOf(u.role); return r.stkMoveAppr != null ? !!r.stkMoveAppr : ((r.level || 0) >= 60 || !!r.manage); };
+const stockItems = (cfg, bid) => {
+  const codes = ((cfg || {}).stockItems || {})[bid] || [];
+  const cat = (cfg || {}).items || [];
+  return codes.map(c => cat.find(x => x.code === c) || { code: c, name: c, unit: '', price: 0 });
+};
+const DEFAULT_REQ_TYPES = [
+  { k: 'PR', l: 'Đề nghị mua sắm', short: 'Mua sắm', tag: 't-blue', form: 'PR', prefix: 'MS', folder: 'De xuat mua sam', pricing: true, hasItems: true, money: true,
+    creators: ['NV', 'GS', 'AM', 'OM', 'ADMIN'],
+    tiers: [
+      { max: 2000000, steps: [{ mode: 'role', role: 'GS' }, { mode: 'price' }, { mode: 'role', role: 'AM' }] },
+      { max: 10000000, steps: [{ mode: 'role', role: 'GS' }, { mode: 'role', role: 'AM' }, { mode: 'price' }, { mode: 'role', role: 'OM' }] },
+      { max: null, steps: [{ mode: 'role', role: 'GS' }, { mode: 'role', role: 'AM' }, { mode: 'role', role: 'OM' }, { mode: 'price' }, { mode: 'level', level: 99 }] },
+    ] },
+  { k: 'PAY', l: 'Đề nghị thanh toán', short: 'Thanh toán', tag: 't-amber', form: 'PAY', prefix: 'TT', folder: 'De nghi thanh toan', pricing: false, hasItems: false, money: true,
+    creators: ['GS', 'AM', 'OM', 'ADMIN'],
+    tiers: [
+      { max: 5000000, steps: [{ mode: 'role', role: 'AM' }] },
+      { max: null, steps: [{ mode: 'role', role: 'AM' }, { mode: 'role', role: 'OM' }] },
+    ] },
+  { k: 'GEN', l: 'Đề xuất trình duyệt', short: 'Trình duyệt', tag: 't-violet', form: 'GEN', prefix: 'TD', folder: 'De xuat trinh duyet', pricing: false, hasItems: false, money: false,
+    creators: ['NV', 'GS', 'AM', 'OM', 'ADMIN'],
+    tiers: [{ max: null, steps: [{ mode: 'role', role: 'AM' }, { mode: 'role', role: 'OM' }] }] },
+];
+const nextReqId = (cfg, reqs, type) => {
+  const T = tOf(cfg, type);
+  const pre = (T.prefix || String(type).slice(0, 2)).toUpperCase();
+  const n = (reqs || []).filter(r => String(r.id || '').startsWith(pre + '-'))
+    .reduce((m, r) => Math.max(m, +String(r.id).split('-')[1] || 0), 0);
+  return pre + '-' + String(n + 1).padStart(4, '0');
+};
+const typeList = (cfg) => ((cfg || {}).reqTypes && cfg.reqTypes.length ? cfg.reqTypes : DEFAULT_REQ_TYPES);
+const typeListOn = (cfg) => typeList(cfg).filter(t => !t.off);
+const tOf = (cfg, k) => typeList(cfg).find(t => t.k === k) || { k, l: k, short: k, tag: 't-gray', tiers: [] };
+const DEFAULT_APPROVAL = {
+  PR: [
+    { max: 2000000, steps: [{ mode: 'role', role: 'GS' }, { mode: 'price' }, { mode: 'role', role: 'AM' }] },
+    { max: 10000000, steps: [{ mode: 'role', role: 'GS' }, { mode: 'role', role: 'AM' }, { mode: 'price' }, { mode: 'role', role: 'OM' }] },
+    { max: null, steps: [{ mode: 'role', role: 'GS' }, { mode: 'role', role: 'AM' }, { mode: 'role', role: 'OM' }, { mode: 'price' }, { mode: 'level', level: 99 }] },
+  ],
+  PAY: [
+    { max: 5000000, steps: [{ mode: 'role', role: 'AM' }] },
+    { max: null, steps: [{ mode: 'role', role: 'AM' }, { mode: 'role', role: 'OM' }] },
+  ],
+  GEN: [{ max: null, steps: [{ mode: 'role', role: 'AM' }, { mode: 'role', role: 'OM' }] }],
+  supplyRoles: ['AM', 'OM', 'ADMIN'],
+  creators: ['NV', 'GS', 'AM', 'OM', 'ADMIN'],
+  skipSelf: true,
+  /* Danh sách cấp duyệt mà NGƯỜI GỬI tự chọn ở bước mode:'pick' — xem pickersFor() */
+  pickers: [],
+};
+const pickerList = (cfg) => (apprCfg(cfg).pickers || []).filter(x => x && x.empId);
+const reqPickDept = (r, owner) => (r && r.costType === 'dept' && r.deptId) ? r.deptId : ((owner || {}).deptId || '');
+const pickersFor = (cfg, employees, deptId) => {
+  const all = pickerList(cfg);
+  /* deptIds trống = cấp duyệt dùng chung cho mọi phòng ban */
+  const hit = all.filter(x => ((x.deptIds || []).length ? x.deptIds.includes(deptId) : true));
+  /* Phòng ban chưa được gán cấp duyệt nào thì thà hiện cả danh sách còn hơn chặn không gửi được */
+  return (hit.length ? hit : all)
+    .map(x => (employees || []).find(e => e.id === x.empId))
+    .filter(e => e && e.status !== 'off');
+};
+const stepOK = (user, st, r) => {
+  if (!st) return false;
+  if (st.mode === 'price') return true;
+  if (st.mode === 'level') return roleOf(user.role).level >= (st.level || 0);
+  if (st.mode === 'user') return user.id === st.userId;
+  if (st.mode === 'pick') return (r && r.pickBy)
+    ? user.id === r.pickBy
+    : !!(r && (r.pickOpts || []).includes(user.id));
+  return user.role === st.role;
+};
+const stepLabel = (st, employees, r) => {
+  if (!st) return '—';
+  if (st.mode === 'price') return 'Chốt giá';
+  if (st.mode === 'level') return 'Cấp ≥ ' + (st.level || 0);
+  if (st.mode === 'user') return ((employees || []).find(e => e.id === st.userId) || {}).name || 'Người chỉ định';
+  if (st.mode === 'pick') {
+    const who = r && r.pickBy ? (employees || []).find(e => e.id === r.pickBy) : null;
+    return who ? who.name : 'Cấp duyệt người gửi chọn';
+  }
+  return roleOf(st.role).short;
+};
+const apprCfg = (cfg) => ({ ...DEFAULT_APPROVAL, ...(cfg.approval || {}) });
+const tierOf = (cfg, type, amount) => {
+  /* Sắp theo hạn mức TĂNG DẦN trước khi dò: cấu hình khai lộn thứ tự (bậc không giới hạn nằm
+     trên bậc 5 triệu chẳng hạn) thì phiếu nào cũng rơi vào bậc đầu tiên — sai chuỗi duyệt mà
+     không ai biết vì sao. `max: null` nghĩa là không giới hạn nên luôn xuống cuối. */
+  const tiers = (tOf(cfg, type).tiers || []).slice()
+    .sort((a, b) => (a.max == null ? Infinity : a.max) - (b.max == null ? Infinity : b.max));
+  return tiers.find(t => t.max == null || amount <= t.max) || tiers[tiers.length - 1] || { steps: [] };
+};
+const reqAmountRaw = (r) => (r.suppliers && r.suppliers.length)
+  ? r.suppliers.reduce((a, s) => a + (s.amount || 0), 0)
+  : (r.items && r.items.length ? r.items.reduce((a, i) => a + (i.qty || 0) * (i.price || 0), 0) : (r.amount || 0));
+const chainOf = (cfg, r) => {
+  /* ---- PHIẾU CÒN CHẠY THÌ BÁM RULE HIỆN TẠI, PHIẾU ĐÃ XONG THÌ ĐÓNG BĂNG ----
+     Bản trước đóng băng chuỗi ngay lúc gửi phiếu, nên sửa bậc duyệt xong thì cả đống phiếu đang
+     treo vẫn chạy luật cũ — phải vào từng phiếu bấm "Đồng bộ luồng duyệt" bằng tay.
+     Nay: phiếu OPEN đọc thẳng cấu hình hiện tại (đổi rule là cả hàng đợi đổi theo ngay);
+     phiếu đã DONE / REJECTED giữ nguyên r.chain đã dùng để lịch sử duyệt không bị viết lại.
+     Chỉ số bước không đi theo chuỗi mới một cách mù quáng — xem stepIdx() ngay dưới. */
+  const frozen = (r && r.chain && r.chain.length) ? r.chain.slice() : null;
+  if (r && r.status !== 'OPEN' && frozen) return frozen;
+  const t = tierOf(cfg, r.type, reqAmountRaw(r));
+  let steps = (t.steps || []).slice();
+  if (!tOf(cfg, r.type).pricing) steps = steps.filter(x => x.mode !== 'price');
+  /* Cấu hình bị xoá trắng bậc cho mức tiền này thì thà chạy tiếp chuỗi cũ còn hơn treo phiếu */
+  return steps.length ? steps : (frozen || []);
+};
+const stepIdx = (cfg, r) => {
+  const n = (chainOf(cfg, r) || []).length;
+  if (!n) return 0;
+  return Math.min(Math.max(r.step || 0, 0), n - 1);
+};
+const chainNow = (cfg, type, amount, items) => {
+  const t = tierOf(cfg, type, amount);
+  let steps = (t.steps || []).slice();
+  if (!tOf(cfg, type).pricing) steps = steps.filter(x => x.mode !== 'price');
+  return steps;
+};
+const curStep = (cfg, r) => (chainOf(cfg, r) || [])[stepIdx(cfg, r)] || null;
+const skipFrom = (cfg, r, i, creator) => {
+  const chain = chainOf(cfg, r);
+  if (!apprCfg(cfg).skipSelf || !creator) return i;
+  /* Quét tới HẾT bậc cao nhất mà người lập đã đứng được, không dừng ở bước đầu tiên họ không thỏa:
+     một phiếu chỉ cần đi LÊN. Kế toán (bậc 2) tự lên phiếu thanh toán thì bậc 1 — trưởng phòng xác
+     nhận chi phí — hết ý nghĩa, luồng phải hiện thẳng "kế toán → CEO". Bản cũ dừng ngay bước đầu
+     tiên không thỏa, nên AM tự lập phiếu vẫn phải ngồi chờ GS duyệt phiếu của cấp trên mình. */
+  let last = -1;
+  for (let k = i; k < chain.length && chain[k].mode !== 'price'; k++) {
+    if (stepOK(creator, chain[k], r)) last = k;
+  }
+  /* Không bao giờ nhảy qua bước CHỐT GIÁ — vòng for đã dừng ở đó: cung ứng phải nhập NCC và giá thật,
+     không ai chốt thay được.
+     Người lập thỏa TRỌN chuỗi thì trả về số vượt cuối mảng, đúng như bản cũ: lúc lập phiếu, ReqForm
+     chặn lại và báo "cấu hình duyệt chưa có bước nào" thay vì để người ta tự duyệt phiếu của chính
+     mình; còn trong luồng duyệt thì đó là dấu hiệu phiếu đã qua bậc cuối. */
+  return Math.max(i, last + 1);
+};
+const canStep = (cfg, user, r) => {
+  if (r.status !== 'OPEN' || !inScope(user, r.branchId)) return false;
+  const st = curStep(cfg, r);
+  if (!st) return false;
+  if (roleOf(user.role).level >= 99) return true;
+  if (st.mode === 'price') return (apprCfg(cfg).supplyRoles || []).includes(user.role);
+  return stepOK(user, st, r);
+};
+  return { ALL_PAGES, BASE_PAGES, DEFAULT_ROLES, roleList, roleOf, inScope, scopeBranches, isBiz, bizList, canIssue, ISSUE_SEV, DEFAULT_ISSUE_CATS, itemGroups, itemsInGroup, canPreq, canPreqAll, canPreqAppr, pqSees, canConfirmAtt, attChain, attStepLabel, attStepIdx, attIsLast, attCanStep, pad, hoursTxt, dShort, uid, noAccent, pushCfg, pushTargets, pushBulk, canAttAll, canRecView, canStkMove, canStkMoveAppr, stockItems, nextReqId, typeListOn, tOf, apprCfg, pickersFor, reqPickDept, stepLabel, chainOf, chainNow, curStep, skipFrom, canStep, reqAmountRaw };
 };

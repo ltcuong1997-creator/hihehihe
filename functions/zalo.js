@@ -24,6 +24,7 @@
      · sendMessage: POST https://bot-api.zaloplatforms.com/bot<TOKEN>/sendMessage { chat_id, text }
        — text 1–2000 ký tự, văn bản thuần. Phản hồi { ok, result | error_code, description }.
      · getMe: POST .../getMe -> { ok, result: { id, account_name, ... } }.
+     · sendPhoto: POST .../sendPhoto { chat_id, photo (link ảnh), caption } — dùng gửi ảnh lịch.
 
    ---- RANH GIỚI GHI ----
    Bot tự ghi: ops_zmsg, ops_zlink, ops_zcode, ops_zquota, ops_zguard, ops_zgroup và đúng một trường
@@ -250,7 +251,7 @@ const T = {
   consent: 'Tin nhắn của anh/chị với bot được lưu lại để xử lý công việc, quản trị viên có thể xem lại. Tin nhắn và ảnh gửi bot được trợ lý AI (Claude của Anthropic) xử lý để hiểu yêu cầu. Bot không đọc được các cuộc trò chuyện khác của anh/chị. Đồng ý thì nhắn: DONG Y',
   consentAi: 'Bot ' + APP + ' vừa có trợ lý AI: anh/chị nhắn bình thường là em hiểu (hỏi doanh thu, món bán chạy, ai đang trong ca, báo sự cố kèm ảnh, lập đề xuất mua hàng, duyệt việc...). Để dùng, anh/chị cần đồng ý: tin nhắn và ảnh gửi bot được trợ lý AI (Claude của Anthropic) xử lý để hiểu yêu cầu; tin vẫn được lưu và quản trị viên có thể xem lại. Đồng ý thì nhắn: DONG Y',
   aiOk: 'Cảm ơn anh/chị. Từ giờ cứ nhắn bình thường, ví dụ: "doanh thu hôm nay", "tuần này bán bao nhiêu ly bạc xỉu", "máy pha chi nhánh 1 không lên nhiệt" (gửi kèm ảnh càng tốt), "có gì chờ tôi duyệt".',
-  helpAi: 'Em là trợ lý ' + APP + ', anh/chị cứ nhắn bình thường, ví dụ:\n- doanh thu hôm nay / tuần này\n- món nào bán chạy nhất tháng này\n- ai đang trong ca\n- hôm qua ai đi trễ\n- máy pha không lên nhiệt (gửi kèm ảnh)\n- đề xuất mua 10 hộp sữa đặc\n- có gì chờ tôi duyệt\nLệnh nhanh: LICH (lịch của tôi), HUY KET NOI.',
+  helpAi: 'Em là trợ lý ' + APP + ', anh/chị cứ nhắn bình thường, ví dụ:\n- doanh thu hôm nay theo nguồn đơn\n- món nào bán chạy nhất tuần này\n- ai đang trong ca, hôm qua ai đi trễ\n- gửi ảnh lịch tuần này chi nhánh 1\n- huỷ 2 hộp sữa tươi hết hạn (gửi kèm ảnh)\n- nhập bổ sung 5kg cà phê NCC giao bù\n- ghi chi phí sửa máy pha 1.200.000đ\n- đề xuất mua 10 hộp sữa đặc\n- có gì chờ tôi duyệt\nLệnh nhanh: LICH (ảnh lịch của tôi), HUY KET NOI.',
   confirm: '\n\nNhắn OK để xác nhận, HUY để bỏ (bản nháp giữ 10 phút).',
   confirmG: '\n\nGõ "bot ok" để xác nhận, "bot huy" để bỏ (bản nháp giữ 10 phút).',
   /* Đầu mọi tin có bản nháp: tóm tắt của AI đọc lướt dễ tưởng đã ghi xong */
@@ -267,7 +268,7 @@ const T = {
   groupOn: 'Đã gắn nhóm này làm NHÓM BAN QUẢN TRỊ của ' + APP + '.\n- Ai trong nhóm cũng hỏi được: gõ "bot" + câu hỏi, vd "bot doanh thu hôm nay", "bot món nào bán chạy tuần này".\n- Ghi vào app (báo sự cố, đề xuất mua, duyệt): chỉ người đã kết nối Zalo với app.\n- Chat bình thường bot không đọc, không lưu. Tin bắt đầu bằng "bot" được trợ lý AI (Claude của Anthropic) xử lý.\nGỡ nhóm: ADMIN gõ "bot huy nhom".',
   groupOffDone: 'Đã gỡ nhóm khỏi app ' + APP + '. Bot không trả lời trong nhóm này nữa.',
   groupNotOn: 'Nhóm này chưa được gắn với app.',
-  groupHelp: 'Trong nhóm, gõ "bot" + câu hỏi, ví dụ:\n- bot doanh thu hôm nay\n- bot món nào bán chạy tuần này\n- bot ai đang trong ca\n- bot sự cố nào chưa xử lý\n- bot hôm qua ai đi trễ\nNgười đã kết nối Zalo với app: thêm báo sự cố (gửi ảnh kèm chú thích "bot ..."), đề xuất mua, duyệt việc, "bot ok" để xác nhận.',
+  groupHelp: 'Trong nhóm, gõ "bot" + câu hỏi, ví dụ:\n- bot doanh thu hôm nay theo nguồn\n- bot món nào bán chạy tuần này\n- bot ai đang trong ca\n- bot gửi ảnh lịch tuần này\n- bot sự cố nào chưa xử lý\nNgười đã kết nối Zalo với app: thêm báo sự cố, huỷ / nhập hàng, ghi chi phí, đề xuất mua, duyệt việc — "bot ok" để xác nhận.',
   groupPrivate: 'Kết nối / ngắt kết nối Zalo làm trong tin nhắn riêng với bot nhé.',
   codeBad: 'Mã không đúng hoặc đã hết hạn. Lấy mã mới trong app (Hồ sơ của tôi > Kết nối Zalo) rồi nhắn lại.',
   codeGone: 'Mã kết nối đã hết hạn hoặc không còn dùng được. Lấy mã mới trong app rồi nhắn lại.',
@@ -328,7 +329,12 @@ function createZalo(deps) {
     const Anthropic = A.default || A;
     return new Anthropic({ apiKey, maxRetries: 1, timeout: 60000 });
   });
-  const tools = require('./zalotools').createTools({ db, now, log, fetchFn, helpers: { dayVN, dAdd, buildWeek, fmtWeek } });
+  /* Ảnh (lịch làm việc): dựng PNG -> deps.uploadImage (Firebase Storage) -> link -> sendPhoto */
+  const uploadImage = deps.uploadImage || null;
+  const tools = require('./zalotools').createTools({
+    db, now, log, fetchFn, helpers: { dayVN, dAdd, buildWeek, fmtWeek }, uploadImage,
+    sendPhoto: ({ zaloId, chatId, empId, url, caption }) => send({ zaloId, chatId, empId, kind: 'reply', text: caption || 'Ảnh', cmd: 'photo', photo: url }),
+  });
   const ai = require('./zaloai').createAI({ tools, log, now });
   let aiClient = null, aiClientKey = '';
   const aiClientFor = (key) => { if (!aiClient || aiClientKey !== key) { aiClient = makeAiClient(key); aiClientKey = key; } return aiClient; };
@@ -344,7 +350,8 @@ function createZalo(deps) {
   }
 
   /* ---------- Gửi 1 tin: kiểm hạn mức -> gửi -> đếm -> ghi nhật ký ---------- */
-  async function send({ zaloId, chatId, empId = '', kind, text, cmd = '' }) {
+  /* photo: link ảnh -> gửi bằng sendPhoto, text làm chú thích (1–2000 ký tự) */
+  async function send({ zaloId, chatId, empId = '', kind, text, cmd = '', photo = '' }) {
     const t = now(), mk = monthVN(t);
     const qref = col('quota').doc(mk);
     const zc = zcfg(await getCfg());
@@ -357,7 +364,8 @@ function createZalo(deps) {
       result = 'skipped_quota';
     } else {
       try {
-        await sendMessage({ token: getToken(), chatId, text: body, fetchFn });
+        if (photo) await callApi({ token: getToken(), method: 'sendPhoto', payload: { chat_id: chatId, photo, caption: body }, fetchFn });
+        else await sendMessage({ token: getToken(), chatId, text: body, fetchFn });
         result = 'sent';
       } catch (e) {
         result = 'failed';
@@ -371,7 +379,7 @@ function createZalo(deps) {
     const outId = 'out_' + t + '_' + crypto.randomBytes(4).toString('hex');
     await col('msg').doc(outId).set({
       dir: 'out', zaloId: String(zaloId || ''), chatId: String(chatId || ''), empId: String(empId || ''),
-      kind, cmd, text: body, result, err, at: FV.serverTimestamp(), atMs: t, st: 'done',
+      kind, cmd, text: body, result, err, at: FV.serverTimestamp(), atMs: t, st: 'done', ...(photo ? { photo } : {}),
     });
     if (result === 'sent' && needWarn95(sent + 1, zc.monthlyCap, q.warned95)) await warnAdmins(qref, zc.monthlyCap, mk).catch(e => log.error('zalo: cảnh báo hạn mức lỗi', { err: String(e && e.message) }));
     return result;
@@ -445,13 +453,13 @@ function createZalo(deps) {
   /* ---------- Trợ lý AI dùng chung cho chat riêng + nhóm ---------- */
   const YES = ['ok', 'oke', 'okie', 'okay', 'co', 'yes', 'xac nhan', 'dong y', 'gui', 'gui di', 'duyet', 'chot', 'dung', 'dung roi', 'chuan'];
   const NO = ['huy', 'khong', 'ko', 'k', 'thoi', 'bo', 'cancel', 'no', 'huy bo', 'khong gui', 'bo qua'];
-  const HIST_TTL = 30 * 60e3, HIST_MAX = 8;
+  const HIST_TTL = 60 * 60e3, HIST_MAX = 12;
 
   /* Nhớ vài lượt gần nhất (trong 30 phút) để hỏi tiếp được — lưu ở ops_zguard, không cần index */
   async function pushHist(gref, g, items) {
     const t = now();
     const old = (Array.isArray(g.hist) ? g.hist : []).filter(h => h && t - Number(h.at) < HIST_TTL);
-    const hist = old.concat(items.map(x => ({ r: x.r, t: clip(x.t, 600), at: t }))).slice(-HIST_MAX);
+    const hist = old.concat(items.map(x => ({ r: x.r, t: clip(x.t, 1000), at: t }))).slice(-HIST_MAX);
     await gref.set({ hist }, { merge: true }).catch(() => {});
   }
   /* Kiểm hạn mức tin + trần chi phí AI, gọi AI, cộng chi phí. Trả { res } hoặc { stop: kết quả trả về } */
@@ -523,7 +531,13 @@ function createZalo(deps) {
 
     /* 3) Lệnh nhanh cố định — không tốn AI */
     if (pc.cmd === 'help') { await reply((aiReady ? T.helpAi : T.help) + ask); return { cmd: 'help', result: 'ok', empId }; }
-    if (pc.cmd === 'lich') { await reply((await lichText(emp)) + ask); return { cmd: 'lich', result: 'ok', empId }; }
+    if (pc.cmd === 'lich') {
+      /* Ảnh lịch tuần này (đúng mẫu ảnh lịch của app); không dựng / gửi được ảnh thì gửi chữ như cũ */
+      const im = await tools.sendSchedImage({ cfg, me: emp, zaloId: zid, chatId: chat, personal: true }).catch(e => ({ loi: String(e && e.message) }));
+      if (!im || !im.da_gui) await reply((await lichText(emp)) + ask);
+      else if (ask) await reply(ask.trim());
+      return { cmd: 'lich', result: im && im.da_gui ? 'photo' : 'ok', empId };
+    }
     if (pc.cmd === 'unlink') {
       await unlinkEmp(empId, 'self_bot', empId);
       await reply(T.unlinked(emp.name || ''));
@@ -634,7 +648,8 @@ function createZalo(deps) {
     }
     if (pc.cmd === 'lich') {
       if (!actor) { await reply(T.groupPrivate, 'lich'); return { cmd: 'lich', result: 'need_link', empId }; }
-      await reply(await lichText(actor), 'lich');
+      const im = await tools.sendSchedImage({ cfg, me: actor, zaloId: v.zaloId, chatId: gid, personal: true }).catch(() => null);
+      if (!im || !im.da_gui) await reply(await lichText(actor), 'lich');
       return { cmd: 'lich', result: 'ok', empId };
     }
 

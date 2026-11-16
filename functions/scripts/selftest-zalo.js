@@ -115,12 +115,14 @@ function fakeZalo() {
     if (!/\/bot123:abc\//.test(url)) return { status: 401, json: async () => ({ ok: false, error_code: 401, description: 'Unauthorized' }) };
     if (method === 'getMe') return { status: 200, json: async () => ({ ok: true, result: { id: 'b1', account_name: 'Bot Hí Hế' } }) };
     if (method === 'sendMessage') { sent.push(body); return { status: 200, json: async () => ({ ok: true, result: { message_id: 'o' + sent.length } }) }; }
+    if (method === 'sendPhoto') { sent.push({ ...body, text: body.caption }); return { status: 200, json: async () => ({ ok: true, result: { message_id: 'p' + sent.length } }) }; }
     return { status: 404, json: async () => ({ ok: false, error_code: 404, description: 'not found' }) };
   };
   return { sent, fetchFn, last: () => (sent[sent.length - 1] || {}).text || '' };
 }
 
 function world(opts = {}) {
+  const w0 = {};
   const db = fakeDb();
   const zl = fakeZalo();
   const log = quietLog();
@@ -132,13 +134,15 @@ function world(opts = {}) {
   db.store['ops_employees/E1'] = { id: 'E1', name: 'Lan', role: 'GS', status: 'active', authUid: 'u1', email: 'lan@x.vn', branches: ['B1'] };
   db.store['ops_employees/E2'] = { id: 'E2', name: 'Minh', role: 'NV', status: 'active', authUid: 'u2', branches: ['B1'] };
   db.store['ops_employees/A1'] = { id: 'A1', name: 'Sếp', role: 'ADMIN', status: 'active', authUid: 'ua' };
+  db.store['ops_employees/M1'] = { id: 'M1', name: 'Quản lý Hùng', role: 'AM', status: 'active', authUid: 'um', branches: ['B1'] };
   const findEmp = async (req) => {
     const r = await db.collection('ops_employees').where('authUid', '==', req.auth.uid).get();
     return r.empty ? null : { id: r.docs[0].id, ...r.docs[0].data() };
   };
   const claude = opts.claude || null;
   const z = Z.createZalo({ db, FV, HttpsError, findEmp, log, now: () => NOW, getToken: () => '123:abc', getSecret: () => SECRET, fetchFn: zl.fetchFn,
-    getAiKey: () => (claude ? 'sk-test' : ''), makeAiClient: () => claude });
+    getAiKey: () => (claude ? 'sk-test' : ''), makeAiClient: () => claude,
+    uploadImage: opts.noImg ? undefined : async (png, name) => { (w0.imgs = w0.imgs || []).push({ name, size: png.length }); return 'https://img.test/' + name; } });
   /* Gửi một tin như Zalo gọi webhook, rồi chạy zaloProcess như trigger Firestore */
   const say = async (text, o) => {
     const ev = textEvt(text, o);
@@ -150,7 +154,7 @@ function world(opts = {}) {
     return db.store['ops_zmsg/' + id];
   };
   const link = async (uid, zid) => { const r = await z.linkCode({ auth: { uid }, data: {} }); await say(r.code, { zid }); await say('DONG Y', { zid }); };
-  return { db, zl, log, z, say, link, call: (fn, uid, data) => z[fn]({ auth: { uid }, data: data || {} }) };
+  return Object.assign(w0, { db, zl, log, z, say, link, call: (fn, uid, data) => z[fn]({ auth: { uid }, data: data || {} }) });
 }
 
 (async () => {
@@ -260,8 +264,8 @@ function world(opts = {}) {
     assert.strictEqual(w.db.store['ops_zcode/' + r.code].used, true);
     assert.ok(w.db.store['ops_zquota/2026-11'].sent >= 2);
   });
-  await t('LICH trả đúng lịch của chính người hỏi, bỏ chi nhánh đã đóng', async () => {
-    const w = world();
+  await t('LICH (chưa bật ảnh) trả đúng lịch chữ của chính người hỏi, bỏ chi nhánh đã đóng', async () => {
+    const w = world({ noImg: true });
     w.db.store['ops_schedule/B1_2026-11-15_S2'] = { branchId: 'B1', date: '2026-11-15', shiftId: 'S2', empIds: ['E1'] };
     w.db.store['ops_schedule/B1_2026-11-16_S1'] = { branchId: 'B1', date: '2026-11-16', shiftId: 'S1', empIds: ['E2'] };
     w.db.store['ops_schedule/B9_2026-11-17_S1'] = { branchId: 'B9', date: '2026-11-17', shiftId: 'S1', empIds: ['E1'] };
@@ -530,6 +534,104 @@ function world(opts = {}) {
     assert.strictEqual(own.chi_cua_nguoi_hoi, true); assert.strictEqual(own.so_ban_ghi, 1);
     const deny = await T2.run(nv, 'tra_cuu', { loai: 'doanh_thu_ngay' });
     assert.ok(deny.loi);
+  });
+  console.log('ghi kho / chi phí / ảnh lịch / nguồn đơn');
+  const mkTools = (w, extra) => require('../zalotools').createTools({ db: w.db, now: () => NOW, log: quietLog(), fetchFn: async () => ({ ok: false }),
+    helpers: { dayVN: Z.dayVN, dAdd: Z.dAdd, buildWeek: Z.buildWeek, fmtWeek: Z.fmtWeek }, ...(extra || {}) });
+  const STK = { stockItems: { B1: ['SD01', 'ST01', 'CF01'] }, items: [{ code: 'SD01', name: 'Sữa đặc', unit: 'hộp' }, { code: 'ST01', name: 'Sữa tươi', unit: 'hộp' }, { code: 'CF01', name: 'Cà phê hạt', unit: 'kg' }] };
+  const GS = { id: 'E1', name: 'Lan', role: 'GS', status: 'active', branches: ['B1'] };
+  const AM = { id: 'M1', name: 'Quản lý Hùng', role: 'AM', status: 'active', branches: ['B1'] };
+  await t('doanh_thu trả chi tiết theo nguồn đơn (tại chỗ / Grab / kênh riêng) + từng ngày', async () => {
+    const w = world();
+    w.db.store['ops_revenue/B1_2026-11-15'] = { branchId: 'B1', date: '2026-11-15', amount: 1000000, invoices: 20, ch: { dine: 600000, grab: 300000, o_zalo: 100000 }, chN: { dine: 12, grab: 6, o_zalo: 2 }, chL: { o_zalo: 'Đặt qua Zalo' } };
+    w.db.store['ops_revenue/B1_2026-11-14'] = { branchId: 'B1', date: '2026-11-14', amount: 500000, invoices: 10 };
+    const T2 = mkTools(w);
+    const r = await T2.run(T2.ctxOf(w.db.store['ops_config/main'], { id: 'A1', role: 'ADMIN', branches: [] }, { zaloId: 'z' }), 'doanh_thu', { tu_ngay: '2026-11-14', den_ngay: '2026-11-15', theo_ngay: true });
+    assert.strictEqual(r.tong, 1500000);
+    assert.deepStrictEqual(r.theo_nguon.map(x => x.nguon), ['Tại chỗ', 'Chưa rõ nguồn', 'GrabFood', 'Đặt qua Zalo']);
+    assert.strictEqual(r.theo_nguon[0].ti_trong, '40%'); assert.strictEqual(r.theo_nguon[2].so_don, 6);
+    assert.strictEqual(r.tung_ngay.length, 2); assert.strictEqual(r.tung_ngay[1].nguon[0].nguon, 'Tại chỗ');
+  });
+  await t('phiếu huỷ: không ảnh -> từ chối; có ảnh -> nháp -> tạo phiếu CHỜ DUYỆT; AM duyệt qua bot -> approved', async () => {
+    const w = world({ cfg: STK });
+    const cfg = w.db.store['ops_config/main'];
+    const T2 = mkTools(w);
+    const noPh = await T2.run(T2.ctxOf(cfg, GS, { zaloId: 'z1' }), 'soan_phieu_kho', { loai: 'huy', chi_nhanh: 'B1', hang: [{ ten: 'sữa tươi', so_luong: 2 }], ly_do: 'hết hạn' });
+    assert.ok(/bắt buộc có ảnh/.test(noPh.loi));
+    const c = T2.ctxOf(cfg, GS, { zaloId: 'z1', photo: { url: 'https://x/a.jpg', b64: 'QUJD', mime: 'image/jpeg' } });
+    const d = await T2.run(c, 'soan_phieu_kho', { loai: 'huy', chi_nhanh: 'B1', hang: [{ ten: 'sữa tươi', so_luong: 2 }], ly_do: 'hết hạn' });
+    assert.ok(d.da_soan_nhap && d.ban_nhap.kem_anh);
+    const pend = w.db.store['ops_zguard/z1'].pend;
+    const ex = await T2.execPending(cfg, GS, pend);
+    assert.ok(ex.ok, ex.msg);
+    const mv = Object.values(w.db.store).find(x => x.kind === 'dispose');
+    assert.strictEqual(mv.status, 'wait'); assert.strictEqual(mv.items[0].code, 'ST01'); assert.strictEqual(mv.photos.length, 1); assert.ok(/^HUY-/.test(mv.code));
+    const ca = T2.ctxOf(cfg, AM, { zaloId: 'zm' });
+    const list = await T2.run(ca, 'viec_cho_duyet', {});
+    const it = list.viec.find(x => x.loai === 'phieu_kho');
+    assert.ok(it, 'AM phải thấy phiếu chờ duyệt');
+    const gsTry = await T2.run(T2.ctxOf(cfg, GS, { zaloId: 'z1' }), 'soan_duyet', { loai: 'phieu_kho', id: it.id, hanh_dong: 'duyet' });
+    assert.ok(gsTry.loi, 'GS không được duyệt');
+    await T2.run(ca, 'soan_duyet', { loai: 'phieu_kho', id: it.id, hanh_dong: 'duyet' });
+    const ok = await T2.execPending(cfg, AM, w.db.store['ops_zguard/zm'].pend);
+    assert.ok(ok.ok, ok.msg);
+    const mv2 = w.db.store['ops_stkmove/' + it.id];
+    assert.strictEqual(mv2.status, 'approved'); assert.strictEqual(mv2.apprBy, 'M1'); assert.strictEqual(mv2.log.length, 2);
+  });
+  await t('phiếu nhập bổ sung: GS -> chờ duyệt; ADMIN -> ghi luôn (như app); món ngoài kho -> báo lại', async () => {
+    const w = world({ cfg: STK });
+    const cfg = w.db.store['ops_config/main'];
+    const T2 = mkTools(w);
+    await T2.run(T2.ctxOf(cfg, GS, { zaloId: 'z1' }), 'soan_phieu_kho', { loai: 'nhap', chi_nhanh: 'B1', hang: [{ ten: 'CF01', so_luong: 5 }], ly_do: 'NCC giao bù' });
+    await T2.execPending(cfg, GS, w.db.store['ops_zguard/z1'].pend);
+    const ad = { id: 'A1', name: 'Sếp', role: 'ADMIN', status: 'active', branches: [] };
+    await T2.run(T2.ctxOf(cfg, ad, { zaloId: 'za' }), 'soan_phieu_kho', { loai: 'nhap', chi_nhanh: 'B1', hang: [{ ten: 'sữa đặc', so_luong: 3 }], ly_do: 'hàng biếu' });
+    await T2.execPending(cfg, ad, w.db.store['ops_zguard/za'].pend);
+    const mvs = Object.values(w.db.store).filter(x => x.kind === 'adjin');
+    assert.deepStrictEqual(mvs.map(m => m.status).sort(), ['approved', 'wait']);
+    const bad = await T2.run(T2.ctxOf(cfg, GS, { zaloId: 'z1' }), 'soan_phieu_kho', { loai: 'nhap', chi_nhanh: 'B1', hang: [{ ten: 'trà đào', so_luong: 1 }], ly_do: 'x' });
+    assert.ok(bad.khong_co_trong_kho);
+  });
+  await t('đề nghị thanh toán chi phí: GS lập -> ops_requests PAY chạy chuỗi duyệt (AM); AM thấy trong việc chờ duyệt', async () => {
+    const w = world();
+    const cfg = w.db.store['ops_config/main'];
+    w.db.store['ops_requests/TT-0004'] = { id: 'TT-0004', type: 'PAY', status: 'DONE' };
+    const T2 = mkTools(w);
+    const d = await T2.run(T2.ctxOf(cfg, GS, { zaloId: 'z1' }), 'soan_de_nghi_chi', { chi_nhanh: 'B1', noi_dung: 'Sửa máy pha', so_tien: 1200000, ly_do: 'hỏng bơm' });
+    assert.ok(d.da_soan_nhap, JSON.stringify(d)); assert.ok(/AM/.test(d.ban_nhap.luong_duyet));
+    const ex = await T2.execPending(cfg, GS, w.db.store['ops_zguard/z1'].pend);
+    assert.ok(ex.ok, ex.msg);
+    const r = w.db.store['ops_requests/TT-0005'];
+    assert.ok(r, 'mã phiếu tăng dần TT-0005');
+    assert.strictEqual(r.status, 'OPEN'); assert.strictEqual(r.amount, 1200000); assert.strictEqual(r.step, 0); assert.strictEqual(r.chain.length, 1); assert.strictEqual(r.by, 'E1');
+    const list = await T2.run(T2.ctxOf(cfg, AM, { zaloId: 'zm' }), 'viec_cho_duyet', {});
+    assert.ok(list.viec.some(x => x.loai === 'de_nghi' && x.id === 'TT-0005'));
+    const nv = await T2.run(T2.ctxOf(cfg, { id: 'E2', role: 'NV', branches: ['B1'] }, { zaloId: 'z2' }), 'soan_de_nghi_chi', { chi_nhanh: 'B1', noi_dung: 'x', so_tien: 1000 });
+    assert.ok(nv.loi, 'NV không lập được Đề nghị thanh toán (creators mặc định)');
+  });
+  await t('ảnh lịch: dựng PNG thật, tải lên, gửi sendPhoto; quyền xem lịch chi nhánh', async () => {
+    const w = world();
+    const cfg = w.db.store['ops_config/main'];
+    w.db.store['ops_schedule/B1_2026-11-11_S1'] = { branchId: 'B1', date: '2026-11-11', shiftId: 'S1', empIds: ['E1', 'E2'] };
+    const imgs = [], sent = [];
+    const T2 = mkTools(w, { uploadImage: async (png, name) => { imgs.push(png); return 'https://img.test/' + name; }, sendPhoto: async (o) => { sent.push(o); return 'sent'; } });
+    const r = await T2.run(T2.ctxOf(cfg, GS, { zaloId: 'z1' }), 'anh_lich', { chi_nhanh: 'B1' });
+    assert.ok(r.da_gui, JSON.stringify(r)); assert.strictEqual(r.tuan_tu, '2026-11-09', 'mặc định thứ Hai tuần này');
+    assert.ok(imgs[0].length > 5000 && imgs[0].slice(1, 4).toString() === 'PNG');
+    assert.strictEqual(sent[0].chatId, 'z1'); assert.ok(/Hí Hế 1/.test(sent[0].caption));
+    const g = await T2.run(T2.ctxOf(cfg, { id: 'grp_g1', role: 'ADMIN', branches: ['B1', 'B9'] }, { zaloId: 'zx', group: 'g1' }), 'anh_lich', {});
+    assert.ok(g.da_gui); assert.strictEqual(sent[1].chatId, 'g1', 'trong nhóm gửi vào nhóm');
+  });
+  await t('lệnh LICH -> gửi ẢNH lịch của tôi (sendPhoto); Storage hỏng -> quay về chữ', async () => {
+    const w = world();
+    await w.link('u1', 'z1');
+    await w.say('lich');
+    const last = w.zl.sent[w.zl.sent.length - 1];
+    assert.ok(last.photo && /lich\/nv_E1/.test(last.photo), JSON.stringify(last));
+    const w2 = world({ noImg: true });
+    await w2.link('u1', 'z1');
+    await w2.say('lich');
+    assert.ok(/Lịch 7 ngày tới/.test(w2.zl.last()));
   });
   await t('tra_cuu che trường nhạy cảm (SĐT, lương) ở nhân sự', async () => {
     const L = require('../zalolookup');

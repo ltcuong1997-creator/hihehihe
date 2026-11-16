@@ -1,6 +1,8 @@
 /* ===================== BOT ZALO — CÔNG CỤ DỮ LIỆU CHO TRỢ LÝ AI (Hí Hế) =====================
    Port từ ZSpace (zspacemusicbox/functions/zalotools.js), bỏ phần phòng hát / đặt phòng / đối soát,
-   thêm số bán theo món (ops_sales) và lập đề xuất mua hàng.
+   thêm: số bán theo món (ops_sales), doanh thu theo nguồn đơn, ảnh lịch làm việc, lập đề xuất mua hàng,
+   phiếu huỷ hàng / nhập bổ sung (ops_stkmove, chờ quản lý duyệt), đề nghị thanh toán chi phí
+   (ops_requests loại PAY, chạy đúng chuỗi duyệt của app).
    Trợ lý AI (zaloai.js) KHÔNG đụng Firestore. Nó chỉ gọi các công cụ dưới đây; mỗi công cụ tự kiểm
    quyền theo ĐÚNG luật của app (apprules.js — trích nguyên văn từ index.html) rồi mới đọc.
 
@@ -18,7 +20,11 @@ const MAX_REV_DAYS = 62;
 const COL = {
   rev: 'ops_revenue', sales: 'ops_sales', att: 'ops_attendance', iss: 'ops_issues', sch: 'ops_schedule',
   preq: 'ops_preq', areq: 'ops_attreqs', adj: 'ops_payadj', emp: 'ops_employees', guard: 'ops_zguard',
+  mv: 'ops_stkmove', req: 'ops_requests',
 };
+/* Nguồn đơn — cùng bảng REV_CH của app (tab Doanh thu); khoá o_* là kênh riêng, nhãn ở chL */
+const REV_CH = { dine: 'Tại chỗ', take: 'Mang về', grab: 'GrabFood', shopee: 'ShopeeFood', be: 'beFood', na: 'Chưa rõ nguồn' };
+const MV_LABEL = { dispose: 'phiếu huỷ hàng', adjin: 'phiếu nhập bổ sung', transfer: 'phiếu điều chuyển' };
 const OPEN_ISS = ['MOI', 'TIEP_NHAN', 'DANG_XU_LY', 'CHO_DUYET'];
 const ISS_LABEL = { MOI: 'Mới báo', TIEP_NHAN: 'Đã tiếp nhận', DANG_XU_LY: 'Đang xử lý', CHO_DUYET: 'Chờ duyệt đóng', DONG: 'Đã đóng', HUY: 'Đã hủy' };
 const PQ_LABEL = { draft: 'Nháp', wait: 'Chờ duyệt', approved: 'Đã duyệt', reject: 'Từ chối', taken: 'Người mua đã nhận', done: 'Xong' };
@@ -62,16 +68,27 @@ function createTools(deps) {
   const { db, now, log, fetchFn } = deps;
   const H = deps.helpers;      // { dayVN, dAdd, buildWeek, fmtWeek }
   const L = require('./zalolookup');
+  const IMG = require('./zaloimg');
 
   /* ===== Định nghĩa công cụ gửi cho Claude (cố định, không phụ thuộc người hỏi -> cache được) ===== */
   const brArr = { type: 'array', items: { type: 'string' }, description: 'Mã chi nhánh (id) trong danh sách chi nhánh. Bỏ trống = mọi chi nhánh người hỏi được xem.' };
   const DEFS = [
     {
       name: 'doanh_thu',
-      description: 'Doanh thu (sổ quỹ, robot KiotViet cập nhật mỗi giờ) theo ngày hoặc khoảng ngày, từng chi nhánh và tổng, kèm số hoá đơn và tiền mặt / chuyển khoản / ví. Ngày hôm nay là số tạm tính tới lần robot chạy gần nhất. Chỉ người có quyền xem trang Doanh thu trong app.',
+      description: 'Doanh thu (sổ quỹ, robot KiotViet cập nhật mỗi giờ) theo ngày hoặc khoảng ngày, từng chi nhánh và tổng: số hoá đơn, tiền mặt / chuyển khoản / ví, và CHI TIẾT THEO NGUỒN ĐƠN (tại chỗ, mang về, GrabFood, ShopeeFood, beFood, kênh khác — tiền + số đơn + tỉ trọng). Muốn từng ngày thì them theo_ngay. Ngày hôm nay là số tạm tính. Chỉ người có quyền xem trang Doanh thu trong app.',
       input_schema: { type: 'object', properties: {
         tu_ngay: { type: 'string', description: 'YYYY-MM-DD' }, den_ngay: { type: 'string', description: 'YYYY-MM-DD, tối đa 62 ngày sau tu_ngay' }, chi_nhanh: brArr,
+        theo_ngay: { type: 'boolean', description: 'Trả thêm doanh thu + nguồn đơn của TỪNG ngày (tối đa 31 ngày)' },
       }, required: ['tu_ngay', 'den_ngay'], additionalProperties: false },
+    },
+    {
+      name: 'anh_lich',
+      description: 'GỬI NGAY ẢNH lịch làm việc 7 ngày (đúng mẫu ảnh lịch của app: bảng nhân viên × ngày, ô màu từng ca, OFF). Mặc định tuần hiện tại (từ thứ Hai). cua_toi = lịch của CHÍNH người hỏi (mọi chi nhánh); không thì lịch cả chi nhánh. Ảnh tự gửi thành tin riêng — em chỉ trả lời một câu ngắn, không chép lại lịch. Muốn xem lịch dạng chữ / tra ai làm ca nào thì dùng tra_cuu loai lich.',
+      input_schema: { type: 'object', properties: {
+        chi_nhanh: { type: 'string', description: 'Mã chi nhánh (id) khi xem lịch cả chi nhánh' },
+        cua_toi: { type: 'boolean' },
+        tu_ngay: { type: 'string', description: 'YYYY-MM-DD ngày bắt đầu (bỏ trống = thứ Hai tuần này; "tuần sau" = thứ Hai tuần sau)' },
+      }, additionalProperties: false },
     },
     {
       name: 'ban_theo_mon',
@@ -144,10 +161,34 @@ function createTools(deps) {
       }, required: ['chi_nhanh', 'hang'], additionalProperties: false },
     },
     {
-      name: 'soan_duyet',
-      description: 'SOẠN NHÁP duyệt hoặc từ chối MỘT việc lấy từ viec_cho_duyet (chưa ghi). Người dùng phải nhắn OK thì mới ghi thật. Từ chối bắt buộc có lý do.',
+      name: 'soan_phieu_kho',
+      description: 'SOẠN NHÁP một phiếu kho (chưa ghi): huy = xuất HUỶ hàng hỏng / hết hạn / đổ vỡ (BẮT BUỘC có ảnh — ảnh người dùng gửi trong 10 phút gần nhất tự đính kèm; chưa có ảnh thì bảo người dùng gửi ảnh rồi nhắn lại); nhap = NHẬP BỔ SUNG hàng đã về kho mà không có phiếu mua (hàng biếu, NCC giao bù...). Mã hàng khớp theo danh sách hàng kho của chi nhánh. Nhắn OK -> tạo phiếu chờ quản lý duyệt (người lập có quyền duyệt thì phiếu nhập ghi luôn như trong app). Duyệt xong mới trừ / cộng tồn.',
       input_schema: { type: 'object', properties: {
-        loai: { type: 'string', enum: ['de_xuat_mua', 'cong_bo_sung'] }, id: { type: 'string' },
+        loai: { type: 'string', enum: ['huy', 'nhap'] },
+        chi_nhanh: { type: 'string', description: 'Mã chi nhánh (id)' },
+        hang: { type: 'array', minItems: 1, maxItems: 30, items: { type: 'object', properties: {
+          ten: { type: 'string', description: 'Tên hoặc mã hàng' }, so_luong: { type: 'number' }, ghi_chu: { type: 'string' },
+        }, required: ['ten', 'so_luong'], additionalProperties: false } },
+        ly_do: { type: 'string', description: 'Lý do huỷ / nguồn hàng nhập — bắt buộc' },
+      }, required: ['loai', 'chi_nhanh', 'hang', 'ly_do'], additionalProperties: false },
+    },
+    {
+      name: 'soan_de_nghi_chi',
+      description: 'SOẠN NHÁP một ĐỀ NGHỊ THANH TOÁN chi phí (chưa gửi) — cách app ghi một khoản chi cần duyệt: nội dung, số tiền, chi nhánh gánh chi phí, lý do. Nhắn OK -> tạo phiếu và chạy đúng chuỗi duyệt của app (theo mức tiền); duyệt / chi tiền làm trong app. Chuỗi duyệt có bước người gửi tự chọn cấp duyệt mà có nhiều người thì hỏi người dùng chọn rồi truyền nguoi_duyet.',
+      input_schema: { type: 'object', properties: {
+        chi_nhanh: { type: 'string', description: 'Mã chi nhánh (id) gánh chi phí' },
+        noi_dung: { type: 'string', description: 'Nội dung chi, vd "Tiền điện tháng 11", "Sửa máy pha"' },
+        so_tien: { type: 'number', description: 'Số tiền (đồng)' },
+        ly_do: { type: 'string' },
+        can_truoc: { type: 'string', description: 'YYYY-MM-DD cần chi trước ngày (bỏ trống = 3 ngày nữa)' },
+        nguoi_duyet: { type: 'string', description: 'Tên cấp duyệt người dùng chọn (chỉ khi được hỏi)' },
+      }, required: ['chi_nhanh', 'noi_dung', 'so_tien'], additionalProperties: false },
+    },
+    {
+      name: 'soan_duyet',
+      description: 'SOẠN NHÁP duyệt hoặc từ chối MỘT việc lấy từ viec_cho_duyet (chưa ghi): đề xuất mua, đơn công, phiếu kho (huỷ / nhập bổ sung). Người dùng phải nhắn OK thì mới ghi thật. Từ chối bắt buộc có lý do. Đề nghị thanh toán thì duyệt trong app.',
+      input_schema: { type: 'object', properties: {
+        loai: { type: 'string', enum: ['de_xuat_mua', 'cong_bo_sung', 'phieu_kho'] }, id: { type: 'string' },
         hanh_dong: { type: 'string', enum: ['duyet', 'tu_choi'] }, ly_do: { type: 'string' },
       }, required: ['loai', 'id', 'hanh_dong'], additionalProperties: false },
     },
@@ -203,14 +244,27 @@ function createTools(deps) {
     if (re) return err(re);
     const p = pickBranches(c.cfg, bizMine(c), a.chi_nhanh);
     if (!p.ids.length) return { ...err('Không có chi nhánh nào được xem.'), ...brNote(c, p) };
-    const snap = await db.collection(COL.rev).where('date', '>=', from).where('date', '<=', to).select('branchId', 'date', 'amount', 'invoices', 'cash', 'bank', 'wallet', 'at').get();
+    const snap = await db.collection(COL.rev).where('date', '>=', from).where('date', '<=', to).select('branchId', 'date', 'amount', 'invoices', 'cash', 'bank', 'wallet', 'at', 'ch', 'chN', 'chL').get();
     const by = {};
     p.ids.forEach(id => { by[id] = { chi_nhanh: bName(c.cfg, id), doanh_thu: 0, so_hoa_don: 0, tien_mat: 0, chuyen_khoan: 0, vi_dien_tu: 0, so_ngay_co_so: 0 }; });
     let lastAt = '';
+    /* Nguồn đơn: cộng ch (tiền) / chN (số đơn) theo khoá; ngày chưa có nguồn thì dồn vào "Chưa rõ nguồn" */
+    const src = {}, daily = {};
+    const addSrc = (m, k, lbl, amt, n) => { const o = m[k] || (m[k] = { nguon: lbl, tien: 0, so_don: 0 }); o.tien += amt; o.so_don += n; };
     snap.docs.forEach(d => {
       const v = d.data() || {};
       const r = by[v.branchId];
       if (!r) return;
+      const dd = daily[v.date] || (daily[v.date] = { ngay: v.date, doanh_thu: 0, so_hoa_don: 0, nguon: {} });
+      dd.doanh_thu += Number(v.amount) || 0; dd.so_hoa_don += Number(v.invoices) || 0;
+      const ch = v.ch && typeof v.ch === 'object' ? v.ch : null;
+      if (ch && Object.keys(ch).length) {
+        Object.entries(ch).forEach(([k, amt]) => {
+          const lbl = REV_CH[k] || ((v.chL || {})[k]) || (k.startsWith('o_') ? k.slice(2) : k);
+          const n = Number((v.chN || {})[k]) || 0;
+          addSrc(src, lbl, lbl, Number(amt) || 0, n); addSrc(dd.nguon, lbl, lbl, Number(amt) || 0, n);
+        });
+      } else if (Number(v.amount)) { addSrc(src, REV_CH.na, REV_CH.na, Number(v.amount) || 0, Number(v.invoices) || 0); addSrc(dd.nguon, REV_CH.na, REV_CH.na, Number(v.amount) || 0, Number(v.invoices) || 0); }
       r.doanh_thu += Number(v.amount) || 0;
       r.so_hoa_don += Number(v.invoices) || 0;
       r.tien_mat += Number(v.cash) || 0;
@@ -221,9 +275,12 @@ function createTools(deps) {
     });
     const rows = p.ids.map(id => by[id]);
     const today = H.dayVN(now());
+    const tong = rows.reduce((x, r) => x + r.doanh_thu, 0);
+    const srcList = (m, base) => Object.values(m).sort((x, y) => y.tien - x.tien).map(x => ({ ...x, ti_trong: base > 0 ? Math.round(x.tien / base * 1000) / 10 + '%' : '' }));
     return {
       tu_ngay: from, den_ngay: to, don_vi: 'đồng', chi_nhanh: rows,
-      tong: rows.reduce((x, r) => x + r.doanh_thu, 0),
+      tong, theo_nguon: srcList(src, tong),
+      ...(a.theo_ngay ? { tung_ngay: Object.values(daily).sort((x, y) => x.ngay.localeCompare(y.ngay)).slice(-31).map(x => ({ ...x, nguon: srcList(x.nguon, x.doanh_thu) })) } : {}),
       ghi_chu: to >= today ? 'Hôm nay là số tạm tính' + (lastAt ? ' (robot cập nhật lúc ' + hmVN(Date.parse(lastAt)) + ')' : '') + '.' : undefined,
       ...brNote(c, p),
     };
@@ -330,6 +387,20 @@ function createTools(deps) {
         hang: (x.items || []).slice(0, 5).map(it => (it.name || it.code || '') + ' x' + (Number(it.qty) || 0) + (it.unit ? ' ' + it.unit : '')).join('; '),
       }));
     }
+    if (c.R.canStkMoveAppr(c.me)) {
+      const qm = await db.collection(COL.mv).where('status', '==', 'wait').get();
+      qm.docs.map(d => ({ ...(d.data() || {}), id: d.id })).filter(m => ['dispose', 'adjin'].includes(m.kind) && c.R.inScope(c.me, m.branchId)).forEach(m => out.push({
+        loai: 'phieu_kho', id: m.id, ma: m.code || m.id, kieu: MV_LABEL[m.kind], chi_nhanh: bName(c.cfg, m.branchId), nguoi_lap: m.byName || '',
+        ly_do: clip(m.reason || '', 100), hang: (m.items || []).slice(0, 5).map(it => (it.name || it.code || '') + ' x' + (Number(it.qty) || 0) + (it.unit ? ' ' + it.unit : '')).join('; '),
+        so_anh: (m.photos || []).length,
+      }));
+    }
+    /* Đề xuất / đề nghị thanh toán đang chờ CHÍNH người hỏi duyệt — duyệt trong app (bước chốt giá, chi tiền) */
+    const qr = await db.collection(COL.req).where('status', '==', 'OPEN').get();
+    qr.docs.map(d => ({ ...(d.data() || {}), id: d.id })).filter(r => { try { return c.R.canStep(c.cfg, c.me, r); } catch (e) { return false; } }).forEach(r => out.push({
+      loai: 'de_nghi', id: r.id, kieu: (c.R.tOf(c.cfg, r.type) || {}).l || r.type, noi_dung: clip(r.title || '', 100), so_tien: c.R.reqAmountRaw(r) || undefined,
+      chi_nhanh: bName(c.cfg, r.branchId), duyet_qua_bot_duoc: false, link: appUrl(c.cfg) + '#requests',
+    }));
     const qa = await db.collection(COL.areq).where('status', '==', 'pending').get();
     const reqs = qa.docs.map(d => ({ ...(d.data() || {}), id: d.id })).filter(r => c.R.attCanStep(c.cfg, c.me, r));
     const emps = await empsByIds(reqs.map(r => r.empId));
@@ -431,6 +502,144 @@ function createTools(deps) {
     };
   }
 
+  /* ===== Ảnh lịch làm việc ===== */
+  const mondayOf = (day) => { const wd = new Date(day + 'T00:00:00Z').getUTCDay(); return H.dAdd(day, -((wd + 6) % 7)); };
+  async function sendSchedImage({ cfg, me, zaloId, chatId, personal, bid, from }) {
+    if (typeof deps.uploadImage !== 'function' || typeof deps.sendPhoto !== 'function') return { loi: 'Máy chủ chưa bật gửi ảnh.' };
+    const start = from && isDay(from) ? from : mondayOf(H.dayVN(now()));
+    const days = Array.from({ length: 7 }, (_, i) => H.dAdd(start, i));
+    const qs = await db.collection(COL.sch).where('date', '>=', days[0]).where('date', '<=', days[6]).get();
+    const docs = qs.docs.map(d => d.data() || {});
+    let opts;
+    if (personal) opts = IMG.personWeek({ cfg, docs, emp: me, days });
+    else {
+      const es = await db.collection(COL.emp).get();
+      const emps = {};
+      es.docs.forEach(d => { const v = d.data() || {}; emps[d.id] = { id: d.id, name: v.name || d.id, branches: v.branches || [], status: v.status, posId: v.posId }; });
+      opts = IMG.branchWeek({ cfg, docs, emps, bid, days });
+    }
+    const png = IMG.renderPng(IMG.weekSvg(opts));
+    const url = await deps.uploadImage(png, 'lich/' + (personal ? 'nv_' + me.id : 'cn_' + bid) + '_' + start + '_' + now() + '.png');
+    const caption = (personal ? 'Lịch làm việc của ' + (me.name || '') : 'Lịch làm việc ' + bName(cfg, bid)) + ', tuần ' + days[0].slice(8, 10) + '/' + days[0].slice(5, 7) + ' - ' + days[6].slice(8, 10) + '/' + days[6].slice(5, 7);
+    const r = await deps.sendPhoto({ zaloId, chatId: chatId || zaloId, empId: me.id && !String(me.id).startsWith('grp_') ? me.id : '', url, caption });
+    return r === 'sent' ? { da_gui: true, tuan_tu: days[0], ghi_chu: 'Ảnh đã gửi thành tin riêng ngay trên. Chỉ trả lời một câu ngắn, không chép lại lịch.' } : { loi: 'Gửi ảnh chưa được (' + r + ').' };
+  }
+  async function anh_lich(c, a) {
+    const target = c.group || c.zaloId;
+    if (a.cua_toi || !a.chi_nhanh && !c.group) {
+      if (String(c.me.id).startsWith('grp_')) return err('Lịch của tôi cần người hỏi đã kết nối Zalo với app.');
+      return sendSchedImage({ cfg: c.cfg, me: c.me, zaloId: c.zaloId, chatId: target, personal: true, from: a.tu_ngay });
+    }
+    const pages = pagesOf(c);
+    if (!pages.includes('shifts') && !pages.includes('schedule')) return err('Vai trò của người hỏi không xem được lịch làm việc chi nhánh trong app.');
+    /* Không nêu chi nhánh: chỉ một chi nhánh còn mở thì dùng luôn (chi nhánh đã đóng không tính) */
+    const open = bizMine(c).filter(id => ((c.cfg.branches || []).find(b => b.id === id) || {}).status !== 'closed');
+    const p = pickBranches(c.cfg, open, a.chi_nhanh ? [a.chi_nhanh] : []);
+    if (p.ids.length !== 1) return { ...err(p.ids.length ? 'Chọn MỘT chi nhánh để xuất ảnh lịch.' : 'Không có chi nhánh nào được xem.'), chi_nhanh_duoc_xem: open.map(id => bName(c.cfg, id)), ...brNote(c, p) };
+    try { return await sendSchedImage({ cfg: c.cfg, me: c.me, zaloId: c.zaloId, chatId: target, personal: false, bid: p.ids[0], from: a.tu_ngay }); }
+    catch (e) { log.error('zalo: ảnh lịch lỗi', { err: String(e && e.message).slice(0, 200) }); return err('Chưa dựng / gửi được ảnh lịch (kiểm tra Firebase Storage đã bật chưa). Dùng tra_cuu loai lich để trả lời bằng chữ.'); }
+  }
+
+  /* ===== Khớp tên hàng người dùng gõ với danh sách mã (dùng chung đề xuất mua / phiếu kho) ===== */
+  function matchItems(pool, hang) {
+    const items = [], miss = [], many = [];
+    (hang || []).slice(0, 30).forEach(h => {
+      const k = strip(h.ten);
+      const qty = Number(h.so_luong);
+      if (!k || !(qty > 0)) { miss.push(String(h.ten || '') + ' (số lượng phải > 0)'); return; }
+      let hit = pool.filter(i => strip(i.code) === k || strip(i.name) === k);
+      if (!hit.length) hit = pool.filter(i => strip(i.name).includes(k) || k.includes(strip(i.name)));
+      if (hit.length === 1) {
+        const it = hit[0];
+        const old = items.find(x => x.code === it.code);
+        if (old) old.qty += qty;
+        else items.push({ code: it.code, name: it.name, unit: it.unit || '', qty, note: clip(String(h.ghi_chu || '').trim(), 200), group: (it.group || '').trim() });
+      } else if (hit.length > 1) many.push({ ten: h.ten, khop: hit.slice(0, 6).map(i => i.name + ' (' + i.code + ')') });
+      else miss.push(String(h.ten));
+    });
+    return { items, miss, many };
+  }
+  /* Ảnh gần nhất người dùng gửi -> link (Drive) hoặc ảnh nhúng nhỏ như app (data:, ~300KB) */
+  async function photoLink(c, label, sub) {
+    const ph = c.photo || null;
+    if (!ph || !ph.url) return { url: '', note: '' };
+    const up = await uploadDrive(c.cfg, ph, label, sub).catch(e => { log.warn('zalo: tải ảnh lên Drive lỗi', { err: String(e && e.message) }); return null; });
+    if (up) return { url: up, note: '' };
+    const img = ph.b64 ? ph : await fetchImage(ph.url);
+    if (img && img.b64 && img.b64.length <= 300 * 1024) return { url: 'data:' + img.mime + ';base64,' + img.b64, note: '' };
+    return { url: '', note: (c.cfg.drive || {}).gasUrl ? 'Không tải được ảnh lên Drive.' : 'Ảnh quá lớn để lưu trong app và chưa khai Google Drive (Cấu hình › Tệp & ảnh).' };
+  }
+
+  async function soan_phieu_kho(c, a) {
+    const K = a.loai === 'nhap' ? 'adjin' : 'dispose';
+    if (!c.R.canStkMove(c.me)) return err('Vai trò của người hỏi không được lập phiếu kho.');
+    const p = pickBranches(c.cfg, bizMine(c), [a.chi_nhanh]);
+    if (p.ids.length !== 1) return { ...err('Cần đúng một chi nhánh người hỏi phụ trách.'), ...brNote(c, p) };
+    const bid = p.ids[0];
+    const why = clip(String(a.ly_do || '').trim(), 500);
+    if (!why) return err(K === 'dispose' ? 'Phiếu huỷ phải có lý do — hỏi người dùng.' : 'Ghi rõ nguồn hàng nhập (hàng biếu, NCC giao bù...) — hỏi người dùng.');
+    const pool = c.R.stockItems(c.cfg, bid);
+    if (!pool.length) return err('Chi nhánh này chưa khai danh sách hàng kho trong app (Kho › Thiết lập kho).');
+    const m = matchItems(pool, a.hang);
+    if (m.many.length || m.miss.length) {
+      return { loi: 'Chưa soạn được — có món chưa khớp danh sách hàng kho của chi nhánh.', ...(m.many.length ? { khop_nhieu_ma: m.many } : {}), ...(m.miss.length ? { khong_co_trong_kho: m.miss } : {}), goi_y: 'Hỏi lại người dùng chọn đúng mã.' };
+    }
+    if (!m.items.length) return err('Chưa có món nào.');
+    const code = (K === 'dispose' ? 'HUY-' : 'NBS-') + H.dayVN(now()).replace(/-/g, '').slice(2) + '-' + String(Math.random()).slice(2, 5);
+    const ph = await photoLink(c, code, 'Xuat huy - Dieu chuyen');
+    if (K === 'dispose' && !ph.url) return err('Phiếu huỷ bắt buộc có ảnh hàng hỏng (như trong app). ' + (ph.note || 'Bảo người dùng gửi ảnh vào đây rồi nhắn lại yêu cầu.'));
+    const instant = K === 'adjin' && c.R.canStkMoveAppr(c.me);
+    const data = { kind: K, code, branchId: bid, items: m.items.map(({ group: _g, ...x }) => x), reason: why, photos: ph.url ? [ph.url] : [], instant };
+    await setPend(c, { kind: 'move', data });
+    return {
+      da_soan_nhap: true, chua_ghi: true,
+      ban_nhap: { loai: MV_LABEL[K], ma: code, chi_nhanh: bName(c.cfg, bid), hang: data.items.map(i => i.name + ' x' + i.qty + (i.unit ? ' ' + i.unit : '')), ly_do: why, kem_anh: !!ph.url,
+        sau_khi_ok: instant ? 'ghi nhập bổ sung ngay (người lập có quyền duyệt)' : 'tạo phiếu chờ quản lý duyệt — duyệt xong mới ' + (K === 'dispose' ? 'trừ' : 'cộng') + ' tồn' },
+      ghi_chu_anh: ph.note || undefined,
+    };
+  }
+
+  async function soan_de_nghi_chi(c, a) {
+    const R = c.R, cfg = c.cfg;
+    const T = R.tOf(cfg, 'PAY');
+    if (T.off || (T.creators && T.creators.length && !T.creators.includes(c.me.role))) return err('Vai trò của người hỏi không được lập Đề nghị thanh toán trong app.');
+    const p = pickBranches(cfg, R.scopeBranches(c.me, cfg), [a.chi_nhanh]);
+    if (p.ids.length !== 1) return { ...err('Cần đúng một chi nhánh gánh chi phí.'), ...brNote(c, p) };
+    const amount = Math.round(Number(a.so_tien) || 0);
+    if (!(amount > 0)) return err('Số tiền phải lớn hơn 0.');
+    const title = clip(String(a.noi_dung || '').trim(), 140);
+    if (!title) return err('Thiếu nội dung chi.');
+    const needBy = a.can_truoc && isDay(a.can_truoc) ? a.can_truoc : H.dAdd(H.dayVN(now()), 3);
+    const frozen = R.chainNow(cfg, 'PAY', amount, []);
+    const draft = { type: 'PAY', amount, items: [], chain: frozen, costType: 'branch', branchId: p.ids[0], status: 'OPEN' };
+    /* Bước cấp duyệt người gửi tự chọn (mode 'pick') — như ReqForm */
+    let pickBy = '', pickOpts = [];
+    if (frozen.some(x => x.mode === 'pick')) {
+      const emps = (await db.collection(COL.emp).get()).docs.map(d => ({ ...(d.data() || {}), id: d.id }));
+      const opts = R.pickersFor(cfg, emps, R.reqPickDept(draft, c.me));
+      if (!opts.some(e => e.id === c.me.id)) {
+        if (!opts.length) return err('Chưa khai cấp duyệt cho khoản chi này — báo admin vào Cài đặt › Duyệt & mã hàng.');
+        pickOpts = opts.map(e => e.id);
+        if (opts.length === 1) pickBy = opts[0].id;
+        else if (a.nguoi_duyet) {
+          const hit = opts.filter(e => strip(e.name).includes(strip(a.nguoi_duyet)));
+          if (hit.length !== 1) return { loi: 'Không xác định được cấp duyệt "' + a.nguoi_duyet + '".', chon_mot_trong: opts.map(e => e.name) };
+          pickBy = hit[0].id;
+        } else return { loi: 'Cần chọn cấp duyệt xác nhận chi phí.', hoi_nguoi_dung_chon_mot_trong: opts.map(e => e.name) };
+      }
+    }
+    const start = R.skipFrom(cfg, { ...draft, pickBy, pickOpts }, 0, c.me);
+    if (start >= frozen.length) return err('Cấu hình duyệt cho mức tiền này chưa có bước nào (hoặc người lập tự thoả hết các bước) — lập trong app.');
+    const data = { branchId: p.ids[0], title, amount, reason: clip(String(a.ly_do || '').trim(), 500), needBy, chain: frozen, step: start, pickBy, pickOpts };
+    await setPend(c, { kind: 'payReq', data });
+    const emps2 = pickBy ? await empsByIds([pickBy]) : {};
+    return {
+      da_soan_nhap: true, chua_gui: true,
+      ban_nhap: { loai: T.l || 'Đề nghị thanh toán', chi_nhanh: bName(cfg, data.branchId), noi_dung: title, so_tien: amount, ly_do: data.reason || undefined, can_truoc: needBy,
+        luong_duyet: frozen.slice(start).map(s => R.stepLabel(s, Object.values(emps2), { pickBy })).join(' → '), sau_khi_ok: 'tạo phiếu và gửi người duyệt đầu tiên; duyệt / chi tiền làm trong app' },
+    };
+  }
+
   async function soan_duyet(c, a) {
     const act = a.hanh_dong === 'tu_choi' ? 'reject' : 'approve';
     const why = String(a.ly_do || '').trim();
@@ -460,6 +669,14 @@ function createTools(deps) {
         },
       };
     }
+    if (a.loai === 'phieu_kho') {
+      const s = await db.collection(COL.mv).doc(String(a.id)).get();
+      const m = s.exists ? { ...(s.data() || {}), id: s.id } : null;
+      if (!m || m.status !== 'wait' || !['dispose', 'adjin'].includes(m.kind) || !c.R.canStkMoveAppr(c.me) || !c.R.inScope(c.me, m.branchId)) return err('Phiếu này không còn chờ duyệt hoặc người hỏi không có quyền duyệt.');
+      await setPend(c, { kind: 'moveAppr', data: { id: m.id, act, why: clip(why, 500) } });
+      return { da_soan_nhap: true, chua_ghi: true, ban_nhap: { viec: (act === 'approve' ? 'Duyệt ' : 'Từ chối ') + MV_LABEL[m.kind] + ' ' + (m.code || m.id), chi_nhanh: bName(c.cfg, m.branchId), nguoi_lap: m.byName || '', so_mon: (m.items || []).length, ly_do: why || undefined,
+        sau_khi_ok: act === 'approve' ? (m.kind === 'dispose' ? 'trừ hàng khỏi tồn' : 'cộng hàng vào tồn') : 'phiếu bị từ chối, tồn không đổi' } };
+    }
     return err('Loại việc không hợp lệ.');
   }
 
@@ -467,13 +684,13 @@ function createTools(deps) {
 
   /* Tải ảnh Zalo lên Google Drive qua Apps Script — đúng giao thức uploadDrive() của app.
      Chưa khai Drive -> null (không có Drive thì không lưu ảnh). */
-  async function uploadDrive(cfg, ph, label) {
+  async function uploadDrive(cfg, ph, label, sub) {
     const d = { gasUrl: '', folderId: '', ...((cfg || {}).drive || {}) };
     if (!d.gasUrl) return null;
     const img = ph.b64 ? ph : await fetchImage(ph.url);
     if (!img) throw new Error('không tải được ảnh từ Zalo');
     const stamp = new Date(now() + 7 * 3600e3).toISOString().replace(/[-:]/g, '').slice(0, 15).replace('T', '-');
-    const body = JSON.stringify({ data: img.b64, mime: img.mime, name: label.replace(/[^A-Za-z0-9-]/g, '') + '_' + stamp + '.jpg', sub: 'Su co bao tri', folderId: d.folderId });
+    const body = JSON.stringify({ data: img.b64, mime: img.mime, name: label.replace(/[^A-Za-z0-9-]/g, '') + '_' + stamp + '.jpg', sub: sub || 'Su co bao tri', folderId: d.folderId });
     for (let i = 0; i < 2; i++) {
       try {
         const r = await fetchFn(d.gasUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body });
@@ -503,17 +720,17 @@ function createTools(deps) {
   const sniff = (b) => b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b[0] === 0x89 && b[1] === 0x50 ? 'image/png'
     : b.slice(0, 4).toString() === 'RIFF' && b.slice(8, 12).toString() === 'WEBP' ? 'image/webp' : b.slice(0, 3).toString() === 'GIF' ? 'image/gif' : null;
 
-  const RUN = { doanh_thu, ban_theo_mon, nguoi_trong_ca, su_co, lich_lam_viec, viec_cho_duyet, tra_cuu, soan_bao_su_co, soan_de_xuat_mua, soan_duyet };
+  const RUN = { doanh_thu, anh_lich, ban_theo_mon, nguoi_trong_ca, su_co, lich_lam_viec, viec_cho_duyet, tra_cuu, soan_bao_su_co, soan_de_xuat_mua, soan_phieu_kho, soan_de_nghi_chi, soan_duyet };
   /* Trong nhóm Zalo quản lý: hỏi số liệu theo quyền NHÓM (c.me); việc gắn với một người (lịch, việc chờ
      duyệt, soạn nháp) chạy bằng quyền của CHÍNH người hỏi đã kết nối (c.actor), chưa kết nối thì từ chối. */
-  const PERSONAL = ['lich_lam_viec', 'viec_cho_duyet', 'soan_bao_su_co', 'soan_de_xuat_mua', 'soan_duyet'];
+  const PERSONAL = ['lich_lam_viec', 'viec_cho_duyet', 'soan_bao_su_co', 'soan_de_xuat_mua', 'soan_phieu_kho', 'soan_de_nghi_chi', 'soan_duyet'];
   async function run(c, name, input) {
     const fn = RUN[name];
     if (!fn) return err('Không có công cụ ' + name);
     if (c && c.group && PERSONAL.includes(name)) {
       if (!c.actor) return err('Việc này cần người hỏi đã kết nối Zalo với app Hí Hế (nhắn riêng cho bot để kết nối). Trong nhóm, người chưa kết nối chỉ hỏi số liệu được.');
       const outer = c;
-      const inner = ctxOf(c.cfg, c.actor, { zaloId: c.zaloId, photo: c.photo || null });
+      const inner = ctxOf(c.cfg, c.actor, { zaloId: c.zaloId, photo: c.photo || null, chatGroup: c.group });
       try { return await fn(inner, input && typeof input === 'object' ? input : {}); }
       catch (e) { log.error('zalo: công cụ lỗi', { name, err: String(e && e.message) }); return err('Lỗi máy chủ khi lấy dữ liệu, thử lại sau.'); }
       /* bản nháp soạn bằng quyền người gửi -> báo ngược cho lượt AI (để thêm câu "gõ bot ok") */
@@ -565,6 +782,63 @@ function createTools(deps) {
         msgs: [{ at: iso, by: me.id, byName: me.name || me.id, sys: true, text: 'Lập đề xuất qua Zalo và gửi cấp trên phê duyệt' }],
       });
       return { ok: true, msg: 'Đã tạo đề xuất mua ' + code + ' (' + (d.items || []).length + ' món) và gửi cấp trên phê duyệt.', ref: id };
+    }
+    if (pend.kind === 'move') {
+      const d = pend.data || {};
+      if (!R.canStkMove(me) || !bizMine(c).includes(d.branchId)) return { ok: false, msg: 'Anh/chị không còn quyền lập phiếu kho cho chi nhánh này.' };
+      const instant = d.kind === 'adjin' && R.canStkMoveAppr(me);
+      const id = R.uid('MV');
+      const dk = new Date(now() + 7 * 3600e3).toISOString().slice(0, 10);
+      const act = d.kind === 'adjin' ? (instant ? 'Quản trị ghi nhận nhập bổ sung' : 'Lập phiếu nhập bổ sung và gửi duyệt') : 'Lập phiếu và gửi duyệt';
+      /* Đúng các trường StkMoveModal của app ghi */
+      await db.collection(COL.mv).doc(id).create({
+        id, code: d.code, kind: d.kind, date: dk, branchId: d.branchId, toBranchId: '',
+        items: (d.items || []).map(i => ({ code: i.code, name: i.name, unit: i.unit || '', qty: Number(i.qty) || 0, note: i.note || '' })),
+        reason: d.reason || '', photos: d.photos || [], status: instant ? 'approved' : 'wait',
+        ...(instant ? { apprBy: me.id, apprName: me.name || me.id, apprAt: iso } : {}),
+        by: me.id, byName: me.name || me.id, at: iso, viaZalo: true,
+        log: [{ at: iso, by: me.id, byName: me.name || me.id, act: act + ' (qua Zalo)', note: d.reason || '' }],
+      });
+      return { ok: true, msg: instant ? 'Đã ghi nhập bổ sung ' + d.code + ' vào kho.' : 'Đã tạo ' + MV_LABEL[d.kind] + ' ' + d.code + ', đang chờ quản lý duyệt. Duyệt xong mới ' + (d.kind === 'dispose' ? 'trừ' : 'cộng') + ' tồn.', ref: id };
+    }
+    if (pend.kind === 'moveAppr') {
+      const d = pend.data || {};
+      const ref = db.collection(COL.mv).doc(String(d.id));
+      return db.runTransaction(async (tx) => {
+        const s = await tx.get(ref);
+        const m = s.exists ? { ...(s.data() || {}), id: s.id } : null;
+        if (!m || m.status !== 'wait' || !['dispose', 'adjin'].includes(m.kind) || !R.canStkMoveAppr(me) || !R.inScope(me, m.branchId)) return { ok: false, msg: 'Phiếu không còn chờ duyệt (có thể người khác vừa xử lý).' };
+        const ok = d.act === 'approve';
+        const act = ok ? (m.kind === 'dispose' ? 'Quản lý duyệt phiếu hủy' : 'Quản trị duyệt nhập bổ sung') : (m.kind === 'dispose' ? 'Từ chối phiếu hủy' : 'Từ chối nhập bổ sung');
+        tx.update(ref, {
+          ...(ok ? { status: 'approved', apprBy: me.id, apprName: me.name || me.id, apprAt: iso } : { status: 'reject' }),
+          log: [...(m.log || []), { at: iso, by: me.id, byName: me.name || me.id, act: act + ' (qua Zalo)', note: d.why || '' }], upAt: iso, upBy: me.id,
+        });
+        return { ok: true, msg: (ok ? 'Đã duyệt ' : 'Đã từ chối ') + MV_LABEL[m.kind] + ' ' + (m.code || m.id) + (ok ? (m.kind === 'dispose' ? ' — đã trừ khỏi tồn.' : ' — đã cộng vào tồn.') : '.') };
+      });
+    }
+    if (pend.kind === 'payReq') {
+      const d = pend.data || {};
+      const T = R.tOf(cfg, 'PAY');
+      if (T.off || (T.creators && T.creators.length && !T.creators.includes(me.role)) || !R.scopeBranches(me, cfg).includes(d.branchId)) return { ok: false, msg: 'Anh/chị không còn quyền lập đề nghị thanh toán cho chi nhánh này.' };
+      const all = (await db.collection(COL.req).select('id').get()).docs.map(x => ({ id: x.id }));
+      let id = R.nextReqId(cfg, all, 'PAY');
+      const emps = await empsByIds([d.pickBy].filter(Boolean));
+      const rec = {
+        type: 'PAY', title: d.title, branchId: d.branchId, costType: 'branch', deptId: ((cfg.depts || [])[0] || {}).id || '',
+        reason: d.reason || '', note: '', needBy: d.needBy, buyType: '', genKind: '', genKindName: '',
+        payee: { name: '', bin: '970436', accNo: '' }, items: [], amount: d.amount, files: [], comments: [], linkedGen: [],
+        by: me.id, at: iso, status: 'OPEN', step: d.step, chain: d.chain, suppliers: [], payStatus: 'unpaid', receiptStatus: 'none',
+        pickBy: d.pickBy || '', pickOpts: d.pickOpts || [], viaZalo: true,
+        history: [{ at: iso, by: me.id, act: 'Tạo ' + (T.l || 'Đề nghị thanh toán') + ' (qua Zalo)',
+          note: (d.reason || d.title) + ' · luồng duyệt ' + (d.chain || []).length + ' bước: ' + (d.chain || []).map(s => { try { return R.stepLabel(s, Object.values(emps), d); } catch (e) { return '—'; } }).join(' → ') }],
+      };
+      /* Mã phiếu tăng dần như app; trùng (hai người lập cùng lúc) thì lấy số kế tiếp */
+      for (let i = 0; i < 5; i++) {
+        try { await db.collection(COL.req).doc(id).create({ ...rec, id }); return { ok: true, msg: 'Đã gửi ' + (T.l || 'đề nghị thanh toán') + ' ' + id + ' (' + Number(d.amount).toLocaleString('vi-VN') + 'đ). Người duyệt xử lý trong app, mục Đề xuất.', ref: id }; }
+        catch (e) { if (!(e && (e.code === 6 || /already exists/i.test(String(e.message))))) throw e; const n = Number(id.split('-')[1]) + 1; id = id.split('-')[0] + '-' + String(n).padStart(4, '0'); }
+      }
+      return { ok: false, msg: 'Chưa tạo được mã phiếu, thử lại.' };
     }
     if (pend.kind === 'preq') {
       const d = pend.data || {};
@@ -627,7 +901,7 @@ function createTools(deps) {
     return { ok: false, msg: 'Không rõ bản nháp.' };
   }
 
-  return { DEFS, run, ctxOf, execPending, fetchImage, pendingFor, PHOTO_TTL };
+  return { DEFS, run, ctxOf, execPending, fetchImage, pendingFor, sendSchedImage, PHOTO_TTL };
 }
 
 module.exports = { createTools, matchBranch, pickBranches, hmVN, isDay, strip, DEF_ISSUE_CATS, PEND_TTL };

@@ -4,8 +4,9 @@ Port từ bot ZSpace (`zspacemusicbox/functions/zalo.js`):
 
 - Nhân viên kết nối Zalo với hồ sơ trong app bằng **mã 6 số**, rồi nhắn **DONG Y** (đồng ý lưu tin nhắn và cho trợ lý AI xử lý).
 - **Trợ lý AI (Claude)**: nhắn bình thường là bot hiểu. Bot đọc dữ liệu theo đúng quyền của người hỏi trong app (luật quyền trích nguyên văn từ `index.html`):
-  - tra: doanh thu, món bán chạy, ai đang trong ca, sự cố, lịch, việc chờ duyệt, và tra cứu chung (chấm công, đi trễ, đơn công, đề xuất mua, phiếu mua hàng, đề nghị, thông báo, nộp tiền, thu chi, kiểm kho, xuất huỷ / điều chuyển, voucher nhân viên, nhân sự);
-  - ghi vào app: **báo sự cố** (kèm ảnh nếu đã khai Drive), **lập đề xuất mua hàng**, **duyệt / từ chối** đề xuất mua và đơn công. Bot luôn soạn **bản nháp** trước, người dùng nhắn **OK** thì mới ghi thật.
+  - tra: doanh thu (kèm **nguồn đơn**: tại chỗ, mang về, GrabFood, ShopeeFood, beFood, kênh khác), món bán chạy, ai đang trong ca, sự cố, lịch, việc chờ duyệt, và tra cứu chung (chấm công, đi trễ, đơn công, đề xuất mua, phiếu mua hàng, đề nghị, thông báo, nộp tiền, thu chi, kiểm kho, xuất huỷ / điều chuyển, voucher nhân viên, nhân sự);
+  - **ảnh lịch làm việc** tuần (của mình hoặc cả chi nhánh), cùng mẫu với ảnh lịch của app; lệnh nhanh `LICH` cũng gửi ảnh;
+  - ghi vào app: **báo sự cố**, **phiếu huỷ hàng** (bắt buộc ảnh), **phiếu nhập bổ sung**, **đề nghị thanh toán chi phí** (chạy đúng chuỗi duyệt của app), **đề xuất mua hàng**, **duyệt / từ chối** đề xuất mua, đơn công, phiếu huỷ / nhập. Bot luôn soạn **bản nháp** trước, người dùng nhắn **OK** thì mới ghi thật. Phiếu huỷ / nhập do nhân viên lập nằm **chờ duyệt**, quản lý duyệt (qua bot hoặc trong app › Kho) xong mới trừ / cộng tồn; đề nghị thanh toán duyệt trong app › Đề xuất.
   - không tra được: lương, phiếu lương, thưởng phạt, thông tin riêng nhân viên, mã voucher.
 - Lệnh nhanh không tốn AI: **LICH**, **GIUP**, **HUY KET NOI**.
 - **Nhóm Zalo ban quản trị**: thêm bot vào nhóm, ADMIN (đã kết nối) gõ `bot ket noi nhom`. Trong nhóm, ai cũng hỏi được bằng `bot` + câu hỏi (số liệu theo quyền ADMIN, mọi chi nhánh). Việc ghi vào app chỉ người đã kết nối Zalo, theo quyền của chính họ, xác nhận bằng `bot ok`. Chat bình thường trong nhóm bot không đọc.
@@ -22,6 +23,7 @@ Chưa có (ZSpace có): báo cáo 0h tự động, tự báo sự cố quá hạ
 | `functions/zalo.js` | Logic bot: webhook, kết nối, lệnh nhanh, nhóm, gọi AI |
 | `functions/zaloai.js` | Gọi Claude: lời dặn, vòng lặp công cụ, tính chi phí |
 | `functions/zalotools.js` | Các công cụ của AI: tra cứu + soạn nháp + ghi sau khi OK |
+| `functions/zaloimg.js` | Vẽ ảnh lịch làm việc (SVG -> PNG, font Space Grotesk trong `functions/fonts`) |
 | `functions/zalolookup.js` | Tra cứu chung: loại dữ liệu nào, trang app nào mới được xem, trường nào bị che |
 | `functions/apprules.js` | Luật quyền **sinh tự động** từ `index.html` bằng `node tools/zalo-sync-rules.js` — sửa phân quyền trong app thì chạy lại lệnh này rồi deploy functions |
 | `functions/index.js` | Khai báo 5 hàm: `zaloHook`, `zaloProcess`, `zaloLinkCode`, `zaloUnlink`, `zaloGroupOff` (vùng `asia-southeast1`) |
@@ -124,6 +126,7 @@ Nếu script báo lỗi, bạn cũng có thể đặt webhook trong trang quản
 3. Vào **Cấu hình › Hệ thống › Bot Zalo**: kiểm tra đã tick **Bật trợ lý AI**, chọn model, đặt trần USD/tháng, rồi bấm **Lưu cài đặt**.
 4. Người đã kết nối từ trước: lần nhắn kế tiếp bot sẽ hỏi đồng ý AI một lần, nhắn `DONG Y` là dùng được.
 5. Nhóm ban quản trị: thêm bot vào nhóm Zalo, ADMIN gõ `bot ket noi nhom`.
+6. **Ảnh lịch**: vào Firebase Console › **Storage** › **Bắt đầu (Get started)** để bật kho ảnh (một lần, gói Blaze có hạn mức miễn phí). Chưa bật thì bot gửi lịch bằng chữ. Ảnh cũ hơn 14 ngày tự xoá.
 
 Model mặc định là **Claude Opus 5.5** (thông minh nhất, $4 / $20 mỗi triệu token vào / ra). **Haiku 5.5** rẻ hơn khoảng 40 lần ($0,1 / $0,5), ZSpace đang dùng loại này. Đổi model trong tab Bot Zalo, không cần deploy lại.
 

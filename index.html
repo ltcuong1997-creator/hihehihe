@@ -28786,7 +28786,7 @@ function StkMoveView() {
   return (
     <div className="grid" style={{ gap: 14 }}>
       <div className="grid g4" style={{ gap: 10 }}>
-        <Stat icon={<Ic.alert size={13} />} k="Chờ bạn xử lý" v={forMe.length} d="duyệt hủy hoặc nhận hàng chuyển"
+        <Stat icon={<Ic.alert size={13} />} k="Chờ bạn xử lý" v={forMe.length} d="duyệt hủy / nhập hoặc nhận hàng chuyển"
           color={forMe.length ? 'var(--red)' : null} />
         <Stat icon={<Ic.trash size={13} />} k="Phiếu hủy đang chờ" v={mine.filter(m => m.kind === 'dispose' && m.status === 'wait').length} d="chi nhánh gửi lên" />
         <Stat icon={<Ic.refresh size={13} />} k="Đang trên đường" v={mine.filter(m => m.kind === 'transfer' && m.status === 'sent').length}
@@ -29111,6 +29111,16 @@ function StkMoveModal({ kind, item, onClose }) {
                 <Ic.check size={14} /> Duyệt hủy
               </button>
               <button className="btn btn-r btn-sm" onClick={() => move({ status: 'reject' }, 'Từ chối phiếu hủy')}>Từ chối</button>
+            </>
+          )}
+          {/* Nhập bổ sung CHỜ DUYỆT: chỉ có khi nhân viên lập qua bot Zalo (trong app chỉ quản trị lập và
+              ghi luôn) — quản lý duyệt xong mới cộng vào tồn, y như phiếu hủy duyệt xong mới trừ. */}
+          {K === 'adjin' && f.status === 'wait' && isApprover && (
+            <>
+              <button className="btn btn-p btn-sm" onClick={() => move({ status: 'approved', apprBy: user.id, apprName: user.name || user.id, apprAt: new Date().toISOString() }, 'Quản trị duyệt nhập bổ sung')}>
+                <Ic.check size={14} /> Duyệt nhập
+              </button>
+              <button className="btn btn-r btn-sm" onClick={() => move({ status: 'reject' }, 'Từ chối nhập bổ sung')}>Từ chối</button>
             </>
           )}
           {K === 'transfer' && f.status === 'wait' && isApprover && (
