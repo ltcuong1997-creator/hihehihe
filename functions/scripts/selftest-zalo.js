@@ -451,6 +451,22 @@ function world(opts = {}) {
     assert.strictEqual(w.db.store['ops_zlink/z1'].consentV, Z.CONSENT_V);
     assert.strictEqual(cl.calls.length, 0, 'chưa đồng ý thì không gọi AI');
   });
+  await t('chưa đồng ý AI: câu hỏi tự do -> nhắc DONG Y (không trả "chưa hiểu"); DONG Y bất cứ lúc nào cũng nhận', async () => {
+    const cl = fakeClaude([{ text: 'Doanh thu hôm nay 5 triệu.' }]);
+    const w = world({ claude: cl });
+    await w.link('u1', 'z1');
+    w.db.store['ops_zlink/z1'].consentV = 1;
+    await w.say('giup');
+    await w.say('doanh thu hôm nay');
+    assert.ok(/DONG Y/.test(w.zl.last()) && !/chưa hiểu/.test(w.zl.last()), w.zl.last());
+    await w.say('doanh thu hôm nay');
+    assert.ok(/DONG Y/.test(w.zl.last()));
+    w.db.store['ops_zguard/z1'].aiAsk = false;
+    await w.say('dong y');
+    assert.strictEqual(w.db.store['ops_zlink/z1'].consentV, Z.CONSENT_V);
+    await w.say('doanh thu hôm nay');
+    assert.strictEqual(w.zl.last(), 'Doanh thu hôm nay 5 triệu.');
+  });
   await t('chạm trần chi phí AI -> báo hết ngân sách, không gọi AI', async () => {
     const cl = fakeClaude([{ text: 'x' }]);
     const w = world({ claude: cl, cfg: { zalo: { aiCapUsd: 1 } } });
