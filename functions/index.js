@@ -58,8 +58,8 @@ const zalo = ZL.createZalo({
 });
 const ZL_OPTS = { region: REGION, memory: '256MiB', cpu: LOW_CPU };
 
-/* Webhook chỉ cần mã bí mật — không nạp token gửi tin vào hàm công khai này */
-exports.zaloHook = onRequest({ ...ZL_OPTS, secrets: [ZALO_WEBHOOK_SECRET], invoker: 'public', timeoutSeconds: 30, maxInstances: 5 },
+/* Webhook: mã bí mật để kiểm header; token chỉ để hỏi Zalo tên bot (getMe) — nhận ra tin @tag bot trong nhóm */
+exports.zaloHook = onRequest({ ...ZL_OPTS, secrets: [ZALO_WEBHOOK_SECRET, ZALO_BOT_TOKEN], invoker: 'public', timeoutSeconds: 30, maxInstances: 5 },
   (req, res) => zalo.hook(req, res));
 
 /* Tin đi (dir 'out') cũng nằm trong ops_zmsg -> lọc ngay từ dữ liệu sự kiện, khỏi tốn lượt đọc */

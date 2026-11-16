@@ -357,6 +357,25 @@ function world(opts = {}) {
     assert.strictEqual(w.db.store['ops_zgroup/g1'].active, false);
   });
 
+  await t('@tag bot tên không bắt đầu bằng "Bot" (lấy tên qua getMe) -> vẫn gắn được nhóm', async () => {
+    const w = world();
+    const f0 = w.zl.fetchFn;
+    w.z = Z.createZalo({ db: w.db, FV, HttpsError, findEmp: async (req) => { const r = await w.db.collection('ops_employees').where('authUid', '==', req.auth.uid).get(); return r.empty ? null : { id: r.docs[0].id, ...r.docs[0].data() }; },
+      log: quietLog(), now: () => NOW, getToken: () => '123:abc', getSecret: () => SECRET,
+      fetchFn: async (url, init) => /getMe$/.test(url) ? { status: 200, json: async () => ({ ok: true, result: { id: 'b1', account_name: 'Hí Hế Trợ Lý' } }) } : f0(url, init) });
+    const say = async (text, o) => { const ev = textEvt(text, o); await w.z.hook(mkReq({ headers: goodHdr, body: ev }), mkRes()); const id = Z.inDocId(ev.message.message_id); if (w.db.store['ops_zmsg/' + id]) await w.z.processIn(id); };
+    const r = await w.z.linkCode({ auth: { uid: 'ua' }, data: {} });
+    await say(r.code, { zid: 'za' }); await say('DONG Y', { zid: 'za' });
+    await say('@Hí Hế Trợ Lý ket noi nhom', { gid: 'g9', zid: 'za' });
+    assert.ok(w.db.store['ops_zgroup/g9'] && w.db.store['ops_zgroup/g9'].active === true, w.zl.last());
+  });
+  await t('nhóm chưa gắn: gõ sai lệnh gắn nhóm -> lần nào cũng nhắc (không im)', async () => {
+    const w = world();
+    await w.say('bot ket noi nhom di', { gid: 'g2', zid: 'zx' });
+    await w.say('bot ket noi nhom', { gid: 'g2', zid: 'zx' });
+    assert.strictEqual(w.zl.sent.length, 2);
+  });
+
   console.log('trợ lý AI');
   const REV = { 'ops_revenue/B1_2026-11-15': { branchId: 'B1', date: '2026-11-15', amount: 5250000, invoices: 80, cash: 2000000, bank: 3250000, wallet: 0, at: '2026-11-15T02:30:00Z' } };
   await t('hỏi tự do -> gọi công cụ doanh_thu -> trả lời, cộng chi phí AI, Opus dùng fallbacks', async () => {
