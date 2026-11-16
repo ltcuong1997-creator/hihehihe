@@ -8,13 +8,16 @@ Port từ bot ZSpace (`zspacemusicbox/functions/zalo.js`):
   - **ảnh lịch làm việc** tuần (của mình hoặc cả chi nhánh), cùng mẫu với ảnh lịch của app; lệnh nhanh `LICH` cũng gửi ảnh;
   - ghi vào app: **báo sự cố**, **phiếu huỷ hàng** (bắt buộc ảnh), **phiếu nhập bổ sung**, **đề nghị thanh toán chi phí** (chạy đúng chuỗi duyệt của app), **đề xuất mua hàng**, **duyệt / từ chối** đề xuất mua, đơn công, phiếu huỷ / nhập. Bot luôn soạn **bản nháp** trước, người dùng nhắn **OK** thì mới ghi thật. Phiếu huỷ / nhập do nhân viên lập nằm **chờ duyệt**, quản lý duyệt (qua bot hoặc trong app › Kho) xong mới trừ / cộng tồn; đề nghị thanh toán duyệt trong app › Đề xuất.
   - không tra được: lương, phiếu lương, thưởng phạt, thông tin riêng nhân viên, mã voucher.
+  - phân tích: vì sao doanh thu tăng / tụt (so kỳ trước / tuần trước, theo nguồn, khung giờ, món tăng giảm), tiến độ target tháng, món bán chậm, **dự báo hết nguyên liệu** (tính đúng như trang Nhập-Xuất-Tồn) kèm gợi ý lượng mua, tìm người rảnh thay ca, công tháng của tôi, tra công thức pha chế;
+  - đọc **ảnh hoá đơn nhà cung cấp** để soạn phiếu nhập / đề nghị thanh toán; soạn câu trả lời review của khách.
+- **Bot tự báo** (bật / tắt từng loại trong tab Bot Zalo): ảnh báo cáo cuối ngày 23:50, cảnh báo chưa vào ca / sự cố quá hạn / doanh thu 20h tụt / việc chờ duyệt quá 24 giờ, 20h nhắc riêng lịch ca ngày mai. Gửi vào nhóm ban quản trị; chưa gắn nhóm thì nhắn riêng OM / ADMIN đã kết nối.
 - Lệnh nhanh không tốn AI: **LICH**, **GIUP**, **HUY KET NOI**.
 - **Nhóm Zalo ban quản trị**: thêm bot vào nhóm, ADMIN (đã kết nối) gõ `bot ket noi nhom`. Trong nhóm, ai cũng hỏi được bằng `bot` + câu hỏi (số liệu theo quyền ADMIN, mọi chi nhánh). Việc ghi vào app chỉ người đã kết nối Zalo, theo quyền của chính họ, xác nhận bằng `bot ok`. Chat bình thường trong nhóm bot không đọc.
 - Người lạ nhắn bot chỉ nhận 1 câu hướng dẫn mỗi ngày, không lộ dữ liệu gì.
 - Giới hạn gói Zalo Bot miễn phí: tối đa 50 người, 3.000 tin gửi đi mỗi tháng, 3 nhóm. Chi phí AI có trần USD/tháng, chạm trần thì AI tự tắt tới đầu tháng sau.
 - ADMIN xem danh sách kết nối, nhóm, nhật ký tin nhắn, hạn mức và chi phí AI ở **Cấu hình › Hệ thống › Bot Zalo**; chọn model và trần chi phí ở đó.
 
-Chưa có (ZSpace có): báo cáo 0h tự động, tự báo sự cố quá hạn.
+Chưa có: đếm kho qua chat, checklist mở / đóng ca bằng ảnh, đối chiếu nộp tiền.
 
 ## Các file
 
@@ -23,7 +26,8 @@ Chưa có (ZSpace có): báo cáo 0h tự động, tự báo sự cố quá hạ
 | `functions/zalo.js` | Logic bot: webhook, kết nối, lệnh nhanh, nhóm, gọi AI |
 | `functions/zaloai.js` | Gọi Claude: lời dặn, vòng lặp công cụ, tính chi phí |
 | `functions/zalotools.js` | Các công cụ của AI: tra cứu + soạn nháp + ghi sau khi OK |
-| `functions/zaloimg.js` | Vẽ ảnh lịch làm việc (SVG -> PNG, font Space Grotesk trong `functions/fonts`) |
+| `functions/zaloimg.js` | Vẽ ảnh lịch làm việc + ảnh báo cáo ngày (SVG -> PNG, font Space Grotesk trong `functions/fonts`) |
+| `functions/zaloauto.js` | Bot tự báo: báo cáo 23:50, cảnh báo mỗi 15 phút, nhắc lịch 20h |
 | `functions/zalolookup.js` | Tra cứu chung: loại dữ liệu nào, trang app nào mới được xem, trường nào bị che |
 | `functions/apprules.js` | Luật quyền **sinh tự động** từ `index.html` bằng `node tools/zalo-sync-rules.js` — sửa phân quyền trong app thì chạy lại lệnh này rồi deploy functions |
 | `functions/index.js` | Khai báo 5 hàm: `zaloHook`, `zaloProcess`, `zaloLinkCode`, `zaloUnlink`, `zaloGroupOff` (vùng `asia-southeast1`) |

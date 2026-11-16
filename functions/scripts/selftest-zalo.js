@@ -633,6 +633,72 @@ function world(opts = {}) {
     await w2.say('lich');
     assert.ok(/Lịch 7 ngày tới/.test(w2.zl.last()));
   });
+  console.log('phân tích / tra cứu thông minh');
+  await t('phan_tich_doanh_thu: so tuần trước, theo nguồn, theo giờ, món giảm mạnh', async () => {
+    const w = world();
+    const cfg = w.db.store['ops_config/main'];
+    w.db.store['ops_revenue/B1_2026-11-15'] = { branchId: 'B1', date: '2026-11-15', amount: 1000000, invoices: 20, ch: { dine: 1000000 }, lines: [{ t: 450, a: 600000 }, { t: 900, a: 400000 }] };
+    w.db.store['ops_revenue/B1_2026-11-08'] = { branchId: 'B1', date: '2026-11-08', amount: 2000000, invoices: 30, ch: { dine: 1000000, grab: 1000000 }, lines: [{ t: 460, a: 2000000 }] };
+    w.db.store['ops_sales/B1_2026-11'] = { branchId: 'B1', items: { BX: { name: 'Bạc xỉu', d: { '2026-11-15': 10, '2026-11-08': 40 } }, TD: { name: 'Trà đào', d: { '2026-11-15': 9, '2026-11-08': 2 } } } };
+    const T2 = mkTools(w);
+    const r = await T2.run(T2.ctxOf(cfg, { id: 'A1', role: 'ADMIN', branches: [] }, { zaloId: 'z' }), 'phan_tich_doanh_thu', { tu_ngay: '2026-11-15', den_ngay: '2026-11-15', so_voi: 'tuan_truoc' });
+    assert.strictEqual(r.chenh_lech_pct, -50);
+    assert.strictEqual(r.theo_nguon.find(x => x.nguon === 'GrabFood').ky_nay, 0);
+    assert.deepStrictEqual(r.theo_gio.map(x => x.gio), ['07h', '15h']);
+    assert.strictEqual(r.mon_giam_manh[0].mon, 'Bạc xỉu'); assert.strictEqual(r.mon_tang_manh[0].mon, 'Trà đào');
+  });
+  await t('tien_do_target: % đạt, dự phóng, mỗi ngày còn lại cần', async () => {
+    const w = world();
+    const cfg = w.db.store['ops_config/main'];
+    w.db.store['ops_targets/B1_2026-11'] = { amount: 30000000 };
+    w.db.store['ops_revenue/B1_2026-11-01'] = { branchId: 'B1', date: '2026-11-01', amount: 7000000 };
+    w.db.store['ops_revenue/B1_2026-11-15'] = { branchId: 'B1', date: '2026-11-15', amount: 500000 };
+    const T2 = mkTools(w);
+    const r = await T2.run(T2.ctxOf(cfg, { id: 'A1', role: 'ADMIN', branches: [] }, { zaloId: 'z' }), 'tien_do_target', {});
+    const b = r.chi_nhanh[0];
+    assert.strictEqual(b.da_dat, 7500000); assert.strictEqual(b.pct, 25); assert.strictEqual(r.so_ngay_con_lai, 16);
+    assert.strictEqual(b.moi_ngay_con_lai_can, Math.round(22500000 / 16));
+  });
+  await t('du_bao_kho: tính theo Nhập-Xuất-Tồn của app, liệt kê hàng sắp hết + gợi ý mua', async () => {
+    const w = world({ cfg: { items: [{ code: 'SD01', name: 'Sữa đặc', unit: 'hộp' }, { code: 'CF01', name: 'Cà phê', unit: 'g' }] } });
+    const cfg = w.db.store['ops_config/main'];
+    w.db.store['ops_recipes/R1'] = { id: 'R1', name: 'Bạc xỉu', kvCode: 'BX', items: [{ sku: 'SD01', qty: 0.1, unit: 'hộp' }, { sku: 'CF01', qty: 20, unit: 'g' }] };
+    w.db.store['ops_sales/B1_2026-11'] = { branchId: 'B1', ym: '2026-11', items: { BX: { name: 'Bạc xỉu', qty: 150, d: { '2026-11-10': 75, '2026-11-14': 75 } } } };
+    w.db.store['ops_stkmove/M1'] = { id: 'M1', kind: 'adjin', status: 'approved', branchId: 'B1', date: '2026-11-02', items: [{ code: 'SD01', qty: 16 }, { code: 'CF01', qty: 100000 }] };
+    const T2 = mkTools(w);
+    const r = await T2.run(T2.ctxOf(cfg, { id: 'A1', role: 'ADMIN', branches: [] }, { zaloId: 'z' }), 'du_bao_kho', { chi_nhanh: 'B1' });
+    assert.strictEqual(r.hang.length, 1, JSON.stringify(r)); assert.strictEqual(r.hang[0].ma, 'SD01');
+    assert.strictEqual(r.hang[0].ton, 1); assert.strictEqual(r.hang[0].dung_tb_ngay, 1); assert.strictEqual(r.hang[0].goi_y_mua, 6);
+    const nv = await T2.run(T2.ctxOf(cfg, { id: 'E2', role: 'NV', branches: ['B1'] }, { zaloId: 'z' }), 'du_bao_kho', { chi_nhanh: 'B1' });
+    assert.ok(nv.loi);
+  });
+  await t('tim_nguoi_trong: bỏ người đã có ca đó, ưu tiên người đăng ký rảnh', async () => {
+    const w = world();
+    const cfg = w.db.store['ops_config/main'];
+    w.db.store['ops_employees/E3'] = { id: 'E3', name: 'Hoa', role: 'NV', status: 'active', branches: ['B1'] };
+    w.db.store['ops_schedule/B1_2026-11-18_S2'] = { branchId: 'B1', date: '2026-11-18', shiftId: 'S2', empIds: ['E1'] };
+    w.db.store['ops_shiftreg/E3_2026-11-18'] = { empId: 'E3', date: '2026-11-18', shifts: ['S2'] };
+    const T2 = mkTools(w);
+    const r = await T2.run(T2.ctxOf(cfg, { id: 'M1', role: 'AM', branches: ['B1'] }, { zaloId: 'z' }), 'tim_nguoi_trong', { ngay: '2026-11-18', ca: 'tối', chi_nhanh: 'B1' });
+    assert.strictEqual(r.ung_vien[0].ten, 'Hoa'); assert.ok(!r.ung_vien.some(x => x.ten === 'Lan'), 'Lan đã có ca tối');
+    assert.ok(r.ung_vien.some(x => x.ten === 'Minh'));
+    assert.strictEqual(r.ung_vien[0].da_dang_ky_ca_nay, true);
+  });
+  await t('cong_cua_toi + cong_thuc', async () => {
+    const w = world();
+    const cfg = w.db.store['ops_config/main'];
+    w.db.store['ops_attendance/E1_2026-11-03'] = { empId: 'E1', date: '2026-11-03', inAt: 'x', outAt: 'y', mins: 480, late: 7 };
+    w.db.store['ops_attendance/E1_2026-11-04'] = { empId: 'E1', date: '2026-11-04', inAt: 'x', outAt: '', mins: 240 };
+    w.db.store['ops_attendance/E2_2026-11-04'] = { empId: 'E2', date: '2026-11-04', inAt: 'x', mins: 999 };
+    w.db.store['ops_recipes/R1'] = { name: 'Bạc xỉu', size: 'M', items: [{ name: 'Sữa đặc', qty: 30, unit: 'ml' }], steps: [{ label: 'Cho sữa đặc', note: 'khuấy đều' }] };
+    const T2 = mkTools(w);
+    const me = T2.ctxOf(cfg, GS, { zaloId: 'z' });
+    const cg = await T2.run(me, 'cong_cua_toi', { thang: '2026-11' });
+    assert.strictEqual(cg.so_ca, 2); assert.strictEqual(cg.tong_gio, 12); assert.strictEqual(cg.di_tre.so_lan, 1); assert.deepStrictEqual(cg.quen_cham_ra, ['04/11']);
+    const ct = await T2.run(me, 'cong_thuc', { ten: 'bac xiu' });
+    assert.deepStrictEqual(ct.cong_thuc[0].nguyen_lieu, ['Sữa đặc: 30 ml']); assert.ok(/khuấy đều/.test(ct.cong_thuc[0].cac_buoc[0]));
+  });
+
   console.log('bot tự báo');
   const at = (iso) => { NOW = Date.parse(iso); };
   const NOW0 = NOW;
