@@ -5,7 +5,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     /* ops_stock (bản ghi đếm kho từng ngày) đi luật riêng bên dưới — không qua luật chung */
     match /{collection}/{docId=**} {
-      allow read, write: if request.auth != null && !(collection in ['ops_stock', 'ops_vpool', 'ops_vacl']);
+      allow read, write: if request.auth != null && !(collection in ['ops_stock', 'ops_vpool', 'ops_vacl',
+        'ops_zlink', 'ops_zcode', 'ops_zmsg', 'ops_zquota', 'ops_zguard']);
     }
 
     /* ---- Voucher nhân viên: KHO MÃ voucher KiotViet ----
@@ -22,6 +23,21 @@ service cloud.firestore {
       allow read, write: if request.auth != null
         && request.auth.token.email in get(/databases/$(database)/documents/ops_vacl/main).data.emails;
     }
+
+    /* ---- Bot Zalo (functions/zalo.js) ----
+       Chỉ MÁY CHỦ ghi (admin SDK không bị luật chặn). Trình duyệt:
+         · ops_zlink / ops_zmsg / ops_zquota: chỉ ADMIN đọc (tab Cấu hình › Hệ thống › Bot Zalo) — ADMIN nhận
+           ra bằng danh sách ops_vacl/main.admins (tab Voucher nhân viên › Cài đặt › Cập nhật danh sách);
+         · ops_zcode (mã kết nối) / ops_zguard (bộ đếm chống spam): không ai đọc. */
+    function zAdmin() {
+      return request.auth != null && request.auth.token.email != null
+        && request.auth.token.email.lower() in get(/databases/$(database)/documents/ops_vacl/main).data.admins;
+    }
+    match /ops_zlink/{id} { allow read: if zAdmin(); allow write: if false; }
+    match /ops_zmsg/{id} { allow read: if zAdmin(); allow write: if false; }
+    match /ops_zquota/{id} { allow read: if zAdmin(); allow write: if false; }
+    match /ops_zcode/{id} { allow read, write: if false; }
+    match /ops_zguard/{id} { allow read, write: if false; }
 
     /* Đếm kho: CẤM mọi lệnh ghi làm MẤT phần số đang đếm (live). App bản mới luôn ghi gộp nên luôn giữ live;
        chỉ máy còn chạy bản CŨ (nút "Lưu giao ca", ghi đè cả document) mới bị chặn — thà báo lỗi bắt tải lại

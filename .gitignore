@@ -9,3 +9,4 @@ robot/kiotviet-sync/loi-kiotviet.png
 # Bản dịch sẵn — sinh ra lúc deploy bởi tools/prebuild.mjs, không commit
 /app.js
 tools/node_modules/
+functions/node_modules/

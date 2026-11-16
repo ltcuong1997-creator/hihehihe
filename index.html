@@ -15337,6 +15337,333 @@ function ChecklistView() {
 }
 
 /* ===================== HỒ SƠ CÁ NHÂN ===================== */
+/* ===================== BOT ZALO NỘI BỘ (port từ ZSpace 16/11/2026 — HUONG-DAN-ZALO-BOT.md) =====================
+   Thẻ "Kết nối Zalo" trong Hồ sơ của tôi + tab Cấu hình › Hệ thống › Bot Zalo (chỉ ADMIN).
+   Máy chủ (functions/zalo.js) làm hết phần ghi: liên kết, mã, nhật ký, hạn mức, cờ `zaloLinked` trên
+   hồ sơ. App chỉ gọi zaloLinkCode / zaloUnlink, và ADMIN đọc ops_zlink / ops_zmsg / ops_zquota.
+   Cài đặt bot nằm ở cfg.zalo (chỉ form trong tab Bot Zalo ghi, qua saveCfg — có sao lưu). */
+const ZALO_DEF = { allowRoles: ['GS', 'AM', 'OM', 'ADMIN'], allowEmps: [], maxUsers: 50, monthlyCap: 3000, botName: '' };
+/* Cùng quy tắc với zcfg() ở functions/zalo.js — sửa một bên thì sửa cả bên kia */
+const zaloCfg = (cfg) => {
+  const z = (cfg && cfg.zalo && typeof cfg.zalo === 'object') ? cfg.zalo : {};
+  const list = (v, d) => Array.isArray(v) ? v.map(x => String(x || '').trim()).filter(Boolean) : d;
+  const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 1 ? Math.floor(n) : d; };
+  return {
+    allowRoles: list(z.allowRoles, ZALO_DEF.allowRoles), allowEmps: list(z.allowEmps, ZALO_DEF.allowEmps),
+    maxUsers: num(z.maxUsers, ZALO_DEF.maxUsers), monthlyCap: num(z.monthlyCap, ZALO_DEF.monthlyCap),
+    botName: String(z.botName || '').trim(),
+  };
+};
+const zaloOk = (u, cfg) => {
+  if (!u || u.status === 'off') return false;
+  const z = zaloCfg(cfg);
+  return z.allowRoles.includes(u.role) || z.allowEmps.includes(u.id);
+};
+const zaloMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 7);
+
+function ZaloLinkCard() {
+  const { user, cfg, toast } = useApp();
+  const [st, setSt] = useState(null);          /* { code, exp, botName } */
+  const [busy, setBusy] = useState(false);
+  const [, setNow] = useState(Date.now());
+  const linked = !!(user && user.zaloLinked === true);
+  useEffect(() => {
+    if (!st) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [st]);
+  /* Máy chủ đánh dấu hồ sơ đã kết nối (sau khi nhắn DONG Y) -> hồ sơ đổi theo thời gian thực */
+  useEffect(() => { if (linked && st) { setSt(null); toast('Đã kết nối Zalo'); } }, [linked]);
+  if (!user || (!linked && !zaloOk(user, cfg))) return null;
+  const getCode = async () => {
+    setBusy(true);
+    try { const r = await callFn('zaloLinkCode', {}); setSt({ code: String(r.code), exp: Number(r.exp) || 0, botName: r.botName || '' }); }
+    catch (e) { toast(e.message || 'Chưa lấy được mã'); }
+    setBusy(false);
+  };
+  const unlink = async () => {
+    if (!await zsAsk('Ngắt kết nối Zalo?\n\nBot sẽ không nhận lệnh của bạn nữa. Muốn dùng lại thì lấy mã mới.')) return;
+    setBusy(true);
+    try { await callFn('zaloUnlink', {}); toast('Đã ngắt kết nối Zalo'); }
+    catch (e) { toast(e.message || 'Chưa ngắt được'); }
+    setBusy(false);
+  };
+  const left = st ? Math.max(0, Math.floor((st.exp - Date.now()) / 1000)) : 0;
+  const mmss = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+  return (
+    <div className="card" data-zalo-card>
+      <div className="card-h"><div><h3>Kết nối Zalo</h3><p>Bot Zalo nội bộ của Hí Hế</p></div></div>
+      <div className="card-b">
+        {linked && !st && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span className="tag t-green">Đã kết nối Zalo</span>
+            <span className="hint" style={{ margin: 0 }}>Nhắn GIUP cho bot để xem các lệnh</span>
+            <button className="btn btn-o btn-sm" style={{ marginLeft: 'auto' }} disabled={busy} onClick={unlink}>Ngắt kết nối</button>
+          </div>
+        )}
+        {!linked && !st && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span className="hint" style={{ margin: 0, flex: 1, minWidth: 180 }}>Kết nối để xem lịch làm việc ngay trên Zalo.</span>
+            <button className="btn btn-b btn-sm" disabled={busy || !cloud} onClick={getCode}>{busy ? 'Đang lấy mã…' : 'Lấy mã kết nối'}</button>
+          </div>
+        )}
+        {st && (
+          <div>
+            <div style={{ textAlign: 'center', padding: '6px 0 12px' }}>
+              <div className="mono" data-zalo-code style={{ fontSize: 40, fontWeight: 300, letterSpacing: '.18em', color: left ? 'var(--txt)' : 'var(--txt-3)', textDecoration: left ? 'none' : 'line-through' }}>{st.code}</div>
+              <div style={{ fontSize: 12.5, color: left ? 'var(--txt-3)' : 'var(--red)', marginTop: 2 }}>{left ? 'Còn hiệu lực ' + mmss : 'Mã đã hết hạn'}</div>
+            </div>
+            <ol style={{ margin: '0 0 12px', paddingLeft: 20, fontSize: 13.5, lineHeight: 1.6 }}>
+              <li>Mở Zalo, tìm bot{st.botName ? <> <b>{st.botName}</b></> : ' của Hí Hế'} và nhắn mã trên cho bot.</li>
+              <li>Bot hỏi đồng ý lưu tin nhắn: nhắn <b>DONG Y</b>. Xong là tự kết nối.</li>
+            </ol>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn btn-o btn-sm" onClick={() => setSt(null)}>Đóng</button>
+              <button className="btn btn-o btn-sm" disabled={busy} onClick={getCode}>Lấy mã mới</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Cấu hình › Hệ thống › Bot Zalo (chỉ ADMIN) ----
+   Nghe ops_zlink; ops_zquota/{tháng} + 200 tin gần nhất trong 30 ngày của ops_zmsg chỉ đọc khi mở tab /
+   bấm "Tải lại" (nhật ký không cần thời gian thực, khỏi tốn lượt đọc). Luật Firestore chỉ cho email nằm
+   trong ops_vacl/main.admins đọc ba bảng này. */
+const ZALO_RES = { sent: 'Đã gửi', failed: 'Gửi lỗi', skipped_quota: 'Bỏ qua — hạn mức' };
+const ZaloBar = ({ k, v, max, sub }) => {
+  const p = max > 0 ? Math.min(100, Math.round(v / max * 100)) : 0;
+  const hot = max > 0 && v / max >= 0.8;
+  return (
+    <div style={{ minWidth: 220, flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontSize: 12.5, color: 'var(--txt-3)', fontWeight: 600 }}>{k}</span>
+        <b className="mono" style={{ marginLeft: 'auto', fontSize: 20, fontWeight: 500, color: hot ? 'var(--red)' : 'var(--txt)' }}>{v.toLocaleString('vi-VN')}/{max.toLocaleString('vi-VN')}</b>
+      </div>
+      <div style={{ height: 8, borderRadius: 99, background: 'var(--line-soft)', overflow: 'hidden', marginTop: 6 }}>
+        <div style={{ width: p + '%', height: '100%', borderRadius: 99, background: hot ? 'var(--red)' : 'var(--brand)', transition: 'width .3s' }} />
+      </div>
+      {sub && <div style={{ fontSize: 11.5, color: 'var(--txt-3)', marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+};
+const zaloErr = (what, e) => {
+  const m = (e && (e.code || e.message)) || String(e);
+  return /permission/i.test(m)
+    ? 'Chưa có quyền đọc ' + what + '. Mở tab Voucher nhân viên › Cài đặt › bấm "Cập nhật danh sách" để ghi tên ADMIN vào danh sách quyền, rồi tải lại trang. (Và nhớ deploy luật Firestore mới.)'
+    : 'Không đọc được ' + what + ': ' + (e.message || e);
+};
+
+function ZaloTab() {
+  const { user, cfg, saveCfg, employees, toast } = useApp();
+  const isAdmin = !!user && user.role === 'ADMIN';
+  const z = zaloCfg(cfg);
+  const [links, setLinks] = useState(null);
+  const [quota, setQuota] = useState(null);
+  const [msgs, setMsgs] = useState(null);
+  const [err, setErr] = useState('');
+  const [who, setWho] = useState('all');
+  const [busy, setBusy] = useState('');
+  const [dr, setDr] = useState(null);
+  const logRef = useRef(null);
+  const mk = zaloMonth();
+
+  useEffect(() => {
+    if (!isAdmin || !cloud) return;
+    return rdOn(db.collection('ops_zlink'), 'ops_zlink', s => setLinks(s.docs.map(d => ({ ...d.data(), zid: d.id }))),
+      e => { setLinks([]); setErr(zaloErr('danh sách kết nối', e)); });
+  }, [isAdmin]);
+  const loadLog = async () => {
+    if (!isAdmin || !cloud) return;
+    setBusy('log');
+    try {
+      const [q, m] = await Promise.all([
+        db.collection('ops_zquota').doc(mk).get(),
+        db.collection('ops_zmsg').where('atMs', '>=', Date.now() - 30 * 864e5).orderBy('atMs', 'desc').limit(200).get(),
+      ]);
+      rdAdd('ops_zquota', q); rdAdd('ops_zmsg', m);
+      setQuota(q.exists ? (q.data() || {}) : {});
+      setMsgs(m.docs.map(d => ({ ...d.data(), id: d.id })));
+      setErr('');
+    } catch (e) { setQuota({}); setMsgs([]); setErr(zaloErr('nhật ký', e)); }
+    setBusy('');
+  };
+  useEffect(() => { loadLog(); }, [isAdmin]);
+  /* Như khung chat: mở ra là thấy tin mới nhất ở dưới cùng */
+  useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs, who]);
+
+  if (!isAdmin) return <div className="card"><div className="card-b"><Empty title="Chỉ ADMIN" desc="Màn Bot Zalo có nhật ký tin nhắn của nhân viên, chỉ ADMIN được xem." /></div></div>;
+  if (!cloud) return <div className="card"><div className="card-b"><Empty title="Chưa kết nối máy chủ" desc="Bot Zalo chỉ chạy khi app đang lưu lên Firebase." /></div></div>;
+
+  const active = (links || []).filter(l => l.active === true);
+  const linkOf = {};
+  active.forEach(l => { linkOf[l.empId] = l; });
+  const working = employees.filter(e => e.status !== 'off');
+  const okList = working.filter(e => z.allowRoles.includes(e.role) || z.allowEmps.includes(e.id));
+  const notYet = okList.filter(e => !linkOf[e.id]);
+  const nameOf = (id) => (employees.find(e => e.id === id) || {}).name || '';
+  const brOf = (e) => ((e && e.branches) || []).map(b => branchOf(b).name).join(', ') || '—';
+  const sent = Number((quota || {}).sent) || 0;
+  const byKind = (quota || {}).byKind || {};
+  const KIND = { reply: 'trả lời', guide: 'hướng dẫn người lạ', alert: 'cảnh báo' };
+  const kindTxt = Object.keys(byKind).filter(k => byKind[k]).map(k => (KIND[k] || k) + ' ' + byKind[k]).join(' · ');
+  const shown = (msgs || []).filter(m => who === 'all' || (who === '_stranger' ? !m.empId : m.empId === who)).slice().reverse();
+
+  const unlinkFor = async (l) => {
+    if (!await zsAsk('Ngắt kết nối Zalo của ' + (l.name || nameOf(l.empId) || l.empId) + '?\n\nNgười đó phải lấy mã mới mới dùng lại được bot.')) return;
+    setBusy('u' + l.empId);
+    try { const r = await callFn('zaloUnlink', { empId: l.empId }); toast(r && r.n ? 'Đã ngắt kết nối' : 'Người này không còn kết nối nào'); }
+    catch (e) { toast(e.message || 'Chưa ngắt được'); }
+    setBusy('');
+  };
+
+  /* ---- form cài đặt: sửa trên bản nháp, bấm Lưu mới ghi ---- */
+  const d = dr || z;
+  const setD = (patch) => setDr({ ...d, ...patch });
+  const flip = (k, v) => setD({ [k]: d[k].includes(v) ? d[k].filter(x => x !== v) : [...d[k], v] });
+  const saveZ = () => {
+    saveCfg({ zalo: {
+      /* saveCfg thay cả khối zalo — mang theo mọi khoá đang có, kẻo lưu là mất */
+      ...((cfg && cfg.zalo) || {}),
+      allowRoles: d.allowRoles, allowEmps: d.allowEmps,
+      maxUsers: Math.max(1, Math.floor(Number(d.maxUsers) || ZALO_DEF.maxUsers)),
+      monthlyCap: Math.max(1, Math.floor(Number(d.monthlyCap) || ZALO_DEF.monthlyCap)),
+      botName: String(d.botName || '').trim().slice(0, 80),
+    } });
+    setDr(null);
+    toast('Đã lưu cài đặt bot Zalo');
+  };
+  const roles = roleList();
+  const addable = working.filter(e => !d.allowEmps.includes(e.id) && !d.allowRoles.includes(e.role))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'vi'));
+
+  return (
+    <div className="grid" style={{ gap: 14, marginTop: 14 }} data-zalo-tab>
+      {err && <div className="card"><div className="card-b" style={{ color: 'var(--red)', fontWeight: 600 }}>{err}</div></div>}
+      <div className="card">
+        <div className="card-h" style={{ flexWrap: 'wrap' }}>
+          <div><h3>Bot Zalo · gói miễn phí</h3><p>Zalo giới hạn 50 người dùng và 3.000 tin gửi đi mỗi tháng. Từ 80% bot chỉ trả lời lệnh.</p></div>
+          <div style={{ marginLeft: 'auto' }}>
+            <button className="btn btn-o btn-sm" disabled={busy === 'log'} onClick={loadLog}>{busy === 'log' ? 'Đang tải…' : 'Tải lại'}</button>
+          </div>
+        </div>
+        <div className="card-b" style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+          <ZaloBar k="Đã dùng chỗ" v={active.length} max={z.maxUsers} sub={links == null ? 'đang tải…' : notYet.length + ' người được phép chưa kết nối'} />
+          <ZaloBar k={'Đã gửi tin tháng ' + mk.slice(5, 7) + '/' + mk.slice(0, 4)} v={sent} max={z.monthlyCap} sub={quota == null ? 'đang tải…' : (kindTxt || 'chưa gửi tin nào') + ((quota || {}).warned95 ? ' · đã cảnh báo 95%' : '')} />
+        </div>
+      </div>
+
+      <div className="grid split" style={{ gap: 14 }}>
+        <div className="card">
+          <div className="card-h"><div><h3>Tổng quan</h3><p>Đã kết nối {active.length} / {okList.length} người được phép · {working.length} nhân sự đang làm</p></div></div>
+          <div className="card-b">
+            <div style={{ fontSize: 12.5, fontWeight: 700, margin: '0 0 6px' }}>Chưa kết nối ({notYet.length})</div>
+            {notYet.length ? (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {notYet.map(e => <span key={e.id} className="tag t-gray" title={brOf(e)}>{e.name} · {roleOf(e.role).short || e.role}</span>)}
+              </div>
+            ) : <div className="hint">Mọi người được phép đều đã kết nối.</div>}
+            <div className="hint" style={{ marginTop: 14 }}>
+              Nhân viên vào <b>Hồ sơ của tôi › Kết nối Zalo › Lấy mã kết nối</b>, nhắn mã 6 số cho bot rồi nhắn <b>DONG Y</b>.
+              Lệnh bot hiểu: LICH (lịch 7 ngày tới), GIUP, HUY KET NOI.
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-h"><div><h3>Cài đặt</h3><p>Lưu vào cấu hình chung (có sao lưu). Máy chủ chỉ đọc.</p></div></div>
+          <div className="card-b">
+            <Field label="Vai trò được kết nối">
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {roles.map(r => <label key={r.id} className="chk"><input type="checkbox" checked={d.allowRoles.includes(r.id)} onChange={() => flip('allowRoles', r.id)} /> {r.short || r.id}</label>)}
+              </div>
+            </Field>
+            <Field label="Thêm từng người" hint="Ngoài các vai trò trên, ví dụ thu ngân, pha chế trưởng">
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                {d.allowEmps.map(id => (
+                  <span key={id} className="tag t-brand" style={{ cursor: 'pointer' }} title="Bấm để bỏ" onClick={() => flip('allowEmps', id)}>{nameOf(id) || id} ✕</span>
+                ))}
+              </div>
+              <select className="inp" value="" onChange={e => { if (e.target.value) setD({ allowEmps: [...d.allowEmps, e.target.value] }); }}>
+                <option value="">+ Chọn người…</option>
+                {addable.map(e => <option key={e.id} value={e.id}>{e.name} — {roleOf(e.role).short || e.role}</option>)}
+              </select>
+            </Field>
+            <div className="grid g2" style={{ gap: 10 }}>
+              <Field label="Số người tối đa"><input className="inp mono" type="number" min="1" value={d.maxUsers} onChange={e => setD({ maxUsers: e.target.value })} /></Field>
+              <Field label="Tin gửi đi / tháng"><input className="inp mono" type="number" min="1" value={d.monthlyCap} onChange={e => setD({ monthlyCap: e.target.value })} /></Field>
+            </div>
+            <Field label="Tên bot hiện trong app" hint="Để trống thì app hỏi Zalo tên tài khoản của bot">
+              <input className="inp" value={d.botName} maxLength={80} onChange={e => setD({ botName: e.target.value })} placeholder="vd Bot Hí Hế" />
+            </Field>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              {dr && <button className="btn btn-o btn-sm" onClick={() => setDr(null)}>Huỷ</button>}
+              <button className="btn btn-b btn-sm" disabled={!dr} onClick={saveZ}>Lưu cài đặt</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-h"><div><h3>Danh sách kết nối ({active.length})</h3><p>Một tài khoản Zalo gắn với đúng một hồ sơ</p></div></div>
+        <div className="card-b scroll-x">
+          {links == null ? <div className="hint">Đang tải…</div> : !active.length ? <Empty title="Chưa ai kết nối" desc="Nhân viên vào Hồ sơ của tôi › Kết nối Zalo để lấy mã." /> : (
+            <table className="tb">
+              <thead><tr><th>Nhân viên</th><th>Chi nhánh</th><th>Kết nối lúc</th><th>Nhắn gần nhất</th><th /></tr></thead>
+              <tbody>{active.slice().sort((a, b) => (b.lastAtMs || 0) - (a.lastAtMs || 0)).map(l => {
+                const e = employees.find(x => x.id === l.empId);
+                return (
+                  <tr key={l.zid}>
+                    <td><b>{(e && e.name) || l.name || l.empId}</b>{l.zaloName ? <div style={{ fontSize: 11.5, color: 'var(--txt-3)' }}>Zalo: {l.zaloName}</div> : null}</td>
+                    <td>{brOf(e)}</td>
+                    <td className="mono">{l.linkedAtMs ? fmtDT(new Date(l.linkedAtMs).toISOString()) : '—'}</td>
+                    <td className="mono">{l.lastAtMs ? fmtDT(new Date(l.lastAtMs).toISOString()) : '—'}</td>
+                    <td style={{ textAlign: 'right' }}><button className="btn btn-o btn-sm" disabled={busy === 'u' + l.empId} onClick={() => unlinkFor(l)}>Ngắt hộ</button></td>
+                  </tr>
+                );
+              })}</tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-h" style={{ flexWrap: 'wrap' }}>
+          <div><h3>Nhật ký tin nhắn</h3><p>200 tin gần nhất trong 30 ngày · {shown.length} tin đang hiện</p></div>
+          <select className="inp" style={{ marginLeft: 'auto', width: 'auto', minWidth: 200 }} value={who} onChange={e => setWho(e.target.value)}>
+            <option value="all">Tất cả</option>
+            <option value="_stranger">Người chưa kết nối</option>
+            {Array.from(new Set((msgs || []).map(m => m.empId).filter(Boolean))).map(id => <option key={id} value={id}>{nameOf(id) || id}</option>)}
+          </select>
+        </div>
+        <div className="card-b" ref={logRef} style={{ maxHeight: 520, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {msgs == null ? <div className="hint">Đang tải…</div> : !shown.length ? <Empty title="Chưa có tin nhắn" desc="Tin nhắn với bot sẽ hiện ở đây." /> : shown.map(m => {
+            const out = m.dir === 'out';
+            const nm = m.empId ? (nameOf(m.empId) || m.empId) : (m.zname || 'Người lạ');
+            return (
+              <div key={m.id} style={{ alignSelf: out ? 'flex-end' : 'flex-start', maxWidth: '78%' }}>
+                <div style={{ fontSize: 11, color: 'var(--txt-3)', margin: '0 6px 2px', textAlign: out ? 'right' : 'left' }}>
+                  {out ? 'Bot → ' + nm : nm} · {m.atMs ? fmtDT(new Date(m.atMs).toISOString()) : ''}
+                  {!out && m.cmd ? ' · lệnh ' + m.cmd : ''}{!out && m.result ? ' · ' + m.result : ''}
+                  {out && m.result && m.result !== 'sent' ? ' · ' + (ZALO_RES[m.result] || m.result) : ''}
+                </div>
+                <div style={{
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 13.5, lineHeight: 1.45, padding: '9px 13px', borderRadius: 18,
+                  background: out ? 'var(--brand)' : 'var(--line-soft)', color: out ? '#fff' : 'var(--txt)',
+                  opacity: out && m.result && m.result !== 'sent' ? 0.55 : 1,
+                }}>{m.text || '—'}</div>
+                {out && m.err ? <div style={{ fontSize: 11, color: 'var(--red)', margin: '2px 6px 0', textAlign: 'right' }}>{m.err}</div> : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileView() {
   const { user, att, reqs, logout, saveEmp, toast, cfg } = useApp();
   const [pw, setPw] = useState('');
@@ -15402,6 +15729,7 @@ function ProfileView() {
             <button className="btn btn-o btn-w" onClick={logout}><Ic.logout size={15} /> Đăng xuất</button>
           </div>
         </div>
+        <ZaloLinkCard />
       </div>
     </div>
   );
@@ -41465,7 +41793,7 @@ function SettingsView() {
               { g: 'Nhân sự', items: [['pay', 'Lương giờ'], ['attappr', 'Duyệt công bổ sung'], ['holiday', 'Ngày lễ'], ['org', 'Phòng ban & chức vụ'], ['roles', 'Vai trò & phân quyền'], ['offer', 'Thư mời']] },
               { g: 'Tài chính', items: [['cash', 'Nộp tiền'], ['fin', 'Tài chính'], ['appr', 'Duyệt & mã hàng'], ['cost', 'Danh mục chi phí']] },
               { g: 'Đào tạo', items: [['train', 'Đào tạo'], ['quiz', 'Bài kiểm tra']] },
-              { g: 'Hệ thống', items: [['drive', 'Tệp & ảnh'], ['push', 'Thông báo đẩy'], ['forms', 'Biểu mẫu upload'], ['sources', 'Nguồn dữ liệu'], ['brand', 'Giao diện'], ['bak', 'Sao lưu & khôi phục'], ['diag', 'Chẩn đoán dữ liệu'], ['data', 'Dữ liệu thô']] },
+              { g: 'Hệ thống', items: [['drive', 'Tệp & ảnh'], ['push', 'Thông báo đẩy'], ...(user && user.role === 'ADMIN' ? [['zalo', 'Bot Zalo']] : []), ['forms', 'Biểu mẫu upload'], ['sources', 'Nguồn dữ liệu'], ['brand', 'Giao diện'], ['bak', 'Sao lưu & khôi phục'], ['diag', 'Chẩn đoán dữ liệu'], ['data', 'Dữ liệu thô']] },
             ];
             const grp = GROUPS.find(g => g.items.some(x => x[0] === tab)) || GROUPS[0];
             return (
@@ -41528,6 +41856,8 @@ function SettingsView() {
       {tab === 'drive' && <DriveTab />}
 
       {tab === 'push' && <PushTab />}
+
+      {tab === 'zalo' && <ZaloTab />}
 
       {tab === 'brand' && (
         <div className="card" style={{ marginTop: 14 }}>
@@ -41767,8 +42097,10 @@ let db = null, auth = null, cloud = false, fns = null;
 /* Hí Hế CHƯA triển khai Cloud Functions (khác ZSpace). Mọi tính năng cần máy chủ (kiểm IP Wi-Fi quán,
    nạp bù SePay…) báo rõ thay vì gọi mò rồi văng lỗi CORS. Khi nào dựng functions thì bật lại thành true. */
 const HAS_FNS = false;
+/* Hàm ĐÃ dựng riêng cho Hí Hế (functions/index.js) — gọi được dù HAS_FNS vẫn tắt cho các tính năng khác */
+const FNS_ON = new Set(['zaloLinkCode', 'zaloUnlink']);
 const callFn = async (name, data) => {
-  if (!HAS_FNS) throw new Error('Tính năng này cần máy chủ (Cloud Functions) — Hí Hế chưa bật');
+  if (!HAS_FNS && !FNS_ON.has(name)) throw new Error('Tính năng này cần máy chủ (Cloud Functions) — Hí Hế chưa bật');
   if (!cloud || !fns) throw new Error('Chưa kết nối được máy chủ');
   try {
     const r = await fns.httpsCallable(name, { timeout: 540000 })(data || {});
@@ -60017,7 +60349,10 @@ function App() {
     const { tempPw, pw, ...e } = e0 || {};
     setEmployees(p => p.find(x => x.id === e.id) ? p.map(x => x.id === e.id ? e : x) : [...p, e]);
     if (user && user.id === e.id) setUser(e);
-    putDoc(COL.emp, e.id, e).catch(() => toast('Lưu lên cloud lỗi, dữ liệu vẫn giữ tạm trên máy'));
+    /* zaloLinked: cờ do MÁY CHỦ ghi (bot Zalo, functions/zalo.js). Bản trong máy có thể cũ — gửi lên là
+       đè mất trạng thái kết nối thật, nên không bao giờ gửi trường này. */
+    const { zaloLinked: _zl, ...eOut } = e;
+    putDoc(COL.emp, e.id, eOut).catch(() => toast('Lưu lên cloud lỗi, dữ liệu vẫn giữ tạm trên máy'));
   };
   const delEmp = (id) => { setEmployees(p => p.filter(x => x.id !== id)); rmDoc(COL.emp, id); };
   const saveTicket = (t) => { setTickets(p => p.map(x => x.id === t.id ? t : x)); putDoc(COL.tk, t.id, t); };
