@@ -11,6 +11,7 @@
     "zalo": "node scripts/zalo-setup.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.1.1"
   }

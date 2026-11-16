@@ -6,7 +6,7 @@ service cloud.firestore {
     /* ops_stock (bản ghi đếm kho từng ngày) đi luật riêng bên dưới — không qua luật chung */
     match /{collection}/{docId=**} {
       allow read, write: if request.auth != null && !(collection in ['ops_stock', 'ops_vpool', 'ops_vacl',
-        'ops_zlink', 'ops_zcode', 'ops_zmsg', 'ops_zquota', 'ops_zguard']);
+        'ops_zlink', 'ops_zcode', 'ops_zmsg', 'ops_zquota', 'ops_zguard', 'ops_zgroup']);
     }
 
     /* ---- Voucher nhân viên: KHO MÃ voucher KiotViet ----
@@ -26,7 +26,7 @@ service cloud.firestore {
 
     /* ---- Bot Zalo (functions/zalo.js) ----
        Chỉ MÁY CHỦ ghi (admin SDK không bị luật chặn). Trình duyệt:
-         · ops_zlink / ops_zmsg / ops_zquota: chỉ ADMIN đọc (tab Cấu hình › Hệ thống › Bot Zalo) — ADMIN nhận
+         · ops_zlink / ops_zmsg / ops_zquota / ops_zgroup: chỉ ADMIN đọc (tab Cấu hình › Hệ thống › Bot Zalo) — ADMIN nhận
            ra bằng danh sách ops_vacl/main.admins (tab Voucher nhân viên › Cài đặt › Cập nhật danh sách);
          · ops_zcode (mã kết nối) / ops_zguard (bộ đếm chống spam): không ai đọc. */
     function zAdmin() {
@@ -36,6 +36,7 @@ service cloud.firestore {
     match /ops_zlink/{id} { allow read: if zAdmin(); allow write: if false; }
     match /ops_zmsg/{id} { allow read: if zAdmin(); allow write: if false; }
     match /ops_zquota/{id} { allow read: if zAdmin(); allow write: if false; }
+    match /ops_zgroup/{id} { allow read: if zAdmin(); allow write: if false; }
     match /ops_zcode/{id} { allow read, write: if false; }
     match /ops_zguard/{id} { allow read, write: if false; }
 

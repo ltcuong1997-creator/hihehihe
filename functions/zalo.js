@@ -1,26 +1,34 @@
 /* ===================== BOT ZALO NỘI BỘ — HÍ HẾ =====================
-   Port từ ZSpace (zspacemusicbox/functions/zalo.js, giai đoạn 1 — SPEC-zalo-bot-gd1.md), rút gọn cho
-   Hí Hế: chỉ chat riêng 1-1 với bot, lệnh cố định, KHÔNG AI, KHÔNG nhóm, KHÔNG báo cáo tự động.
+   Port từ ZSpace (zspacemusicbox/functions/zalo.js). Gồm:
+     · chat riêng 1-1: kết nối mã 6 số + DONG Y, lệnh nhanh LICH / GIUP / HUY KET NOI;
+     · trợ lý AI (zaloai.js + zalotools.js): hiểu câu tự do, tra số liệu theo quyền app, soạn nháp
+       việc ghi (báo sự cố, lập đề xuất mua, duyệt) — ghi thật chỉ sau khi người dùng nhắn OK;
+     · NHÓM Zalo ban quản trị: ADMIN gõ "bot ket noi nhom" để gắn; trong nhóm ai cũng hỏi được
+       ("bot ..."), việc ghi chỉ người đã kết nối, theo quyền của chính người đó.
+   Không có báo cáo tự động (ZSpace có).
      · tin đến: zaloHook chỉ kiểm header + lưu tin rồi trả 200; zaloProcess (chạy khi có document mới
        trong ops_zmsg) xử lý và trả lời — Cloud Functions hạ CPU sau khi trả lời, nên "trả 200 rồi làm
        tiếp" trong cùng một hàm không chắc chạy xong;
      · Hí Hế KHÔNG có ops_consents như ZSpace -> đồng ý lưu tin nhắn ghi ngay trên liên kết
        (ops_zlink: consentV, consentAt, consentText);
      · người lạ: mỗi tài khoản Zalo nhận câu hướng dẫn tối đa 1 lần / ngày;
-     · tên bot hiện trong app: cfg.zalo.botName, chưa đặt thì hỏi Zalo (getMe).
+     · tên bot hiện trong app: cfg.zalo.botName, chưa đặt thì hỏi Zalo (getMe);
+     · đồng ý bản có AI (consentV 2): người kết nối từ trước bản AI được hỏi đồng ý lại một lần.
 
    ---- API ZALO (bot.zaloplatforms.com/docs — theo bản ZSpace đã đọc 14–15/11/2026) ----
      · Webhook: POST JSON, header "X-Bot-Api-Secret-Token" = secret_token khai ở setWebhook.
        Body { event_name, message: { message_id, date, message_type, from: { id, display_name, is_bot },
        chat: { id, chat_type: PRIVATE|GROUP }, text | photo_url, caption | sticker, url | voice_url } }.
-       event_name: message.{text|image|sticker|voice|unsupported}.received. Trả lời bằng chat.id.
+       event_name: message.{text|image|sticker|voice|unsupported}.received. Trả lời bằng chat.id
+       (tin nhóm: chat.id là mã nhóm).
      · sendMessage: POST https://bot-api.zaloplatforms.com/bot<TOKEN>/sendMessage { chat_id, text }
        — text 1–2000 ký tự, văn bản thuần. Phản hồi { ok, result | error_code, description }.
      · getMe: POST .../getMe -> { ok, result: { id, account_name, ... } }.
 
    ---- RANH GIỚI GHI ----
-   Chỉ ghi: ops_zmsg, ops_zlink, ops_zcode, ops_zquota, ops_zguard và đúng một trường `zaloLinked` của
-   ops_employees. KHÔNG BAO GIỜ ghi ops_config — chỉ đọc. Không bao giờ log token.
+   Bot tự ghi: ops_zmsg, ops_zlink, ops_zcode, ops_zquota, ops_zguard, ops_zgroup và đúng một trường
+   `zaloLinked` của ops_employees. Ghi dữ liệu app (sự cố, đề xuất mua, duyệt) chỉ qua execPending của
+   zalotools.js sau khi người dùng nhắn OK. KHÔNG BAO GIỜ ghi ops_config — chỉ đọc. Không log token.
 
    Phần thuần có test: cd functions && npm test */
 const crypto = require('crypto');
@@ -35,12 +43,17 @@ const APP = 'Hí Hế';
 
 const COL = {
   link: 'ops_zlink', code: 'ops_zcode', msg: 'ops_zmsg', quota: 'ops_zquota', guard: 'ops_zguard',
-  emp: 'ops_employees', cfg: 'ops_config', sch: 'ops_schedule',
+  emp: 'ops_employees', cfg: 'ops_config', sch: 'ops_schedule', group: 'ops_zgroup',
 };
 
 /* Gói Zalo Bot miễn phí: tối đa 50 người dùng / bot, 3.000 tin gửi đi / tháng */
-const DEF = { allowRoles: ['GS', 'AM', 'OM', 'ADMIN'], allowEmps: [], maxUsers: 50, monthlyCap: 3000, botName: '' };
-const CONSENT_V = 1;
+const DEF = {
+  allowRoles: ['GS', 'AM', 'OM', 'ADMIN'], allowEmps: [], maxUsers: 50, monthlyCap: 3000, botName: '',
+  ai: true, aiCapUsd: 20, aiModel: 'claude-opus-5-5', maxGroups: 3,
+};
+const AI_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
+/* Phiên bản câu đồng ý: 2 = có thêm ý tin nhắn được trợ lý AI xử lý */
+const CONSENT_V = 2;
 const LIM = {
   msgPerHour: 60,          /* tin đến / tài khoản Zalo / giờ — quá thì bỏ qua, không trả lời */
   codeTtl: 10 * 60e3,      /* mã kết nối sống 10 phút */
@@ -77,6 +90,10 @@ function zcfg(cfg) {
     maxUsers: posInt(z.maxUsers, DEF.maxUsers),
     monthlyCap: posInt(z.monthlyCap, DEF.monthlyCap),
     botName: String(z.botName || '').trim().slice(0, 80),
+    ai: z.ai !== false,
+    aiModel: AI_MODELS.includes(z.aiModel) ? z.aiModel : DEF.aiModel,
+    maxGroups: posInt(z.maxGroups, DEF.maxGroups),
+    aiCapUsd: (() => { const n = Number(z.aiCapUsd); return Number.isFinite(n) && n >= 0 ? Math.min(n, 1000) : DEF.aiCapUsd; })(),
   };
 }
 /* Người được dùng bot: đang làm, và (vai trò nằm trong allowRoles hoặc có tên trong allowEmps). */
@@ -97,6 +114,27 @@ const CMDS = {
   lich: ['lich', 'xem lich', 'lich lam', 'lich lam viec', 'lich cua toi'],
   unlink: ['huy ket noi', 'ngat ket noi'],
   agree: ['dong y', 'dongy', 'toi dong y'],
+};
+
+/* Tin trong NHÓM chỉ xử lý khi GỌI bot: bắt đầu bằng "bot" / "@Bot ..." (tên bot Zalo luôn bắt đầu bằng
+   "Bot") hoặc "/". Trả phần còn lại sau lời gọi (bỏ cả "ơi", dấu câu), hoặc null nếu không gọi bot —
+   khi đó tin không được lưu, không qua AI (chat bình thường của nhóm là chuyện riêng của nhóm). */
+function groupCall(text, botName) {
+  let s = String(text == null ? '' : text).normalize('NFC').trim();
+  const bn = String(botName || '').normalize('NFC').trim();
+  const s0 = s.replace(/^@\s*/, '');
+  if (bn && s0.toLowerCase().startsWith(bn.toLowerCase())) s = s0.slice(bn.length);
+  else if (/^@?\s*bot(?![a-z0-9\u00c0-\u1ef9])/i.test(s)) s = s.replace(/^@?\s*bot/i, '');
+  else if (s.startsWith('/')) s = s.slice(1);
+  else return null;
+  return s.replace(/^[\s,.:;!\-–]*(?:ơi|oi)?(?![a-z0-9\u00c0-\u1ef9])[\s,.:;!\-–]*/i, '').trim();
+}
+/* Khớp lệnh nhóm, chịu được phần đuôi tên bot còn sót khi "@Bot Hí Hế ..." mà chưa điền tên bot
+   (vd "hi he ket noi nhom" vẫn là "ket noi nhom"; lệch tối đa 3 chữ đứng trước). */
+const cmdIs = (n, list) => list.some(c => n === c || (n.endsWith(' ' + c) && n.split(' ').length - c.split(' ').length <= 3));
+const GCMD = {
+  on: ['ket noi nhom', 'ket noi nhom quan ly', 'gan nhom', 'gan nhom quan ly'],
+  off: ['huy nhom', 'go nhom', 'ngat nhom', 'huy ket noi nhom', 'ngat ket noi nhom'],
 };
 
 /* -> { cmd: 'help' | 'lich' | 'unlink' | 'agree' | 'code' | 'unknown', code? } */
@@ -132,8 +170,11 @@ function parseEvent(body) {
     zname: clip((m.from && m.from.display_name) || '', 80),
     text: clip(text, MAX_TEXT),
     zdate: Number(m.date) || 0,
+    photoUrl: event === 'message.image.received' && okImgUrl(m.photo_url) ? String(m.photo_url).slice(0, 1000) : '',
   };
 }
+/* Link ảnh Zalo: chỉ https. Riêng Firebase emulator cho phép http://127.0.0.1 (máy chủ ảnh giả khi test). */
+const okImgUrl = (u) => /^https:\/\//.test(String(u || '')) || (process.env.FUNCTIONS_EMULATOR === 'true' && /^http:\/\/127\.0\.0\.1[:/]/.test(String(u || '')));
 const inDocId = (msgId) => 'in_' + String(msgId).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 200);
 
 /* Mã kết nối: 'ok' | 'missing' | 'used' | 'expired' | 'taken' (đang chờ DONG Y ở tài khoản Zalo khác). */
@@ -206,16 +247,37 @@ function fmtWeek(week, name) {
 const T = {
   help: 'Các lệnh của bot ' + APP + ':\n- LICH: lịch làm việc 7 ngày tới\n- HUY KET NOI: ngắt kết nối Zalo với app\n- GIUP: xem lại các lệnh\nGõ có dấu hay không dấu đều được.',
   guide: 'Chào anh/chị, đây là bot nội bộ ' + APP + '. Để dùng bot: mở app ' + APP + ' > Hồ sơ của tôi > Kết nối Zalo > Lấy mã kết nối, rồi nhắn mã 6 số vào đây.',
-  consent: 'Tin nhắn của anh/chị với bot được lưu lại để xử lý công việc, quản trị viên có thể xem lại. Bot không đọc được các cuộc trò chuyện khác của anh/chị. Đồng ý thì nhắn: DONG Y',
-  voice: 'Em chưa đọc được ảnh, tin thoại hay sticker, anh/chị nhắn chữ giúp em nhé. Nhắn GIUP để xem các lệnh.',
-  group: 'Bot ' + APP + ' hiện chỉ làm việc trong tin nhắn riêng. Anh/chị nhắn riêng cho bot nhé.',
+  consent: 'Tin nhắn của anh/chị với bot được lưu lại để xử lý công việc, quản trị viên có thể xem lại. Tin nhắn và ảnh gửi bot được trợ lý AI (Claude của Anthropic) xử lý để hiểu yêu cầu. Bot không đọc được các cuộc trò chuyện khác của anh/chị. Đồng ý thì nhắn: DONG Y',
+  consentAi: 'Bot ' + APP + ' vừa có trợ lý AI: anh/chị nhắn bình thường là em hiểu (hỏi doanh thu, món bán chạy, ai đang trong ca, báo sự cố kèm ảnh, lập đề xuất mua hàng, duyệt việc...). Để dùng, anh/chị cần đồng ý: tin nhắn và ảnh gửi bot được trợ lý AI (Claude của Anthropic) xử lý để hiểu yêu cầu; tin vẫn được lưu và quản trị viên có thể xem lại. Đồng ý thì nhắn: DONG Y',
+  aiOk: 'Cảm ơn anh/chị. Từ giờ cứ nhắn bình thường, ví dụ: "doanh thu hôm nay", "tuần này bán bao nhiêu ly bạc xỉu", "máy pha chi nhánh 1 không lên nhiệt" (gửi kèm ảnh càng tốt), "có gì chờ tôi duyệt".',
+  helpAi: 'Em là trợ lý ' + APP + ', anh/chị cứ nhắn bình thường, ví dụ:\n- doanh thu hôm nay / tuần này\n- món nào bán chạy nhất tháng này\n- ai đang trong ca\n- hôm qua ai đi trễ\n- máy pha không lên nhiệt (gửi kèm ảnh)\n- đề xuất mua 10 hộp sữa đặc\n- có gì chờ tôi duyệt\nLệnh nhanh: LICH (lịch của tôi), HUY KET NOI.',
+  confirm: '\n\nNhắn OK để xác nhận, HUY để bỏ (bản nháp giữ 10 phút).',
+  confirmG: '\n\nGõ "bot ok" để xác nhận, "bot huy" để bỏ (bản nháp giữ 10 phút).',
+  /* Đầu mọi tin có bản nháp: tóm tắt của AI đọc lướt dễ tưởng đã ghi xong */
+  draftHead: 'BẢN NHÁP — CHƯA GHI VÀO APP\n',
+  pendDrop: 'Đã bỏ bản nháp.',
+  aiDown: 'Trợ lý AI đang tắt, em chỉ hiểu lệnh: LICH (lịch của tôi), GIUP, HUY KET NOI.',
+  aiCap: 'Trợ lý AI đã dùng hết ngân sách tháng này, em tạm chỉ hiểu lệnh: LICH, GIUP, HUY KET NOI. Báo quản trị nếu cần tăng.',
+  aiFail: 'Em chưa xử lý được câu này, anh/chị nói lại ngắn gọn hơn giúp em nhé.',
+  voice: 'Em chưa nghe được tin thoại hay sticker, anh/chị nhắn chữ giúp em nhé.',
+  groupNotLinked: 'Nhóm này chưa được gắn với app ' + APP + '. ADMIN (đã kết nối Zalo với app) gõ trong nhóm: bot ket noi nhom',
+  groupAdminOnly: 'Chỉ ADMIN đã kết nối Zalo với app mới gắn / gỡ được nhóm.',
+  groupAlready: 'Nhóm này đã được gắn rồi. Gõ "bot giup" để xem cách dùng.',
+  groupFull: (n) => 'Bot đã ở đủ ' + n + ' nhóm (giới hạn gói Zalo miễn phí). Gỡ bớt một nhóm trong app (Cấu hình › Hệ thống › Bot Zalo) rồi thử lại.',
+  groupOn: 'Đã gắn nhóm này làm NHÓM BAN QUẢN TRỊ của ' + APP + '.\n- Ai trong nhóm cũng hỏi được: gõ "bot" + câu hỏi, vd "bot doanh thu hôm nay", "bot món nào bán chạy tuần này".\n- Ghi vào app (báo sự cố, đề xuất mua, duyệt): chỉ người đã kết nối Zalo với app.\n- Chat bình thường bot không đọc, không lưu. Tin bắt đầu bằng "bot" được trợ lý AI (Claude của Anthropic) xử lý.\nGỡ nhóm: ADMIN gõ "bot huy nhom".',
+  groupOffDone: 'Đã gỡ nhóm khỏi app ' + APP + '. Bot không trả lời trong nhóm này nữa.',
+  groupNotOn: 'Nhóm này chưa được gắn với app.',
+  groupHelp: 'Trong nhóm, gõ "bot" + câu hỏi, ví dụ:\n- bot doanh thu hôm nay\n- bot món nào bán chạy tuần này\n- bot ai đang trong ca\n- bot sự cố nào chưa xử lý\n- bot hôm qua ai đi trễ\nNgười đã kết nối Zalo với app: thêm báo sự cố (gửi ảnh kèm chú thích "bot ..."), đề xuất mua, duyệt việc, "bot ok" để xác nhận.',
+  groupPrivate: 'Kết nối / ngắt kết nối Zalo làm trong tin nhắn riêng với bot nhé.',
   codeBad: 'Mã không đúng hoặc đã hết hạn. Lấy mã mới trong app (Hồ sơ của tôi > Kết nối Zalo) rồi nhắn lại.',
   codeGone: 'Mã kết nối đã hết hạn hoặc không còn dùng được. Lấy mã mới trong app rồi nhắn lại.',
   locked: 'Nhập sai mã quá nhiều lần. Anh/chị thử lại sau 15 phút.',
   remind: 'Nhắn DONG Y để hoàn tất kết nối. Không muốn kết nối thì bỏ qua tin này.',
   notAllowed: 'Tài khoản của anh/chị hiện chưa được dùng bot Zalo. Liên hệ quản trị.',
   full: (n) => 'Bot đã đủ ' + n + ' người, liên hệ quản trị.',
-  welcome: (name) => 'Chào ' + name + ', đã kết nối Zalo với tài khoản ' + APP + '.\n\nCác lệnh: LICH (lịch 7 ngày tới), HUY KET NOI (ngắt kết nối), GIUP (xem lại các lệnh).',
+  welcome: (name, ai) => 'Chào ' + name + ', đã kết nối Zalo với tài khoản ' + APP + '.\n\n' + (ai
+    ? 'Anh/chị cứ nhắn bình thường, ví dụ "doanh thu hôm nay", "có gì chờ tôi duyệt". Nhắn GIUP để xem thêm.'
+    : 'Các lệnh: LICH (lịch 7 ngày tới), HUY KET NOI (ngắt kết nối), GIUP (xem lại các lệnh).'),
   stopped: 'Tài khoản đã ngừng kết nối.',
   unlinked: (name) => 'Đã ngắt kết nối Zalo với tài khoản của ' + name + '. Muốn kết nối lại, lấy mã mới trong app.',
   already: (name) => 'Tài khoản Zalo này đang kết nối với ' + name + '. Muốn đổi, nhắn HUY KET NOI trước.',
@@ -259,6 +321,17 @@ function createZalo(deps) {
   const fetchFn = deps.fetchFn || fetch;
   const now = deps.now || (() => Date.now());
   const col = (k) => db.collection(COL[k]);
+  /* Trợ lý AI: khoá Anthropic chỉ có ở zaloProcess. Thiếu khoá / tắt trong cấu hình -> chạy lệnh mẫu. */
+  const getAiKey = deps.getAiKey || (() => '');
+  const makeAiClient = deps.makeAiClient || ((apiKey) => {
+    const A = require('@anthropic-ai/sdk');
+    const Anthropic = A.default || A;
+    return new Anthropic({ apiKey, maxRetries: 1, timeout: 60000 });
+  });
+  const tools = require('./zalotools').createTools({ db, now, log, fetchFn, helpers: { dayVN, dAdd, buildWeek, fmtWeek } });
+  const ai = require('./zaloai').createAI({ tools, log, now });
+  let aiClient = null, aiClientKey = '';
+  const aiClientFor = (key) => { if (!aiClient || aiClientKey !== key) { aiClient = makeAiClient(key); aiClientKey = key; } return aiClient; };
 
   /* ops_config/main — CHỈ ĐỌC, nhớ 60 giây */
   let cfgC = null, cfgAt = 0;
@@ -369,8 +442,39 @@ function createZalo(deps) {
     return fmtWeek(buildWeek(qs.docs.map(d => d.data()), emp.id, cfg, from, 7), emp.name || 'anh/chị');
   }
 
-  /* ---------- Người đã kết nối ---------- */
-  async function handleLinked(v, link, pc) {
+  /* ---------- Trợ lý AI dùng chung cho chat riêng + nhóm ---------- */
+  const YES = ['ok', 'oke', 'okie', 'okay', 'co', 'yes', 'xac nhan', 'dong y', 'gui', 'gui di', 'duyet', 'chot', 'dung', 'dung roi', 'chuan'];
+  const NO = ['huy', 'khong', 'ko', 'k', 'thoi', 'bo', 'cancel', 'no', 'huy bo', 'khong gui', 'bo qua'];
+  const HIST_TTL = 30 * 60e3, HIST_MAX = 8;
+
+  /* Nhớ vài lượt gần nhất (trong 30 phút) để hỏi tiếp được — lưu ở ops_zguard, không cần index */
+  async function pushHist(gref, g, items) {
+    const t = now();
+    const old = (Array.isArray(g.hist) ? g.hist : []).filter(h => h && t - Number(h.at) < HIST_TTL);
+    const hist = old.concat(items.map(x => ({ r: x.r, t: clip(x.t, 600), at: t }))).slice(-HIST_MAX);
+    await gref.set({ hist }, { merge: true }).catch(() => {});
+  }
+  /* Kiểm hạn mức tin + trần chi phí AI, gọi AI, cộng chi phí. Trả { res } hoặc { stop: kết quả trả về } */
+  async function runAi({ zc, cfg, emp, v, text, image, photo, history, group, reply }) {
+    const t = now(), mk = monthVN(t);
+    const qref = col('quota').doc(mk);
+    const q = await qref.get().then(s => (s.exists ? s.data() : {}) || {});
+    if (!quotaGate('reply', Number(q.sent) || 0, zc.monthlyCap)) return { stop: { cmd: 'ai', result: 'skipped_quota' } };
+    if ((Number((q.ai || {}).usd) || 0) >= zc.aiCapUsd) { await reply(T.aiCap, 'ai'); return { stop: { cmd: 'ai', result: 'ai_cap' } }; }
+    const res = await ai.answer({ client: aiClientFor(String(getAiKey() || '').trim()), model: zc.aiModel, cfg, emp, zaloId: v.zaloId, text, image, photo, history, group });
+    if (res.usage) {
+      await qref.set({ month: mk, ai: {
+        usd: FV.increment(res.usd || 0), in: FV.increment(res.usage.in), out: FV.increment(res.usage.out),
+        cacheR: FV.increment(res.usage.cacheR), cacheW: FV.increment(res.usage.cacheW), calls: FV.increment(res.rounds || 0),
+        turns: FV.increment(1), fails: FV.increment(res.ok ? 0 : 1),
+      }, updatedAt: FV.serverTimestamp() }, { merge: true });
+    }
+    return { res };
+  }
+
+  /* ---------- Người đã kết nối (chat riêng) ---------- */
+  async function handleLinked(v, link, pc, gref, g) {
+    g = g || {};
     const zid = v.zaloId, chat = v.chatId, empId = String(link.empId || '');
     const reply = (text, cmd) => send({ zaloId: zid, chatId: chat, empId, kind: 'reply', text, cmd: cmd || pc.cmd });
     const es = empId ? await col('emp').doc(empId).get() : null;
@@ -382,17 +486,165 @@ function createZalo(deps) {
       return { cmd: pc.cmd, result: 'emp_off', empId };
     }
     await col('link').doc(zid).update({ lastAt: FV.serverTimestamp(), lastAtMs: now() }).catch(() => {});
-    if (pc.cmd === 'help') { await reply(T.help); return { cmd: 'help', result: 'ok', empId }; }
-    if (pc.cmd === 'lich') { await reply(await lichText(emp)); return { cmd: 'lich', result: 'ok', empId }; }
+    const t = now();
+    const cfg = await getCfg();
+    const zc = zcfg(cfg);
+    const aiOn = zc.ai && !!String(getAiKey() || '').trim();
+    const isText = v.event === 'message.text.received';
+    const n = isText ? normalize(v.text) : '';
+
+    /* 1) Xác nhận / bỏ bản nháp — code thường, không qua AI */
+    const pend = g.pend && Number(g.pend.exp) > t ? g.pend : null;
+    if (pend && isText && (YES.includes(n) || NO.includes(n))) {
+      await gref.set({ pend: FV.delete() }, { merge: true });
+      if (NO.includes(n)) { await reply(T.pendDrop, 'pend_drop'); return { cmd: 'pend_drop', result: 'ok', empId }; }
+      let r;
+      try { r = await tools.execPending(cfg, emp, pend); }
+      catch (e) { log.error('zalo: ghi bản nháp lỗi', { kind: pend.kind, err: String(e && e.message) }); r = { ok: false, msg: 'Lỗi máy chủ khi ghi, chưa ghi gì. Anh/chị thử lại sau.' }; }
+      await reply(r.msg, 'pend_' + pend.kind);
+      await pushHist(gref, g, [{ r: 'u', t: v.text }, { r: 'a', t: r.msg }]);
+      return { cmd: 'pend_' + pend.kind, result: r.ok ? 'pend_done' : 'pend_fail', empId };
+    }
+
+    /* 2) Người kết nối từ trước bản AI: hỏi đồng ý lại một lần, trong lúc chờ thì chạy lệnh mẫu */
+    let ask = '';
+    if (aiOn && link.consentV !== CONSENT_V) {
+      if (pc.cmd === 'agree' && g.aiAsk) {
+        await col('link').doc(zid).update({ consentV: CONSENT_V, consentAiAt: t, consentAiText: T.consentAi });
+        await gref.set({ aiAsk: FV.delete() }, { merge: true });
+        await reply(T.aiOk, 'ai_consent');
+        return { cmd: 'ai_consent', result: 'ok', empId };
+      }
+      if (await claim(gref, 'aiAsk', true)) ask = '\n\n' + T.consentAi;
+    }
+    const aiReady = aiOn && link.consentV === CONSENT_V;
+
+    /* 3) Lệnh nhanh cố định — không tốn AI */
+    if (pc.cmd === 'help') { await reply((aiReady ? T.helpAi : T.help) + ask); return { cmd: 'help', result: 'ok', empId }; }
+    if (pc.cmd === 'lich') { await reply((await lichText(emp)) + ask); return { cmd: 'lich', result: 'ok', empId }; }
     if (pc.cmd === 'unlink') {
       await unlinkEmp(empId, 'self_bot', empId);
       await reply(T.unlinked(emp.name || ''));
       return { cmd: 'unlink', result: 'ok', empId };
     }
-    if (pc.cmd === 'code') { await reply(T.already(emp.name || '')); return { cmd: 'code', result: 'already_linked', empId }; }
-    if (v.event !== 'message.text.received') { await reply(T.voice); return { cmd: pc.cmd, result: 'not_text', empId }; }
-    await reply(T.unknown);
-    return { cmd: pc.cmd, result: 'unknown', empId };
+    if (pc.cmd === 'code') { await reply(T.already(emp.name || '') + ask); return { cmd: 'code', result: 'already_linked', empId }; }
+    if (v.event === 'message.voice.received' || v.event === 'message.sticker.received') { await reply(T.voice + ask); return { cmd: pc.cmd, result: 'voice', empId }; }
+
+    if (!aiReady) {
+      await reply((aiOn ? T.unknown : T.aiDown) + ask);
+      return { cmd: pc.cmd, result: 'unknown', empId };
+    }
+
+    /* 4) Trợ lý AI */
+    let image = null;
+    if (v.photoUrl) {
+      image = await tools.fetchImage(v.photoUrl);
+      await gref.set({ lastPhoto: { url: v.photoUrl, at: t } }, { merge: true });
+    }
+    const lp = g.lastPhoto && t - Number(g.lastPhoto.at) < tools.PHOTO_TTL ? g.lastPhoto : null;
+    const photo = image ? image : lp ? { url: lp.url } : null;
+    const history = (Array.isArray(g.hist) ? g.hist : []).filter(h => h && t - Number(h.at) < HIST_TTL);
+    const userText = isText ? v.text : (v.text || '').replace(/^\[ảnh\]\s*/, '');
+    const r = await runAi({ zc, cfg, emp, v, text: userText, image, photo, history, reply });
+    if (r.stop) return { ...r.stop, empId };
+    const res = r.res;
+    const text = res.ok ? (res.pend ? T.draftHead : '') + res.text + (res.pend ? T.confirm : '') : (res.pend ? T.draftHead + 'Em đã soạn nháp.' + T.confirm : T.aiFail);
+    await reply(text, 'ai');
+    await pushHist(gref, g, [{ r: 'u', t: userText || '[ảnh]' }, { r: 'a', t: text }]);
+    return { cmd: 'ai', result: res.ok ? 'ok' : 'ai_' + res.why, empId, aiUsd: res.usd || 0, aiTools: (res.tools || []).join(',') };
+  }
+
+  /* ---------- Tin trong NHÓM Zalo (đã gọi bot) ----------
+     Nhóm ban quản trị do ADMIN gắn ("bot ket noi nhom"), tối đa cfg.zalo.maxGroups (3 — giới hạn gói
+     Zalo miễn phí). Ai trong nhóm cũng HỎI được số liệu theo quyền của nhóm (mọi chi nhánh, không cần
+     kết nối từng người); việc GHI + lịch / việc chờ duyệt chỉ người đã kết nối, theo quyền của chính họ. */
+  const groupEmp = (cfg, v) => ({
+    id: 'grp_' + String(v.chatId), name: (v.zname || 'Thành viên') + ' (nhóm quản trị Zalo)', role: 'ADMIN', status: 'active',
+    branches: (cfg.branches || []).filter(b => b && b.id).map(b => b.id),
+  });
+  async function handleGroup(v, sref, sg) {
+    sg = sg || {};
+    const gid = String(v.chatId), t = now();
+    const cfg = await getCfg();
+    const zc = zcfg(cfg);
+    const isText = v.event === 'message.text.received';
+    const gtext = String(v.gtext || '');
+    const n = normalize(gtext);
+    const gdoc = col('group').doc(gid);
+    const gs = await gdoc.get();
+    const grp = gs.exists ? (gs.data() || {}) : null;
+    const active = !!(grp && grp.active === true);
+    /* Người gửi đã kết nối? */
+    const ls = await col('link').doc(String(v.zaloId)).get();
+    const link = ls.exists ? (ls.data() || {}) : null;
+    let actor = null;
+    if (link && link.active === true && link.empId) {
+      const es = await col('emp').doc(String(link.empId)).get();
+      const e = es.exists ? (es.data() || {}) : null;
+      if (e && e.status !== 'off') actor = { ...e, id: es.id };
+    }
+    const empId = actor ? actor.id : '';
+    const reply = (text, cmd) => send({ zaloId: v.zaloId, chatId: gid, empId, kind: 'reply', text, cmd });
+    const isAdmin = !!(actor && actor.role === 'ADMIN');
+
+    /* Gắn / gỡ nhóm — chỉ ADMIN đã kết nối */
+    if (isText && (cmdIs(n, GCMD.on) || cmdIs(n, GCMD.off))) {
+      const on = cmdIs(n, GCMD.on), cmd = on ? 'group_on' : 'group_off';
+      if (!isAdmin) { await reply(T.groupAdminOnly, cmd); return { cmd, result: 'denied', empId }; }
+      if (on) {
+        if (active) { await reply(T.groupAlready, cmd); return { cmd, result: 'already', empId }; }
+        const cnt = (await col('group').where('active', '==', true).get()).size;
+        if (cnt >= zc.maxGroups) { await reply(T.groupFull(zc.maxGroups), cmd); return { cmd, result: 'full', empId }; }
+        await gdoc.set({ id: gid, active: true, type: 'mgr', by: actor.id, byName: actor.name || '', atMs: t, at: FV.serverTimestamp(), lastAtMs: t }, { merge: true });
+        await reply(T.groupOn, cmd);
+        return { cmd, result: 'ok', empId };
+      }
+      if (!active) { await reply(T.groupNotOn, cmd); return { cmd, result: 'not_on', empId }; }
+      await gdoc.set({ active: false, offBy: actor.id, offAtMs: t, offAt: FV.serverTimestamp() }, { merge: true });
+      await reply(T.groupOffDone, cmd);
+      return { cmd, result: 'ok', empId };
+    }
+    if (!active) {
+      /* Nhóm chưa gắn: nhắc cách gắn tối đa 1 lần / ngày / nhóm (đỡ tốn tin) */
+      if (await claim(col('guard').doc('grp_' + gid), 'guideDay', dayVN(t))) await reply(T.groupNotLinked, 'group_guide');
+      return { cmd: 'group', result: 'group_off', empId };
+    }
+    await gdoc.set({ lastAtMs: t }, { merge: true }).catch(() => {});
+
+    const pc = parseCmd(isText ? gtext : '');
+    if ((!n && !v.photoUrl) || pc.cmd === 'help' || cmdIs(n, ['giup', 'help', 'huong dan'])) { await reply(T.groupHelp, 'help'); return { cmd: 'help', result: 'ok', empId }; }
+    if (['unlink', 'code', 'agree'].includes(pc.cmd)) { await reply(T.groupPrivate, pc.cmd); return { cmd: pc.cmd, result: 'private_only', empId }; }
+
+    /* Xác nhận / bỏ bản nháp của CHÍNH người gửi — code thường, không qua AI */
+    const pend = actor && sg.pend && Number(sg.pend.exp) > t ? sg.pend : null;
+    if (pend && isText && (YES.includes(n) || NO.includes(n))) {
+      await sref.set({ pend: FV.delete() }, { merge: true });
+      if (NO.includes(n)) { await reply(T.pendDrop, 'pend_drop'); return { cmd: 'pend_drop', result: 'ok', empId }; }
+      let r;
+      try { r = await tools.execPending(cfg, actor, pend); }
+      catch (e) { log.error('zalo: ghi bản nháp lỗi', { kind: pend.kind, err: String(e && e.message) }); r = { ok: false, msg: 'Lỗi máy chủ khi ghi, chưa ghi gì. Anh/chị thử lại sau.' }; }
+      await reply(r.msg, 'pend_' + pend.kind);
+      return { cmd: 'pend_' + pend.kind, result: r.ok ? 'pend_done' : 'pend_fail', empId };
+    }
+    if (pc.cmd === 'lich') {
+      if (!actor) { await reply(T.groupPrivate, 'lich'); return { cmd: 'lich', result: 'need_link', empId }; }
+      await reply(await lichText(actor), 'lich');
+      return { cmd: 'lich', result: 'ok', empId };
+    }
+
+    /* Trợ lý AI — quyền nhóm cho câu hỏi, quyền người gửi cho việc ghi */
+    if (!zc.ai || !String(getAiKey() || '').trim()) { await reply(T.aiDown, 'ai'); return { cmd: 'ai', result: 'ai_off', empId }; }
+    const image = v.photoUrl ? await tools.fetchImage(v.photoUrl) : null;
+    const hgref = col('guard').doc('grp_' + gid);
+    const hg = (await hgref.get().then(s => (s.exists ? s.data() : {}))) || {};
+    const history = (Array.isArray(hg.hist) ? hg.hist : []).filter(h => h && t - Number(h.at) < HIST_TTL);
+    const r = await runAi({ zc, cfg, emp: groupEmp(cfg, v), v, text: gtext, image, photo: image || null, history, group: { id: gid, actor }, reply });
+    if (r.stop) return { ...r.stop, empId };
+    const res = r.res;
+    const text = res.ok ? (res.pend ? T.draftHead : '') + res.text + (res.pend ? T.confirmG : '') : (res.pend ? T.draftHead + 'Em đã soạn nháp.' + T.confirmG : T.aiFail);
+    await reply(text, 'ai');
+    await pushHist(hgref, hg, [{ r: 'u', t: (v.zname ? v.zname + ': ' : '') + (gtext || '[ảnh]') }, { r: 'a', t: text }]);
+    return { cmd: 'ai', result: res.ok ? 'ok' : 'ai_' + res.why, empId, aiUsd: res.usd || 0, aiTools: (res.tools || []).join(',') };
   }
 
   /* ---------- Người chưa kết nối ---------- */
@@ -502,7 +754,7 @@ function createZalo(deps) {
       await reply(T.codeGone, empId);
       return { cmd: 'agree', result: 'link_failed', empId };
     }
-    await reply(T.welcome(emp.name || ''), empId);
+    await reply(T.welcome(emp.name || '', zc.ai && !!String(getAiKey() || '').trim()), empId);
     return { cmd: 'agree', result: 'linked', empId };
   }
 
@@ -525,10 +777,11 @@ function createZalo(deps) {
     const gref = col('guard').doc(String(v.zaloId));
     const gt = await guardTick(gref, now());
     if (gt.over) return { result: 'rate_limited' };
+    if (v.chatType === 'GROUP') return handleGroup(v, gref, gt.g);
     const pc = parseCmd(v.event === 'message.text.received' ? v.text : '');
     const ls = await col('link').doc(String(v.zaloId)).get();
     const link = ls.exists ? (ls.data() || {}) : null;
-    if (link && link.active === true) return handleLinked(v, link, pc);
+    if (link && link.active === true) return handleLinked(v, link, pc, gref, gt.g);
     return handleStranger(v, gref, gt.g, pc);
   }
 
@@ -566,13 +819,22 @@ function createZalo(deps) {
     let body = req.body;
     if (typeof body === 'string') { try { body = JSON.parse(body); } catch (_) { body = null; } }
     const ev = parseEvent(body);
-    /* Request kiểm tra của Zalo / tin do bot gửi / tin trong nhóm (Hí Hế chưa làm nhóm): nhận nhưng không lưu */
-    if (!ev.ok || ev.isBot || ev.chatType !== 'PRIVATE') { res.status(200).json({ message: 'Success' }); return; }
+    /* Request kiểm tra của Zalo / tin do bot gửi / loại hội thoại lạ: nhận nhưng không lưu */
+    if (!ev.ok || ev.isBot || (ev.chatType !== 'PRIVATE' && ev.chatType !== 'GROUP')) { res.status(200).json({ message: 'Success' }); return; }
+    /* Tin nhóm: chỉ lưu khi GỌI bot ("bot ...", "@Bot ...", "/..."); chat bình thường bỏ qua, không lưu */
+    let gtext = null;
+    if (ev.chatType === 'GROUP') {
+      const body = ev.event === 'message.text.received' ? ev.text : ev.text.replace(/^\[[^\]]*\]\s*/, '');
+      let bn = '';
+      try { bn = zcfg(await getCfg()).botName; } catch (e) { bn = ''; }
+      gtext = groupCall(body, bn);
+      if (gtext === null) { res.status(200).json({ message: 'Success' }); return; }
+    }
     try {
       await col('msg').doc(inDocId(ev.msgId)).create({
         dir: 'in', zaloId: ev.zaloId, chatId: ev.chatId, chatType: ev.chatType, zname: ev.zname,
-        event: ev.event, text: ev.text, zdate: ev.zdate, empId: '', cmd: '', result: '', st: 'new',
-        at: FV.serverTimestamp(), atMs: now(),
+        event: ev.event, text: ev.text, zdate: ev.zdate, photoUrl: ev.photoUrl || '', empId: '', cmd: '', result: '', st: 'new',
+        at: FV.serverTimestamp(), atMs: now(), ...(gtext !== null ? { gtext } : {}),
       });
     } catch (e) {
       const dup = e && (e.code === 6 || /already exists/i.test(String(e.message)));
@@ -652,12 +914,26 @@ function createZalo(deps) {
     return { n };
   }
 
-  return { hook, processIn, linkCode, unlink, send, unlinkEmp, getCfg };
+  /* ADMIN gỡ một nhóm Zalo khỏi app (tab Bot Zalo) — bot thôi trả lời trong nhóm đó */
+  async function groupOff(req) {
+    if (!(req.auth && req.auth.uid)) throw new HttpsError('unauthenticated', 'Chưa đăng nhập');
+    const me = await findEmp(req);
+    if (!me || me.status === 'off' || me.role !== 'ADMIN') throw new HttpsError('permission-denied', 'Chỉ ADMIN được gỡ nhóm');
+    const gid = String(((req.data || {}).groupId) || '').slice(0, 100);
+    if (!gid) throw new HttpsError('invalid-argument', 'Thiếu mã nhóm');
+    const ref = col('group').doc(gid);
+    const s = await ref.get();
+    if (!s.exists || (s.data() || {}).active !== true) return { ok: true, n: 0 };
+    await ref.set({ active: false, offBy: me.id, offAtMs: now(), offAt: FV.serverTimestamp() }, { merge: true });
+    return { ok: true, n: 1 };
+  }
+
+  return { hook, processIn, linkCode, unlink, groupOff, send, unlinkEmp, getCfg };
 }
 
 module.exports = {
-  API_BASE, SECRET_HEADER, COL, DEF, LIM, T, CONSENT_V,
-  secretOk, dayVN, monthVN, dAdd, zcfg, eligible, normalize, parseCmd, parseEvent, inDocId,
+  API_BASE, SECRET_HEADER, COL, DEF, LIM, T, CONSENT_V, AI_MODELS, okImgUrl,
+  secretOk, dayVN, monthVN, dAdd, zcfg, eligible, normalize, parseCmd, parseEvent, inDocId, groupCall, GCMD, cmdIs,
   checkCode, hourTick, codeTick, isLocked, badCode, quotaGate, needWarn95,
   buildWeek, fmtWeek, callApi, sendMessage, createZalo,
 };

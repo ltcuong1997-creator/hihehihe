@@ -15342,7 +15342,13 @@ function ChecklistView() {
    Máy chủ (functions/zalo.js) làm hết phần ghi: liên kết, mã, nhật ký, hạn mức, cờ `zaloLinked` trên
    hồ sơ. App chỉ gọi zaloLinkCode / zaloUnlink, và ADMIN đọc ops_zlink / ops_zmsg / ops_zquota.
    Cài đặt bot nằm ở cfg.zalo (chỉ form trong tab Bot Zalo ghi, qua saveCfg — có sao lưu). */
-const ZALO_DEF = { allowRoles: ['GS', 'AM', 'OM', 'ADMIN'], allowEmps: [], maxUsers: 50, monthlyCap: 3000, botName: '' };
+const ZALO_DEF = { allowRoles: ['GS', 'AM', 'OM', 'ADMIN'], allowEmps: [], maxUsers: 50, monthlyCap: 3000, botName: '', ai: true, aiCapUsd: 20, aiModel: 'claude-opus-5-5', maxGroups: 3 };
+/* Cùng bảng với MODELS ở functions/zaloai.js (giá USD / 1 triệu token vào / ra) */
+const ZALO_AI_MODELS = [
+  { id: 'claude-opus-5-5', l: 'Claude Opus 5.5 — thông minh nhất', p: '4 / 20' },
+  { id: 'claude-sonnet-5-5', l: 'Claude Sonnet 5.5 — cân bằng', p: '2 / 10' },
+  { id: 'claude-haiku-5-5', l: 'Claude Haiku 5.5 — rẻ nhất (ZSpace đang dùng)', p: '0,1 / 0,5' },
+];
 /* Cùng quy tắc với zcfg() ở functions/zalo.js — sửa một bên thì sửa cả bên kia */
 const zaloCfg = (cfg) => {
   const z = (cfg && cfg.zalo && typeof cfg.zalo === 'object') ? cfg.zalo : {};
@@ -15352,6 +15358,10 @@ const zaloCfg = (cfg) => {
     allowRoles: list(z.allowRoles, ZALO_DEF.allowRoles), allowEmps: list(z.allowEmps, ZALO_DEF.allowEmps),
     maxUsers: num(z.maxUsers, ZALO_DEF.maxUsers), monthlyCap: num(z.monthlyCap, ZALO_DEF.monthlyCap),
     botName: String(z.botName || '').trim(),
+    ai: z.ai !== false,
+    aiModel: ZALO_AI_MODELS.some(m => m.id === z.aiModel) ? z.aiModel : ZALO_DEF.aiModel,
+    aiCapUsd: (() => { const n = Number(z.aiCapUsd); return Number.isFinite(n) && n >= 0 ? Math.min(n, 1000) : ZALO_DEF.aiCapUsd; })(),
+    maxGroups: num(z.maxGroups, ZALO_DEF.maxGroups),
   };
 };
 const zaloOk = (u, cfg) => {
@@ -15403,7 +15413,7 @@ function ZaloLinkCard() {
         )}
         {!linked && !st && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span className="hint" style={{ margin: 0, flex: 1, minWidth: 180 }}>Kết nối để xem lịch làm việc ngay trên Zalo.</span>
+            <span className="hint" style={{ margin: 0, flex: 1, minWidth: 180 }}>Kết nối để hỏi số liệu, báo sự cố kèm ảnh, lập đề xuất mua, duyệt việc ngay trên Zalo.</span>
             <button className="btn btn-b btn-sm" disabled={busy || !cloud} onClick={getCode}>{busy ? 'Đang lấy mã…' : 'Lấy mã kết nối'}</button>
           </div>
         )}
@@ -15433,14 +15443,15 @@ function ZaloLinkCard() {
    bấm "Tải lại" (nhật ký không cần thời gian thực, khỏi tốn lượt đọc). Luật Firestore chỉ cho email nằm
    trong ops_vacl/main.admins đọc ba bảng này. */
 const ZALO_RES = { sent: 'Đã gửi', failed: 'Gửi lỗi', skipped_quota: 'Bỏ qua — hạn mức' };
-const ZaloBar = ({ k, v, max, sub }) => {
+const ZaloBar = ({ k, v, max, sub, fmt }) => {
+  const f = fmt || ((n) => n.toLocaleString('vi-VN'));
   const p = max > 0 ? Math.min(100, Math.round(v / max * 100)) : 0;
   const hot = max > 0 && v / max >= 0.8;
   return (
     <div style={{ minWidth: 220, flex: 1 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ fontSize: 12.5, color: 'var(--txt-3)', fontWeight: 600 }}>{k}</span>
-        <b className="mono" style={{ marginLeft: 'auto', fontSize: 20, fontWeight: 500, color: hot ? 'var(--red)' : 'var(--txt)' }}>{v.toLocaleString('vi-VN')}/{max.toLocaleString('vi-VN')}</b>
+        <b className="mono" style={{ marginLeft: 'auto', fontSize: 20, fontWeight: 500, color: hot ? 'var(--red)' : 'var(--txt)' }}>{f(v)}/{f(max)}</b>
       </div>
       <div style={{ height: 8, borderRadius: 99, background: 'var(--line-soft)', overflow: 'hidden', marginTop: 6 }}>
         <div style={{ width: p + '%', height: '100%', borderRadius: 99, background: hot ? 'var(--red)' : 'var(--brand)', transition: 'width .3s' }} />
@@ -15461,6 +15472,7 @@ function ZaloTab() {
   const isAdmin = !!user && user.role === 'ADMIN';
   const z = zaloCfg(cfg);
   const [links, setLinks] = useState(null);
+  const [groups, setGroups] = useState(null);
   const [quota, setQuota] = useState(null);
   const [msgs, setMsgs] = useState(null);
   const [err, setErr] = useState('');
@@ -15472,8 +15484,11 @@ function ZaloTab() {
 
   useEffect(() => {
     if (!isAdmin || !cloud) return;
-    return rdOn(db.collection('ops_zlink'), 'ops_zlink', s => setLinks(s.docs.map(d => ({ ...d.data(), zid: d.id }))),
+    const un = rdOn(db.collection('ops_zlink'), 'ops_zlink', s => setLinks(s.docs.map(d => ({ ...d.data(), zid: d.id }))),
       e => { setLinks([]); setErr(zaloErr('danh sách kết nối', e)); });
+    /* Nhóm Zalo ban quản trị: bot gắn khi ADMIN gõ "bot ket noi nhom" trong nhóm (máy chủ ghi, app chỉ đọc) */
+    const ug = rdOn(db.collection('ops_zgroup'), 'ops_zgroup', s => setGroups(s.docs.map(d => ({ ...d.data(), gid: d.id }))), () => setGroups([]));
+    return () => { un(); ug(); };
   }, [isAdmin]);
   const loadLog = async () => {
     if (!isAdmin || !cloud) return;
@@ -15508,6 +15523,8 @@ function ZaloTab() {
   const sent = Number((quota || {}).sent) || 0;
   const byKind = (quota || {}).byKind || {};
   const KIND = { reply: 'trả lời', guide: 'hướng dẫn người lạ', alert: 'cảnh báo' };
+  const qa = (quota || {}).ai || {};
+  const aiUsd = Number(qa.usd) || 0, aiTurns = Number(qa.turns) || 0, aiFails = Number(qa.fails) || 0;
   const kindTxt = Object.keys(byKind).filter(k => byKind[k]).map(k => (KIND[k] || k) + ' ' + byKind[k]).join(' · ');
   const shown = (msgs || []).filter(m => who === 'all' || (who === '_stranger' ? !m.empId : m.empId === who)).slice().reverse();
 
@@ -15516,6 +15533,14 @@ function ZaloTab() {
     setBusy('u' + l.empId);
     try { const r = await callFn('zaloUnlink', { empId: l.empId }); toast(r && r.n ? 'Đã ngắt kết nối' : 'Người này không còn kết nối nào'); }
     catch (e) { toast(e.message || 'Chưa ngắt được'); }
+    setBusy('');
+  };
+
+  const groupOff = async (g) => {
+    if (!await zsAsk('Gỡ nhóm Zalo này khỏi app?\n\nBot sẽ thôi trả lời trong nhóm. Muốn gắn lại thì ADMIN gõ trong nhóm: bot ket noi nhom')) return;
+    setBusy('g' + g.gid);
+    try { const r = await callFn('zaloGroupOff', { groupId: g.gid }); toast(r && r.n ? 'Đã gỡ nhóm' : 'Nhóm này đã gỡ từ trước'); }
+    catch (e) { toast(e.message || 'Chưa gỡ được'); }
     setBusy('');
   };
 
@@ -15531,6 +15556,9 @@ function ZaloTab() {
       maxUsers: Math.max(1, Math.floor(Number(d.maxUsers) || ZALO_DEF.maxUsers)),
       monthlyCap: Math.max(1, Math.floor(Number(d.monthlyCap) || ZALO_DEF.monthlyCap)),
       botName: String(d.botName || '').trim().slice(0, 80),
+      ai: d.ai !== false, aiModel: d.aiModel,
+      aiCapUsd: Math.min(1000, Math.max(0, Number(d.aiCapUsd) || 0)),
+      maxGroups: Math.max(1, Math.floor(Number(d.maxGroups) || ZALO_DEF.maxGroups)),
     } });
     setDr(null);
     toast('Đã lưu cài đặt bot Zalo');
@@ -15552,6 +15580,8 @@ function ZaloTab() {
         <div className="card-b" style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
           <ZaloBar k="Đã dùng chỗ" v={active.length} max={z.maxUsers} sub={links == null ? 'đang tải…' : notYet.length + ' người được phép chưa kết nối'} />
           <ZaloBar k={'Đã gửi tin tháng ' + mk.slice(5, 7) + '/' + mk.slice(0, 4)} v={sent} max={z.monthlyCap} sub={quota == null ? 'đang tải…' : (kindTxt || 'chưa gửi tin nào') + ((quota || {}).warned95 ? ' · đã cảnh báo 95%' : '')} />
+          <ZaloBar k={'Chi phí trợ lý AI' + (z.ai ? '' : ' (đang tắt)')} v={aiUsd} max={z.aiCapUsd} fmt={(n) => n > 0 && n < 0.01 ? '<$0.01' : '$' + (Math.round(n * 100) / 100).toFixed(2)}
+            sub={quota == null ? 'đang tải…' : aiTurns ? aiTurns + ' lượt hỏi · ~' + Math.round(aiUsd * 26000).toLocaleString('vi-VN') + 'đ' + (aiFails ? ' · ' + aiFails + ' lượt lỗi' : '') : 'chưa dùng tháng này'} />
         </div>
       </div>
 
@@ -15567,7 +15597,7 @@ function ZaloTab() {
             ) : <div className="hint">Mọi người được phép đều đã kết nối.</div>}
             <div className="hint" style={{ marginTop: 14 }}>
               Nhân viên vào <b>Hồ sơ của tôi › Kết nối Zalo › Lấy mã kết nối</b>, nhắn mã 6 số cho bot rồi nhắn <b>DONG Y</b>.
-              Lệnh bot hiểu: LICH (lịch 7 ngày tới), GIUP, HUY KET NOI.
+              Có trợ lý AI thì cứ nhắn bình thường; lệnh nhanh: LICH (lịch 7 ngày tới), GIUP, HUY KET NOI.
             </div>
           </div>
         </div>
@@ -15595,6 +15625,16 @@ function ZaloTab() {
               <Field label="Số người tối đa"><input className="inp mono" type="number" min="1" value={d.maxUsers} onChange={e => setD({ maxUsers: e.target.value })} /></Field>
               <Field label="Tin gửi đi / tháng"><input className="inp mono" type="number" min="1" value={d.monthlyCap} onChange={e => setD({ monthlyCap: e.target.value })} /></Field>
             </div>
+            <Field label="Trợ lý AI (Claude)" hint="Tắt thì bot chỉ hiểu lệnh mẫu (LICH, GIUP, HUY KET NOI). Chạm trần chi phí thì bot tự tắt AI tới đầu tháng sau. Giá ghi theo USD / 1 triệu token vào / ra.">
+              <div style={{ display: 'grid', gap: 8 }}>
+                <label className="chk"><input type="checkbox" checked={d.ai !== false} onChange={() => setD({ ai: d.ai === false })} /> Bật trợ lý AI</label>
+                <select className="inp" value={d.aiModel} onChange={e => setD({ aiModel: e.target.value })}>
+                  {ZALO_AI_MODELS.map(m => <option key={m.id} value={m.id}>{m.l} · ${m.p}</option>)}
+                </select>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>Trần
+                  <input className="inp mono" type="number" min="0" step="1" style={{ width: 90 }} value={d.aiCapUsd} onChange={e => setD({ aiCapUsd: e.target.value })} /> USD/tháng</span>
+              </div>
+            </Field>
             <Field label="Tên bot hiện trong app" hint="Để trống thì app hỏi Zalo tên tài khoản của bot">
               <input className="inp" value={d.botName} maxLength={80} onChange={e => setD({ botName: e.target.value })} placeholder="vd Bot Hí Hế" />
             </Field>
@@ -15603,6 +15643,28 @@ function ZaloTab() {
               <button className="btn btn-b btn-sm" disabled={!dr} onClick={saveZ}>Lưu cài đặt</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-h"><div><h3>Nhóm Zalo ban quản trị ({(groups || []).filter(g => g.active === true).length}/{z.maxGroups})</h3><p>Trong nhóm, ai cũng hỏi được: gõ "bot" + câu hỏi. Ghi vào app (báo sự cố, đề xuất mua, duyệt) chỉ người đã kết nối Zalo.</p></div></div>
+        <div className="card-b scroll-x">
+          {groups == null ? <div className="hint">Đang tải…</div> : !groups.some(g => g.active === true) ? (
+            <Empty title="Chưa gắn nhóm nào" desc={'Thêm bot vào nhóm Zalo ban quản trị, rồi ADMIN (đã kết nối Zalo) gõ trong nhóm: bot ket noi nhom. Gói Zalo miễn phí cho tối đa 3 nhóm.'} />
+          ) : (
+            <table className="tb">
+              <thead><tr><th>Nhóm</th><th>Gắn bởi</th><th>Gắn lúc</th><th>Hỏi gần nhất</th><th /></tr></thead>
+              <tbody>{groups.filter(g => g.active === true).sort((a, b) => (b.lastAtMs || 0) - (a.lastAtMs || 0)).map(g => (
+                <tr key={g.gid}>
+                  <td><b>Nhóm ban quản trị</b><div className="mono" style={{ fontSize: 11.5, color: 'var(--txt-3)' }}>mã …{String(g.gid).slice(-6)}</div></td>
+                  <td>{nameOf(g.by) || g.byName || g.by || '—'}</td>
+                  <td className="mono">{g.atMs ? fmtDT(new Date(g.atMs).toISOString()) : '—'}</td>
+                  <td className="mono">{g.lastAtMs ? fmtDT(new Date(g.lastAtMs).toISOString()) : '—'}</td>
+                  <td style={{ textAlign: 'right' }}><button className="btn btn-o btn-sm" disabled={busy === 'g' + g.gid} onClick={() => groupOff(g)}>Gỡ nhóm</button></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -15645,7 +15707,7 @@ function ZaloTab() {
             return (
               <div key={m.id} style={{ alignSelf: out ? 'flex-end' : 'flex-start', maxWidth: '78%' }}>
                 <div style={{ fontSize: 11, color: 'var(--txt-3)', margin: '0 6px 2px', textAlign: out ? 'right' : 'left' }}>
-                  {out ? 'Bot → ' + nm : nm} · {m.atMs ? fmtDT(new Date(m.atMs).toISOString()) : ''}
+                  {out ? 'Bot → ' + nm : nm}{m.chatType === 'GROUP' || (out && m.chatId && m.zaloId && m.chatId !== m.zaloId) ? ' · trong nhóm' : ''} · {m.atMs ? fmtDT(new Date(m.atMs).toISOString()) : ''}
                   {!out && m.cmd ? ' · lệnh ' + m.cmd : ''}{!out && m.result ? ' · ' + m.result : ''}
                   {out && m.result && m.result !== 'sent' ? ' · ' + (ZALO_RES[m.result] || m.result) : ''}
                 </div>
@@ -42098,7 +42160,7 @@ let db = null, auth = null, cloud = false, fns = null;
    nạp bù SePay…) báo rõ thay vì gọi mò rồi văng lỗi CORS. Khi nào dựng functions thì bật lại thành true. */
 const HAS_FNS = false;
 /* Hàm ĐÃ dựng riêng cho Hí Hế (functions/index.js) — gọi được dù HAS_FNS vẫn tắt cho các tính năng khác */
-const FNS_ON = new Set(['zaloLinkCode', 'zaloUnlink']);
+const FNS_ON = new Set(['zaloLinkCode', 'zaloUnlink', 'zaloGroupOff']);
 const callFn = async (name, data) => {
   if (!HAS_FNS && !FNS_ON.has(name)) throw new Error('Tính năng này cần máy chủ (Cloud Functions) — Hí Hế chưa bật');
   if (!cloud || !fns) throw new Error('Chưa kết nối được máy chủ');

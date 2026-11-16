@@ -1,16 +1,18 @@
 /* ===================== CLOUD FUNCTIONS — HÍ HẾ =====================
-   Hiện chỉ có BOT ZALO NỘI BỘ (port từ ZSpace, rút gọn — xem zalo.js). Hướng dẫn cài từ đầu:
-   HUONG-DAN-ZALO-BOT.md ở gốc repo.
+   Hiện chỉ có BOT ZALO NỘI BỘ (port từ ZSpace — xem zalo.js, trợ lý AI ở zaloai.js + zalotools.js).
+   Hướng dẫn cài từ đầu: HUONG-DAN-ZALO-BOT.md ở gốc repo.
      · zaloHook     — webhook công khai: kiểm header X-Bot-Api-Secret-Token (sai -> 401), lưu tin vào
                       ops_zmsg (mã tin Zalo làm id, create() chống trùng) rồi trả 200 ngay
      · zaloProcess  — chạy khi có document mới trong ops_zmsg: xử lý lệnh, gửi trả lời
      · zaloLinkCode — nhân viên xin mã 6 số để kết nối (Hồ sơ của tôi › Kết nối Zalo)
      · zaloUnlink   — tự ngắt, hoặc ADMIN ngắt hộ
+     · zaloGroupOff — ADMIN gỡ một nhóm Zalo ban quản trị (gắn nhóm bằng lệnh "bot ket noi nhom" trong nhóm)
    CHỈ ĐỌC ops_config (khoá `zalo`), không bao giờ ghi.
 
    Khoá nằm trong Secret Manager (KHÔNG BAO GIỜ commit — repo này công khai):
      firebase functions:secrets:set ZALO_BOT_TOKEN
      firebase functions:secrets:set ZALO_WEBHOOK_SECRET   (8–256 ký tự, khai trùng ở setWebhook)
+     firebase functions:secrets:set ANTHROPIC_API_KEY     (khoá API Claude, tạo ở console.anthropic.com)
 */
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
@@ -44,12 +46,15 @@ async function findEmp(req) {
 
 const ZALO_BOT_TOKEN = defineSecret('ZALO_BOT_TOKEN');
 const ZALO_WEBHOOK_SECRET = defineSecret('ZALO_WEBHOOK_SECRET');
+/* Trợ lý AI — chỉ nạp vào zaloProcess */
+const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 const zalo = ZL.createZalo({
   db, FV: FieldValue, HttpsError, findEmp, log: logger,
   /* trim: đặt secret bằng `echo ... | firebase functions:secrets:set` sẽ dính ký tự xuống dòng ở cuối
      -> mọi webhook bị 401. Token Zalo và secret_token không có khoảng trắng hai đầu. */
   getToken: () => String(ZALO_BOT_TOKEN.value() || '').trim(),
   getSecret: () => String(ZALO_WEBHOOK_SECRET.value() || '').trim(),
+  getAiKey: () => { try { return String(ANTHROPIC_API_KEY.value() || '').trim(); } catch (e) { return ''; } },
 });
 const ZL_OPTS = { region: REGION, memory: '256MiB', cpu: LOW_CPU };
 
@@ -58,7 +63,7 @@ exports.zaloHook = onRequest({ ...ZL_OPTS, secrets: [ZALO_WEBHOOK_SECRET], invok
   (req, res) => zalo.hook(req, res));
 
 /* Tin đi (dir 'out') cũng nằm trong ops_zmsg -> lọc ngay từ dữ liệu sự kiện, khỏi tốn lượt đọc */
-exports.zaloProcess = onDocumentCreated({ ...ZL_OPTS, document: ZL.COL.msg + '/{id}', secrets: [ZALO_BOT_TOKEN], timeoutSeconds: 60, retry: false, maxInstances: 5 },
+exports.zaloProcess = onDocumentCreated({ ...ZL_OPTS, memory: '512MiB', document: ZL.COL.msg + '/{id}', secrets: [ZALO_BOT_TOKEN, ANTHROPIC_API_KEY], timeoutSeconds: 180, retry: false, maxInstances: 5 },
   async (ev) => {
     const d = ev.data && ev.data.data();
     if (!d || d.dir !== 'in' || d.st !== 'new') return;
@@ -67,3 +72,4 @@ exports.zaloProcess = onDocumentCreated({ ...ZL_OPTS, document: ZL.COL.msg + '/{
 
 exports.zaloLinkCode = onCall({ ...ZL_OPTS, cpu: 1, secrets: [ZALO_BOT_TOKEN], timeoutSeconds: 30 }, (req) => zalo.linkCode(req));
 exports.zaloUnlink = onCall({ ...ZL_OPTS, cpu: 1, timeoutSeconds: 30 }, (req) => zalo.unlink(req));
+exports.zaloGroupOff = onCall({ ...ZL_OPTS, cpu: 1, timeoutSeconds: 30 }, (req) => zalo.groupOff(req));
