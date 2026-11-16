@@ -508,8 +508,10 @@ function createZalo(deps) {
 
     /* 2) Người kết nối từ trước bản AI: hỏi đồng ý lại một lần, trong lúc chờ thì chạy lệnh mẫu */
     let ask = '';
-    if (aiOn && link.consentV !== CONSENT_V) {
-      if (pc.cmd === 'agree' && g.aiAsk) {
+    const needAi = aiOn && link.consentV !== CONSENT_V;
+    if (needAi) {
+      /* Nhắn DONG Y lúc nào cũng được — không bắt phải đúng sau tin hỏi */
+      if (pc.cmd === 'agree') {
         await col('link').doc(zid).update({ consentV: CONSENT_V, consentAiAt: t, consentAiText: T.consentAi });
         await gref.set({ aiAsk: FV.delete() }, { merge: true });
         await reply(T.aiOk, 'ai_consent');
@@ -531,6 +533,8 @@ function createZalo(deps) {
     if (v.event === 'message.voice.received' || v.event === 'message.sticker.received') { await reply(T.voice + ask); return { cmd: pc.cmd, result: 'voice', empId }; }
 
     if (!aiReady) {
+      /* Chưa đồng ý AI: nhắc lại câu đồng ý (đừng trả "chưa hiểu" — người dùng không biết phải làm gì) */
+      if (needAi) { await reply(T.consentAi, 'ai_consent_ask'); return { cmd: pc.cmd, result: 'ai_consent_ask', empId }; }
       await reply((aiOn ? T.unknown : T.aiDown) + ask);
       return { cmd: pc.cmd, result: 'unknown', empId };
     }
