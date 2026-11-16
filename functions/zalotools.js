@@ -96,9 +96,49 @@ function createTools(deps) {
       input_schema: { type: 'object', properties: {
         tu_ngay: { type: 'string', description: 'YYYY-MM-DD' }, den_ngay: { type: 'string', description: 'YYYY-MM-DD, tối đa 62 ngày' }, chi_nhanh: brArr,
         tim_mon: { type: 'string', description: 'Lọc theo tên / mã món (gõ tắt được)' },
-        xep_theo: { type: 'string', enum: ['so_luong', 'doanh_thu'] },
+        xep_theo: { type: 'string', enum: ['so_luong', 'doanh_thu', 'ban_cham'], description: 'ban_cham = món bán ÍT nhất trước (có bán trong kỳ)' },
         gioi_han: { type: 'integer', minimum: 1, maximum: 40, description: 'Số món trả về (mặc định 15)' },
       }, required: ['tu_ngay', 'den_ngay'], additionalProperties: false },
+    },
+    {
+      name: 'phan_tich_doanh_thu',
+      description: 'PHÂN TÍCH doanh thu một khoảng ngày SO VỚI kỳ so sánh (mặc định kỳ liền trước cùng độ dài; tuan_truoc = cùng ngày tuần trước): tổng, số hoá đơn, giá trị TB/hoá đơn, theo nguồn đơn, theo KHUNG GIỜ (giờ cao điểm), theo thứ trong tuần, và các MÓN tăng / giảm mạnh nhất. Dùng cho câu hỏi "vì sao doanh thu tụt / tăng", "giờ nào đông nhất", "so với tuần trước thế nào".',
+      input_schema: { type: 'object', properties: {
+        tu_ngay: { type: 'string', description: 'YYYY-MM-DD' }, den_ngay: { type: 'string', description: 'YYYY-MM-DD, tối đa 31 ngày' }, chi_nhanh: brArr,
+        so_voi: { type: 'string', enum: ['ky_truoc', 'tuan_truoc'] },
+      }, required: ['tu_ngay', 'den_ngay'], additionalProperties: false },
+    },
+    {
+      name: 'tien_do_target',
+      description: 'Tiến độ TARGET doanh thu tháng từng chi nhánh: target, đã đạt, %, % tháng đã qua, dự phóng cuối tháng theo nhịp hiện tại, mỗi ngày còn lại cần bao nhiêu.',
+      input_schema: { type: 'object', properties: { thang: { type: 'string', description: 'YYYY-MM; bỏ trống = tháng này' }, chi_nhanh: brArr }, additionalProperties: false },
+    },
+    {
+      name: 'du_bao_kho',
+      description: 'DỰ BÁO HẾT NGUYÊN LIỆU một chi nhánh — tính đúng như trang Nhập-Xuất-Tồn của app: tồn hiện tại (chốt tồn gần nhất + nhập mua + nhập bổ sung - bán quy định mức - huỷ ± điều chuyển), lượng dùng trung bình / ngày, còn đủ dùng bao nhiêu ngày, gợi ý lượng cần mua cho N ngày. Có hàng sắp hết thì gợi ý người dùng lập đề xuất mua (soan_de_xuat_mua).',
+      input_schema: { type: 'object', properties: {
+        chi_nhanh: { type: 'string', description: 'Mã chi nhánh (id)' },
+        nguong_ngay: { type: 'number', description: 'Chỉ liệt kê hàng đủ dùng dưới số ngày này (mặc định 5)' },
+        mua_du_ngay: { type: 'number', description: 'Gợi ý lượng mua đủ dùng bao nhiêu ngày (mặc định 7)' },
+        tim: { type: 'string', description: 'Lọc theo tên / mã nguyên liệu (bỏ ngưỡng ngày)' },
+      }, required: ['chi_nhanh'], additionalProperties: false },
+    },
+    {
+      name: 'tim_nguoi_trong',
+      description: 'TÌM NGƯỜI THAY CA / người rảnh: một ngày, (một ca), một chi nhánh — liệt kê nhân viên còn làm của chi nhánh CHƯA có lịch ngày đó (hoặc chưa trùng ca đó), ưu tiên người đã ĐĂNG KÝ rảnh ca đó, kèm số ca đã xếp trong tuần.',
+      input_schema: { type: 'object', properties: {
+        ngay: { type: 'string', description: 'YYYY-MM-DD' }, ca: { type: 'string', description: 'Mã / tên ca (bỏ trống = cả ngày)' }, chi_nhanh: { type: 'string', description: 'Mã chi nhánh (id)' },
+      }, required: ['ngay', 'chi_nhanh'], additionalProperties: false },
+    },
+    {
+      name: 'cong_cua_toi',
+      description: 'Tổng kết CÔNG của CHÍNH người hỏi trong một tháng: số ca, tổng giờ, số lần / số phút đi trễ, ca quên chấm ra. Không có tiền lương.',
+      input_schema: { type: 'object', properties: { thang: { type: 'string', description: 'YYYY-MM; bỏ trống = tháng này' } }, additionalProperties: false },
+    },
+    {
+      name: 'cong_thuc',
+      description: 'Tra CÔNG THỨC pha chế / món trong app: nguyên liệu + định lượng, các bước làm, size, giá. Dùng khi nhân viên hỏi "pha X thế nào", "X gồm những gì".',
+      input_schema: { type: 'object', properties: { ten: { type: 'string', description: 'Tên món (gõ tắt được)' } }, required: ['ten'], additionalProperties: false },
     },
     {
       name: 'nguoi_trong_ca',
@@ -312,7 +352,7 @@ function createTools(deps) {
     let list = Object.values(agg);
     if (a.tim_mon) { const k = strip(a.tim_mon); list = list.filter(x => strip(x.mon + ' ' + x.ma + ' ' + x.nhom).includes(k)); }
     const key = a.xep_theo === 'doanh_thu' ? 'doanh_thu' : 'so_luong';
-    list.sort((x, y) => y[key] - x[key]);
+    if (a.xep_theo === 'ban_cham') list.sort((x, y) => x.so_luong - y.so_luong); else list.sort((x, y) => y[key] - x[key]);
     const lim = Math.min(40, Math.max(1, Number(a.gioi_han) || 15));
     return {
       tu_ngay: from, den_ngay: to, chi_nhanh: p.ids.map(id => bName(c.cfg, id)), so_mon: list.length,
@@ -500,6 +540,190 @@ function createTools(deps) {
       da_soan_nhap: true, chua_gui: true,
       ban_nhap: { chi_nhanh: bName(c.cfg, data.branchId), nhom: group, hang: data.items.map(i => i.name + ' x' + i.qty + (i.unit ? ' ' + i.unit : '') + (i.note ? ' (' + i.note + ')' : '')), ghi_chu: data.note || undefined, sau_khi_ok: 'tạo đề xuất và gửi cấp trên phê duyệt' },
     };
+  }
+
+
+  /* ===== Phân tích doanh thu: kỳ này so với kỳ so sánh ===== */
+  async function phan_tich_doanh_thu(c, a) {
+    if (!pagesOf(c).includes('revenue')) return err('Vai trò của người hỏi không được xem Doanh thu trong app.');
+    const from = String(a.tu_ngay || ''), to = String(a.den_ngay || '');
+    if (!isDay(from) || !isDay(to) || to < from) return err('Ngày không hợp lệ.');
+    const n = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1;
+    if (n > 31) return err('Tối đa 31 ngày mỗi lần phân tích.');
+    const shift = a.so_voi === 'tuan_truoc' ? -7 : -n;
+    const f2 = H.dAdd(from, shift), t2 = H.dAdd(to, shift);
+    const p = pickBranches(c.cfg, bizMine(c), a.chi_nhanh);
+    if (!p.ids.length) return { ...err('Không có chi nhánh nào được xem.'), ...brNote(c, p) };
+    const load = async (x, y) => (await db.collection(COL.rev).where('date', '>=', x).where('date', '<=', y).get()).docs.map(d => d.data() || {}).filter(v => p.ids.includes(v.branchId));
+    const [cur, cmp] = await Promise.all([load(from, to), load(f2, t2)]);
+    const WDN = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const agg = (docs) => {
+      const o = { tong: 0, hoa_don: 0, nguon: {}, gio: {}, thu: {} };
+      docs.forEach(v => {
+        o.tong += Number(v.amount) || 0; o.hoa_don += Number(v.invoices) || 0;
+        const ch = v.ch && Object.keys(v.ch).length ? v.ch : { na: Number(v.amount) || 0 };
+        Object.entries(ch).forEach(([k, x]) => { const l = REV_CH[k] || ((v.chL || {})[k]) || k.replace(/^o_/, ''); o.nguon[l] = (o.nguon[l] || 0) + (Number(x) || 0); });
+        (v.lines || []).forEach(l => { const h = Math.floor((Number(l.t) || 0) / 60); o.gio[h] = (o.gio[h] || 0) + (Number(l.a) || 0); });
+        const w = WDN[new Date(v.date + 'T00:00:00Z').getUTCDay()]; o.thu[w] = (o.thu[w] || 0) + (Number(v.amount) || 0);
+      });
+      return o;
+    };
+    const A = agg(cur), B = agg(cmp);
+    const pct = (x, y) => (y > 0 ? Math.round((x - y) / y * 1000) / 10 : null);
+    const keys = (o1, o2) => [...new Set([...Object.keys(o1), ...Object.keys(o2)])];
+    /* Món tăng / giảm: ops_sales theo tháng, cộng theo ngày trong từng kỳ */
+    const months = [...new Set([...monthsIn(from, to), ...monthsIn(f2, t2)])];
+    const sd = (await db.getAll(...p.ids.flatMap(b => months.map(m => db.collection(COL.sales).doc(b + '_' + m))))).filter(x => x.exists).map(x => x.data() || {});
+    const qty = (x, y) => { const o = {}; sd.forEach(d => Object.entries(d.items || {}).forEach(([code, it]) => { let q = 0; Object.entries(it.d || {}).forEach(([dd, v]) => { if (dd >= x && dd <= y) q += Number(v) || 0; }); if (q) { const r = o[code] || (o[code] = { mon: it.name || code, q: 0 }); r.q += q; } })); return o; };
+    const qa = qty(from, to), qb = qty(f2, t2);
+    const diff = keys(qa, qb).map(k => ({ mon: (qa[k] || qb[k]).mon, ky_nay: Math.round((qa[k] || {}).q || 0), ky_truoc: Math.round((qb[k] || {}).q || 0) })).map(x => ({ ...x, chenh: x.ky_nay - x.ky_truoc }));
+    return {
+      ky_nay: { tu: from, den: to, doanh_thu: A.tong, hoa_don: A.hoa_don, tb_hoa_don: A.hoa_don ? Math.round(A.tong / A.hoa_don) : 0 },
+      ky_so_sanh: { tu: f2, den: t2, doanh_thu: B.tong, hoa_don: B.hoa_don, tb_hoa_don: B.hoa_don ? Math.round(B.tong / B.hoa_don) : 0 },
+      chenh_lech_pct: pct(A.tong, B.tong), chenh_hoa_don_pct: pct(A.hoa_don, B.hoa_don),
+      theo_nguon: keys(A.nguon, B.nguon).map(k => ({ nguon: k, ky_nay: A.nguon[k] || 0, ky_truoc: B.nguon[k] || 0, pct: pct(A.nguon[k] || 0, B.nguon[k] || 0) })).sort((x, y) => y.ky_nay - x.ky_nay),
+      theo_gio: Object.keys(A.gio).length ? keys(A.gio, B.gio).map(Number).sort((x, y) => x - y).map(h => ({ gio: String(h).padStart(2, '0') + 'h', ky_nay: A.gio[h] || 0, ky_truoc: B.gio[h] || 0 })) : undefined,
+      theo_thu: n >= 7 ? WDN.filter(w => A.thu[w] || B.thu[w]).map(w => ({ thu: w, ky_nay: A.thu[w] || 0, ky_truoc: B.thu[w] || 0 })) : undefined,
+      mon_tang_manh: diff.filter(x => x.chenh > 0).sort((x, y) => y.chenh - x.chenh).slice(0, 6),
+      mon_giam_manh: diff.filter(x => x.chenh < 0).sort((x, y) => x.chenh - y.chenh).slice(0, 6),
+      ...brNote(c, p),
+    };
+  }
+
+  async function tien_do_target(c, a) {
+    if (!pagesOf(c).includes('revenue')) return err('Vai trò của người hỏi không được xem Doanh thu trong app.');
+    const today = H.dayVN(now());
+    const ym = a.thang && /^\d{4}-\d{2}$/.test(a.thang) ? a.thang : today.slice(0, 7);
+    const p = pickBranches(c.cfg, bizMine(c), a.chi_nhanh);
+    if (!p.ids.length) return { ...err('Không có chi nhánh nào được xem.'), ...brNote(c, p) };
+    const dim = new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0)).getUTCDate();
+    const end = ym === today.slice(0, 7) ? today : ym + '-' + String(dim).padStart(2, '0');
+    const passed = Number(end.slice(8, 10)), left = dim - passed + (ym === today.slice(0, 7) ? 1 : 0);
+    const [tg, rv] = await Promise.all([
+      db.getAll(...p.ids.map(b => db.collection('ops_targets').doc(b + '_' + ym))),
+      db.collection(COL.rev).where('date', '>=', ym + '-01').where('date', '<=', end).select('branchId', 'amount', 'date').get(),
+    ]);
+    const got = {}; let todayAmt = {};
+    rv.docs.forEach(d => { const v = d.data() || {}; got[v.branchId] = (got[v.branchId] || 0) + (Number(v.amount) || 0); if (v.date === today) todayAmt[v.branchId] = Number(v.amount) || 0; });
+    const rows = p.ids.map((b, i) => {
+      const target = tg[i].exists ? Number((tg[i].data() || {}).amount) || 0 : 0;
+      const done = got[b] || 0;
+      const doneBefore = done - (todayAmt[b] || 0);
+      const pace = passed > 1 ? doneBefore / (passed - 1) : done;
+      return {
+        chi_nhanh: bName(c.cfg, b), target, da_dat: done, pct: target ? Math.round(done / target * 1000) / 10 : null,
+        du_phong_cuoi_thang: Math.round(doneBefore + pace * (dim - passed + 1)),
+        moi_ngay_con_lai_can: target && left > 0 ? Math.max(0, Math.round((target - done) / left)) : undefined,
+        chua_dat_target: !target || undefined,
+      };
+    });
+    return { thang: ym, so_ngay_thang: dim, da_qua_pct: Math.round(passed / dim * 1000) / 10, so_ngay_con_lai: left, chi_nhanh: rows, ...brNote(c, p) };
+  }
+
+  async function du_bao_kho(c, a) {
+    const pages = pagesOf(c);
+    if (!pages.includes('nxt') && !pages.includes('stock')) return err('Vai trò của người hỏi không xem được kho trong app.');
+    const p = pickBranches(c.cfg, bizMine(c), [a.chi_nhanh]);
+    if (p.ids.length !== 1) return { ...err('Chọn MỘT chi nhánh.'), ...brNote(c, p) };
+    const bid = p.ids[0], today = H.dayVN(now());
+    /* Kỳ: đầu tháng -> hôm nay (giống mặc định trang Nhập-Xuất-Tồn); đầu tháng ít ngày quá thì lấy 14 ngày gần nhất */
+    let from = today.slice(0, 7) + '-01';
+    if (Number(today.slice(8, 10)) < 7) from = H.dAdd(today, -13);
+    const [stQ, poQ, mvA, mvB, rcQ] = await Promise.all([
+      db.collection('ops_stock').where('branchId', '==', bid).get(), db.collection('ops_po').get(),
+      db.collection(COL.mv).where('branchId', '==', bid).get(), db.collection(COL.mv).where('toBranchId', '==', bid).get(), db.collection('ops_recipes').get(),
+    ]);
+    const stocks = {}; stQ.docs.forEach(d => { stocks[d.id] = { ...(d.data() || {}), id: d.id }; });
+    const months = [...new Set([...monthsIn(from, today), ...Object.values(stocks).map(x => String(x.date || '').slice(0, 7)).filter(Boolean).sort().slice(-1)])];
+    const sales = {};
+    (await db.getAll(...months.map(m => db.collection(COL.sales).doc(bid + '_' + m)))).forEach(x => { if (x.exists) sales[x.id] = x.data() || {}; });
+    const moves = [...mvA.docs, ...mvB.docs].map(d => ({ ...(d.data() || {}), id: d.id }));
+    const R = c.R;
+    const out = R.nxtBuild({ cfg: c.cfg, stocks, pos: poQ.docs.map(d => ({ ...(d.data() || {}), id: d.id })), sales, moves, recipes: rcQ.docs.map(d => ({ ...(d.data() || {}), id: d.id })), bid, from, to: today });
+    const lim = Number(a.nguong_ngay) > 0 ? Number(a.nguong_ngay) : 5, buy = Number(a.mua_du_ngay) > 0 ? Number(a.mua_du_ngay) : 7;
+    const r2 = (x) => Math.round(x * 100) / 100;
+    let rows = out.rows.filter(r => r.moved || r.close);
+    if (a.tim) { const k = strip(a.tim); rows = rows.filter(r => strip(r.name + ' ' + r.code).includes(k)); }
+    else rows = rows.filter(r => r.daysLeft != null && r.daysLeft < lim);
+    rows.sort((x, y) => (x.daysLeft == null ? 1e9 : x.daysLeft) - (y.daysLeft == null ? 1e9 : y.daysLeft));
+    return {
+      chi_nhanh: bName(c.cfg, bid), ky_tinh: from + ' → ' + today, so_ngay_ky: out.days,
+      ton_dau_tu_chot: out.anchor ? out.anchor.date : 'chưa từng chốt tồn — tồn chỉ là biến động trong kỳ, có thể âm',
+      hang: rows.slice(0, 25).map(r => {
+        const per = r.sold / out.days;
+        return { ma: r.code, ten: r.name, don_vi: r.unit, ton: r2(r.close), dung_tb_ngay: r2(per), du_dung_ngay: r.daysLeft == null ? null : Math.round(r.daysLeft * 10) / 10,
+          goi_y_mua: per > 0 ? Math.max(0, Math.ceil(per * buy - Math.max(0, r.close))) : 0, nhom: r.group || undefined };
+      }),
+      ...(rows.length > 25 ? { bi_cat: rows.length - 25 } : {}),
+      mon_chua_co_dinh_muc: (out.soldNoBom || []).slice(0, 8).map(x => x.name || x.code),
+    };
+  }
+
+  async function tim_nguoi_trong(c, a) {
+    const pages = pagesOf(c);
+    if (!pages.includes('schedule') && !pages.includes('shifts')) return err('Vai trò của người hỏi không xem được lịch làm việc.');
+    const day = String(a.ngay || '');
+    if (!isDay(day)) return err('Ngày không hợp lệ.');
+    const p = pickBranches(c.cfg, bizMine(c), [a.chi_nhanh]);
+    if (p.ids.length !== 1) return { ...err('Chọn MỘT chi nhánh.'), ...brNote(c, p) };
+    const bid = p.ids[0];
+    const shifts = c.cfg.shifts || [];
+    const sh = a.ca ? shifts.find(s => strip(s.id) === strip(a.ca) || strip(s.code) === strip(a.ca) || strip(s.name).includes(strip(a.ca))) : null;
+    if (a.ca && !sh) return { loi: 'Không có ca "' + a.ca + '".', cac_ca: shifts.map(s => (s.code || s.id) + ' ' + s.name + ' ' + s.start + '-' + s.end) };
+    const wd = new Date(day + 'T00:00:00Z').getUTCDay(), mon = H.dAdd(day, -((wd + 6) % 7)), sun = H.dAdd(mon, 6);
+    const [eq, sq, rq] = await Promise.all([
+      db.collection(COL.emp).get(), db.collection(COL.sch).where('date', '>=', mon).where('date', '<=', sun).get(), db.collection('ops_shiftreg').where('date', '==', day).get(),
+    ]);
+    const busy = new Set(), week = {};
+    /* busy: "id" = đã có lịch trùng (cùng ca, hoặc bất kỳ ca nào khi hỏi cả ngày); "id|other" = có ca khác cùng ngày */
+    sq.docs.forEach(d => { const v = d.data() || {}; (v.empIds || []).forEach(id => {
+      week[id] = (week[id] || 0) + 1;
+      if (v.date !== day) return;
+      if (!sh || v.shiftId === sh.id) busy.add(id); else busy.add(id + '|other');
+    }); });
+    const reg = {}; rq.docs.forEach(d => { const v = d.data() || {}; reg[v.empId] = v.shifts || (v.shiftId ? [v.shiftId] : []); });
+    const list = eq.docs.map(d => ({ ...(d.data() || {}), id: d.id })).filter(e => e.status !== 'off' && (e.branches || []).includes(bid))
+      .map(e => {
+        const sameShift = busy.has(e.id), otherShift = busy.has(e.id + '|other');
+        if (sameShift) return null;
+        const r = reg[e.id] || [];
+        return { ten: e.name, vai_tro: (c.R.roleOf(e.role) || {}).short || e.role, da_dang_ky_ca_nay: sh ? r.includes(sh.id) : r.length > 0, da_co_ca_khac_cung_ngay: otherShift || undefined, so_ca_tuan_nay: week[e.id] || 0 };
+      }).filter(Boolean)
+      .sort((x, y) => (y.da_dang_ky_ca_nay - x.da_dang_ky_ca_nay) || ((x.da_co_ca_khac_cung_ngay ? 1 : 0) - (y.da_co_ca_khac_cung_ngay ? 1 : 0)) || (x.so_ca_tuan_nay - y.so_ca_tuan_nay));
+    return { ngay: day, ca: sh ? (sh.code || sh.id) + ' ' + sh.start + '-' + sh.end : 'cả ngày', chi_nhanh: bName(c.cfg, bid), ung_vien: list.slice(0, 15), ghi_chu: 'Xếp lịch trong app (Xếp lịch). Bot chưa sửa lịch được.' };
+  }
+
+  async function cong_cua_toi(c, a) {
+    const ym = a.thang && /^\d{4}-\d{2}$/.test(a.thang) ? a.thang : H.dayVN(now()).slice(0, 7);
+    const q = await db.collection('ops_attendance').where('empId', '==', c.me.id).get();
+    const today = H.dayVN(now());
+    const rows = q.docs.map(d => d.data() || {}).filter(v => String(v.date || '').slice(0, 7) === ym && v.inAt);
+    const mins = rows.reduce((x, v) => x + (Number(v.mins) || 0), 0);
+    const late = rows.filter(v => Number(v.late) > 0);
+    return {
+      thang: ym, so_ca: rows.length, tong_gio: Math.round(mins / 6) / 10,
+      di_tre: { so_lan: late.length, tong_phut: late.reduce((x, v) => x + Number(v.late), 0), ngay: late.slice(0, 10).map(v => v.date.slice(8, 10) + '/' + v.date.slice(5, 7) + ' (' + v.late + 'p)') },
+      quen_cham_ra: rows.filter(v => !v.outAt && v.date < today).map(v => v.date.slice(8, 10) + '/' + v.date.slice(5, 7)),
+      ghi_chu: 'Không gồm tiền lương — xem phiếu lương trong app.',
+    };
+  }
+
+  async function cong_thuc(c, a) {
+    const k = strip(a.ten);
+    if (!k) return err('Thiếu tên món.');
+    const q = await db.collection('ops_recipes').get();
+    const all = q.docs.map(d => ({ ...(d.data() || {}), id: d.id })).filter(r => r.name && !r.draft);
+    let hit = all.filter(r => strip(r.name) === k);
+    if (!hit.length) hit = all.filter(r => strip(r.name).includes(k) || k.includes(strip(r.name)));
+    if (!hit.length) return { loi: 'Không tìm thấy công thức "' + a.ten + '".', goi_y: all.slice(0, 15).map(r => r.name) };
+    if (hit.length > 3) return { nhieu_mon_khop: hit.slice(0, 12).map(r => r.name + (r.size ? ' (' + r.size + ')' : '')) };
+    const r2 = (x) => Math.round((Number(x) || 0) * 100) / 100;
+    return { cong_thuc: hit.map(r => ({
+      mon: r.name, size: r.size || undefined, gia: Number(r.price) || undefined, loai: r.kind === 'btp' ? 'bán thành phẩm' : (r.cat || undefined), mo_ta: r.desc ? clip(r.desc, 300) : undefined,
+      nguyen_lieu: (r.items || []).map(i => (i.name || i.sku || '') + ': ' + r2(i.qty) + ' ' + (i.unit || '')),
+      cac_buoc: (r.steps || []).map((s, i) => (i + 1) + '. ' + [s.label, s.note].filter(Boolean).join(' — ')).filter(x => x.length > 3),
+      ...(r.kind === 'btp' && r.batch ? { me_nau: r2(r.batch.qty) + ' ' + (r.batch.unit || '') } : {}),
+    })) };
   }
 
   /* ===== Ảnh lịch làm việc ===== */
@@ -720,10 +944,10 @@ function createTools(deps) {
   const sniff = (b) => b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b[0] === 0x89 && b[1] === 0x50 ? 'image/png'
     : b.slice(0, 4).toString() === 'RIFF' && b.slice(8, 12).toString() === 'WEBP' ? 'image/webp' : b.slice(0, 3).toString() === 'GIF' ? 'image/gif' : null;
 
-  const RUN = { doanh_thu, anh_lich, ban_theo_mon, nguoi_trong_ca, su_co, lich_lam_viec, viec_cho_duyet, tra_cuu, soan_bao_su_co, soan_de_xuat_mua, soan_phieu_kho, soan_de_nghi_chi, soan_duyet };
+  const RUN = { doanh_thu, phan_tich_doanh_thu, tien_do_target, du_bao_kho, tim_nguoi_trong, cong_cua_toi, cong_thuc, anh_lich, ban_theo_mon, nguoi_trong_ca, su_co, lich_lam_viec, viec_cho_duyet, tra_cuu, soan_bao_su_co, soan_de_xuat_mua, soan_phieu_kho, soan_de_nghi_chi, soan_duyet };
   /* Trong nhóm Zalo quản lý: hỏi số liệu theo quyền NHÓM (c.me); việc gắn với một người (lịch, việc chờ
      duyệt, soạn nháp) chạy bằng quyền của CHÍNH người hỏi đã kết nối (c.actor), chưa kết nối thì từ chối. */
-  const PERSONAL = ['lich_lam_viec', 'viec_cho_duyet', 'soan_bao_su_co', 'soan_de_xuat_mua', 'soan_phieu_kho', 'soan_de_nghi_chi', 'soan_duyet'];
+  const PERSONAL = ['lich_lam_viec', 'cong_cua_toi', 'viec_cho_duyet', 'soan_bao_su_co', 'soan_de_xuat_mua', 'soan_phieu_kho', 'soan_de_nghi_chi', 'soan_duyet'];
   async function run(c, name, input) {
     const fn = RUN[name];
     if (!fn) return err('Không có công cụ ' + name);

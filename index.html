@@ -15362,6 +15362,11 @@ const zaloCfg = (cfg) => {
     aiModel: ZALO_AI_MODELS.some(m => m.id === z.aiModel) ? z.aiModel : ZALO_DEF.aiModel,
     aiCapUsd: (() => { const n = Number(z.aiCapUsd); return Number.isFinite(n) && n >= 0 ? Math.min(n, 1000) : ZALO_DEF.aiCapUsd; })(),
     maxGroups: num(z.maxGroups, ZALO_DEF.maxGroups),
+    reportRoles: list(z.reportRoles, ['OM', 'ADMIN']),
+    /* Bot tự báo — cùng quy tắc acfg() ở functions/zaloauto.js */
+    auto: (() => { const a = (z.auto && typeof z.auto === 'object') ? z.auto : {}; const al = a.alerts || {};
+      return { report: a.report !== false, remind: a.remind !== false, maxPerDay: Math.min(50, num(a.maxPerDay, 12)),
+        alerts: { late: al.late !== false, iss: al.iss !== false, rev: al.rev !== false, pend: al.pend !== false } }; })(),
   };
 };
 const zaloOk = (u, cfg) => {
@@ -15536,6 +15541,16 @@ function ZaloTab() {
     setBusy('');
   };
 
+  const testReport = async () => {
+    setBusy('rep');
+    try {
+      const r = await callFn('zaloReportTest', {});
+      if (r.sent && !r.photo && r.imgErr) zsSay('Đã gửi BẢN CHỮ báo cáo hôm nay vào Zalo của bạn — ảnh chưa dựng / gửi được.\n\nLý do: ' + r.imgErr + '\n\nThường do chưa bật Firebase Storage (Firebase Console › Storage › Get started).');
+      else toast(r.sent ? 'Đã gửi báo cáo hôm nay' + (r.photo ? ' (ảnh)' : '') + ' vào Zalo của bạn' : 'Chưa gửi được — xem Nhật ký bên dưới');
+      loadLog();
+    } catch (e) { toast(e.message || 'Chưa gửi được'); }
+    setBusy('');
+  };
   const groupOff = async (g) => {
     if (!await zsAsk('Gỡ nhóm Zalo này khỏi app?\n\nBot sẽ thôi trả lời trong nhóm. Muốn gắn lại thì ADMIN gõ trong nhóm: bot ket noi nhom')) return;
     setBusy('g' + g.gid);
@@ -15559,6 +15574,8 @@ function ZaloTab() {
       ai: d.ai !== false, aiModel: d.aiModel,
       aiCapUsd: Math.min(1000, Math.max(0, Number(d.aiCapUsd) || 0)),
       maxGroups: Math.max(1, Math.floor(Number(d.maxGroups) || ZALO_DEF.maxGroups)),
+      reportRoles: d.reportRoles,
+      auto: { ...d.auto, maxPerDay: Math.min(50, Math.max(1, Math.floor(Number(d.auto.maxPerDay) || 12))) },
     } });
     setDr(null);
     toast('Đã lưu cài đặt bot Zalo');
@@ -15573,7 +15590,8 @@ function ZaloTab() {
       <div className="card">
         <div className="card-h" style={{ flexWrap: 'wrap' }}>
           <div><h3>Bot Zalo · gói miễn phí</h3><p>Zalo giới hạn 50 người dùng và 3.000 tin gửi đi mỗi tháng. Từ 80% bot chỉ trả lời lệnh.</p></div>
-          <div style={{ marginLeft: 'auto' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-o btn-sm" disabled={busy === 'rep'} onClick={testReport} title="Gửi báo cáo của hôm nay (tới giờ này) vào Zalo riêng của bạn để xem trước">{busy === 'rep' ? 'Đang dựng báo cáo…' : 'Gửi thử báo cáo cho tôi'}</button>
             <button className="btn btn-o btn-sm" disabled={busy === 'log'} onClick={loadLog}>{busy === 'log' ? 'Đang tải…' : 'Tải lại'}</button>
           </div>
         </div>
@@ -15633,6 +15651,22 @@ function ZaloTab() {
                 </select>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>Trần
                   <input className="inp mono" type="number" min="0" step="1" style={{ width: 90 }} value={d.aiCapUsd} onChange={e => setD({ aiCapUsd: e.target.value })} /> USD/tháng</span>
+              </div>
+            </Field>
+            <Field label="Bot tự báo" hint="Báo cáo + cảnh báo gửi vào nhóm Zalo ban quản trị (1 tin cho cả nhóm). Chưa gắn nhóm thì nhắn riêng người đã kết nối có vai trò ở ô Nhận báo cáo (chỉ vai trò xem được mọi chi nhánh). Mỗi chuyện báo 1 lần.">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label className="chk"><input type="checkbox" checked={d.auto.report} onChange={() => setD({ auto: { ...d.auto, report: !d.auto.report } })} /> Ảnh báo cáo cuối ngày lúc 23:50</label>
+                {[['late', 'Nhân viên chưa vào ca sau giờ bắt đầu 15 phút'], ['iss', 'Sự cố Khẩn quá 2 giờ / Cao quá 12 giờ chưa xử lý'], ['rev', '20h: doanh thu tới giờ đó thấp hơn 60% cùng thứ tuần trước'], ['pend', '9h: việc chờ duyệt quá 24 giờ']].map(([k, l]) => (
+                  <label key={k} className="chk"><input type="checkbox" checked={d.auto.alerts[k]} onChange={() => setD({ auto: { ...d.auto, alerts: { ...d.auto.alerts, [k]: !d.auto.alerts[k] } } })} /> {l}</label>
+                ))}
+                <label className="chk"><input type="checkbox" checked={d.auto.remind} onChange={() => setD({ auto: { ...d.auto, remind: !d.auto.remind } })} /> 20h nhắc riêng từng người lịch ca ngày mai</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>Tối đa
+                  <input className="inp mono" type="number" min={1} max={50} style={{ width: 70 }} value={d.auto.maxPerDay} onChange={e => setD({ auto: { ...d.auto, maxPerDay: e.target.value } })} /> cảnh báo / ngày</label>
+              </div>
+            </Field>
+            <Field label="Nhận báo cáo khi chưa gắn nhóm">
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {roles.map(r => <label key={r.id} className="chk"><input type="checkbox" checked={d.reportRoles.includes(r.id)} onChange={() => flip('reportRoles', r.id)} /> {r.short || r.id}</label>)}
               </div>
             </Field>
             <Field label="Tên bot hiện trong app" hint="Để trống thì app hỏi Zalo tên tài khoản của bot">
@@ -42170,7 +42204,7 @@ let db = null, auth = null, cloud = false, fns = null;
    nạp bù SePay…) báo rõ thay vì gọi mò rồi văng lỗi CORS. Khi nào dựng functions thì bật lại thành true. */
 const HAS_FNS = false;
 /* Hàm ĐÃ dựng riêng cho Hí Hế (functions/index.js) — gọi được dù HAS_FNS vẫn tắt cho các tính năng khác */
-const FNS_ON = new Set(['zaloLinkCode', 'zaloUnlink', 'zaloGroupOff']);
+const FNS_ON = new Set(['zaloLinkCode', 'zaloUnlink', 'zaloGroupOff', 'zaloReportTest']);
 const callFn = async (name, data) => {
   if (!HAS_FNS && !FNS_ON.has(name)) throw new Error('Tính năng này cần máy chủ (Cloud Functions) — Hí Hế chưa bật');
   if (!cloud || !fns) throw new Error('Chưa kết nối được máy chủ');

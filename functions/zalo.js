@@ -50,7 +50,7 @@ const COL = {
 /* Gói Zalo Bot miễn phí: tối đa 50 người dùng / bot, 3.000 tin gửi đi / tháng */
 const DEF = {
   allowRoles: ['GS', 'AM', 'OM', 'ADMIN'], allowEmps: [], maxUsers: 50, monthlyCap: 3000, botName: '',
-  ai: true, aiCapUsd: 20, aiModel: 'claude-opus-5-5', maxGroups: 3,
+  ai: true, aiCapUsd: 20, aiModel: 'claude-opus-5-5', maxGroups: 3, reportRoles: ['OM', 'ADMIN'],
 };
 const AI_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
 /* Phiên bản câu đồng ý: 2 = có thêm ý tin nhắn được trợ lý AI xử lý */
@@ -94,6 +94,7 @@ function zcfg(cfg) {
     ai: z.ai !== false,
     aiModel: AI_MODELS.includes(z.aiModel) ? z.aiModel : DEF.aiModel,
     maxGroups: posInt(z.maxGroups, DEF.maxGroups),
+    reportRoles: strList(z.reportRoles, DEF.reportRoles),
     aiCapUsd: (() => { const n = Number(z.aiCapUsd); return Number.isFinite(n) && n >= 0 ? Math.min(n, 1000) : DEF.aiCapUsd; })(),
   };
 }
@@ -251,7 +252,7 @@ const T = {
   consent: 'Tin nhắn của anh/chị với bot được lưu lại để xử lý công việc, quản trị viên có thể xem lại. Tin nhắn và ảnh gửi bot được trợ lý AI (Claude của Anthropic) xử lý để hiểu yêu cầu. Bot không đọc được các cuộc trò chuyện khác của anh/chị. Đồng ý thì nhắn: DONG Y',
   consentAi: 'Bot ' + APP + ' vừa có trợ lý AI: anh/chị nhắn bình thường là em hiểu (hỏi doanh thu, món bán chạy, ai đang trong ca, báo sự cố kèm ảnh, lập đề xuất mua hàng, duyệt việc...). Để dùng, anh/chị cần đồng ý: tin nhắn và ảnh gửi bot được trợ lý AI (Claude của Anthropic) xử lý để hiểu yêu cầu; tin vẫn được lưu và quản trị viên có thể xem lại. Đồng ý thì nhắn: DONG Y',
   aiOk: 'Cảm ơn anh/chị. Từ giờ cứ nhắn bình thường, ví dụ: "doanh thu hôm nay", "tuần này bán bao nhiêu ly bạc xỉu", "máy pha chi nhánh 1 không lên nhiệt" (gửi kèm ảnh càng tốt), "có gì chờ tôi duyệt".',
-  helpAi: 'Em là trợ lý ' + APP + ', anh/chị cứ nhắn bình thường, ví dụ:\n- doanh thu hôm nay theo nguồn đơn\n- món nào bán chạy nhất tuần này\n- ai đang trong ca, hôm qua ai đi trễ\n- gửi ảnh lịch tuần này chi nhánh 1\n- huỷ 2 hộp sữa tươi hết hạn (gửi kèm ảnh)\n- nhập bổ sung 5kg cà phê NCC giao bù\n- ghi chi phí sửa máy pha 1.200.000đ\n- đề xuất mua 10 hộp sữa đặc\n- có gì chờ tôi duyệt\nLệnh nhanh: LICH (ảnh lịch của tôi), HUY KET NOI.',
+  helpAi: 'Em là trợ lý ' + APP + ', anh/chị cứ nhắn bình thường, ví dụ:\n- doanh thu hôm nay theo nguồn đơn\n- vì sao doanh thu tuần này tụt\n- tháng này đạt bao nhiêu % target\n- nguyên liệu nào sắp hết\n- ai rảnh thay ca tối thứ 7\n- gửi ảnh lịch tuần này chi nhánh 1\n- pha bạc xỉu thế nào\n- huỷ 2 hộp sữa tươi hết hạn (gửi kèm ảnh)\n- (gửi ảnh hoá đơn NCC) nhập kho giúp em\n- ghi chi phí sửa máy pha 1.200.000đ\n- có gì chờ tôi duyệt\nLệnh nhanh: LICH (ảnh lịch của tôi), HUY KET NOI.',
   confirm: '\n\nNhắn OK để xác nhận, HUY để bỏ (bản nháp giữ 10 phút).',
   confirmG: '\n\nGõ "bot ok" để xác nhận, "bot huy" để bỏ (bản nháp giữ 10 phút).',
   /* Đầu mọi tin có bản nháp: tóm tắt của AI đọc lướt dễ tưởng đã ghi xong */
@@ -336,6 +337,11 @@ function createZalo(deps) {
     sendPhoto: ({ zaloId, chatId, empId, url, caption }) => send({ zaloId, chatId, empId, kind: 'reply', text: caption || 'Ảnh', cmd: 'photo', photo: url }),
   });
   const ai = require('./zaloai').createAI({ tools, log, now });
+  /* Bot tự báo: báo cáo 23h50, cảnh báo, nhắc lịch (zaloauto.js) — gửi qua send() nên vẫn đếm hạn mức + ghi nhật ký */
+  const auto = require('./zaloauto').createAuto({
+    db, FV, log, now, getCfg: () => getCfg(), zcfg, appRules: require('./apprules'), dayVN, dAdd, monthVN, uploadImage, gapMs: deps.gapMs,
+    send: (o) => send(o),
+  });
   let aiClient = null, aiClientKey = '';
   const aiClientFor = (key) => { if (!aiClient || aiClientKey !== key) { aiClient = makeAiClient(key); aiClientKey = key; } return aiClient; };
 
@@ -951,7 +957,18 @@ function createZalo(deps) {
     return { ok: true, n: 1 };
   }
 
-  return { hook, processIn, linkCode, unlink, groupOff, send, unlinkEmp, getCfg };
+  /* ADMIN bấm "Gửi thử báo cáo cho tôi": báo cáo HÔM NAY (tới giờ này) vào Zalo riêng của chính người bấm */
+  async function reportTest(req) {
+    if (!(req.auth && req.auth.uid)) throw new HttpsError('unauthenticated', 'Chưa đăng nhập');
+    const me = await findEmp(req);
+    if (!me || me.status === 'off' || me.role !== 'ADMIN') throw new HttpsError('permission-denied', 'Chỉ ADMIN được gửi thử báo cáo');
+    const l = (await col('link').where('empId', '==', me.id).get()).docs.find(d => (d.data() || {}).active === true);
+    if (!l) throw new HttpsError('failed-precondition', 'Tài khoản của bạn chưa kết nối Zalo — vào Hồ sơ của tôi › Kết nối Zalo trước');
+    const r = await auto.report({ only: { zaloId: l.id, chatId: (l.data() || {}).chatId || l.id, empId: me.id } });
+    return { day: r.day, sent: r.sent, photo: r.photo, imgErr: r.imgErr || '' };
+  }
+
+  return { hook, processIn, linkCode, unlink, groupOff, reportTest, send, unlinkEmp, getCfg, reportDaily: (o) => auto.report(o || {}), autoTick: () => auto.tick() };
 }
 
 module.exports = {

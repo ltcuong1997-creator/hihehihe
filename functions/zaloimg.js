@@ -150,6 +150,109 @@ function personWeek({ cfg, docs, emp, days }) {
   };
 }
 
+/* ===================== ẢNH BÁO CÁO NGÀY =====================
+   rep: { day, wd, branches: [{ name, rev, inv, lw, mtd, tgt }], total: { rev, inv, lw, mtd, tgt }, sources: [{ l, a, c }],
+          top: [{ name, qty, unit }], staff: { onTime, sched, late: [{ name, mins, br }], absent: [{ name, br }] },
+          ops: { issOpen, issKhan, issOver, pend: [{ l, n }] }, stamp } */
+const money = (n) => Math.round(Number(n) || 0).toLocaleString('vi-VN').replace(/,/g, '.') + 'đ';
+const mil = (n) => { const v = Number(n) || 0; return v >= 1e6 ? (Math.round(v / 1e5) / 10).toString().replace('.', ',') + ' tr' : money(v); };
+const pctTxt = (a, b) => (b > 0 ? (a >= b ? '+' : '') + Math.round((a - b) / b * 100) + '%' : '—');
+const SRC_COL = ['#18484A', '#E8930C', '#0E9F6E', '#E0453F', '#2D7FF9', '#8B5CF6', '#DB2777', '#65A30D'];
+function reportSvg(rep) {
+  const W = 1080, PAD = 28, o = [];
+  const T = (x, y, txt, px, w, fill, anchor) => o.push(`<text x="${x}" y="${y}" font-size="${px}" font-weight="${w}" fill="${fill}"${anchor ? ` text-anchor="${anchor}"` : ''}>${esc(txt)}</text>`);
+  const R = (x, y, w, h, r, fill, extra) => o.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}"${extra || ''}/>`);
+  const up = (a, b) => (b > 0 ? (a >= b ? '#0E9F6E' : '#C0392B') : C.ink3);
+  let y = 0;
+  /* đầu */
+  R(0, 0, W, 132, 0, C.brand); R(0, 126, W, 6, 0, C.brandDk);
+  T(PAD, 56, 'BÁO CÁO NGÀY', 34, 600, '#fff');
+  T(PAD, 96, rep.wd + ', ' + dmy(rep.day), 20, 400, '#CFE3E1');
+  R(W - PAD - 150, 40, 150, 50, 25, '#fff'); T(W - PAD - 75, 73, 'Hí Hế', 24, 600, C.brand, 'middle');
+  y = 156;
+  /* tổng */
+  const t = rep.total;
+  R(PAD, y, W - PAD * 2, 150, 18, C.wash);
+  T(PAD + 24, y + 38, 'Doanh thu hôm nay', 16, 400, C.ink3);
+  T(PAD + 24, y + 92, money(t.rev), 46, 600, C.brand);
+  o.push(`<text x="${PAD + 24}" y="${y + 128}" font-size="16" fill="${C.ink3}">${esc(t.inv + ' hoá đơn · so với ' + rep.lwLabel + ': ')}<tspan font-weight="600" fill="${up(t.rev, t.lw)}">${esc(pctTxt(t.rev, t.lw))}</tspan></text>`);
+  const rx = W / 2 + 60;
+  T(rx, y + 38, 'Luỹ kế tháng', 16, 400, C.ink3);
+  T(rx, y + 76, mil(t.mtd) + (t.tgt ? ' / ' + mil(t.tgt) : ''), 28, 600, C.ink);
+  if (t.tgt) {
+    const p = Math.min(1, t.mtd / t.tgt), bw = W - PAD - 24 - rx;
+    R(rx, y + 94, bw, 12, 6, '#fff'); R(rx, y + 94, Math.max(12, bw * p), 12, 6, p >= rep.monthPace ? '#0E9F6E' : '#E8930C');
+    T(rx, y + 128, Math.round(t.mtd / t.tgt * 100) + '% target · đã qua ' + Math.round(rep.monthPace * 100) + '% tháng', 15, 400, C.ink3);
+  } else T(rx, y + 110, 'Chưa đặt target tháng', 15, 400, C.ink3);
+  y += 176;
+  /* chi nhánh */
+  if (rep.branches.length > 1) {
+    T(PAD, y, 'Từng chi nhánh', 19, 600, C.ink); y += 18;
+    rep.branches.forEach((b, i) => {
+      if (i % 2) R(PAD, y, W - PAD * 2, 46, 8, C.zebra);
+      T(PAD + 14, y + 30, fit(b.name, 330, 17), 17, 600, C.ink);
+      T(PAD + 470, y + 30, money(b.rev), 17, 600, C.brand, 'end');
+      T(PAD + 560, y + 30, b.inv + ' HĐ', 15, 400, C.ink3, 'end');
+      T(PAD + 660, y + 30, pctTxt(b.rev, b.lw), 15, 600, up(b.rev, b.lw), 'end');
+      T(W - PAD - 14, y + 30, b.tgt ? Math.round(b.mtd / b.tgt * 100) + '% target' : 'chưa có target', 15, 400, C.ink3, 'end');
+      y += 46;
+    });
+    y += 22;
+  }
+  /* nguồn đơn */
+  const srcs = (rep.sources || []).filter(s => s.a > 0);
+  if (srcs.length) {
+    T(PAD, y, 'Nguồn đơn', 19, 600, C.ink); y += 16;
+    const tot = srcs.reduce((a, s) => a + s.a, 0), bw = W - PAD * 2;
+    let x = PAD;
+    o.push(`<clipPath id="sb"><rect x="${PAD}" y="${y}" width="${bw}" height="22" rx="11"/></clipPath><g clip-path="url(#sb)">`);
+    srcs.forEach((s, i) => { const w = bw * s.a / tot; o.push(`<rect x="${x}" y="${y}" width="${w + 0.5}" height="22" fill="${SRC_COL[i % SRC_COL.length]}"/>`); x += w; });
+    o.push('</g>'); y += 48;
+    srcs.forEach((s, i) => {
+      const cx = PAD + (i % 3) * ((W - PAD * 2) / 3), cy = y + Math.floor(i / 3) * 30;
+      R(cx, cy - 13, 14, 14, 4, SRC_COL[i % SRC_COL.length]);
+      T(cx + 22, cy, fit(s.l, 150, 15) + '  ' + mil(s.a) + ' · ' + Math.round(s.a / tot * 100) + '%', 15, 400, C.ink);
+    });
+    y += Math.ceil(srcs.length / 3) * 30 + 20;
+  }
+  /* 2 cột: món bán chạy | nhân sự */
+  const colW = (W - PAD * 2 - 24) / 2, x2 = PAD + colW + 24, top0 = y;
+  T(PAD, y, 'Món bán chạy', 19, 600, C.ink);
+  (rep.top || []).slice(0, 6).forEach((m, i) => {
+    const yy = y + 34 + i * 34;
+    R(PAD, yy - 20, 28, 28, 14, i < 3 ? C.brand : C.off); T(PAD + 14, yy, String(i + 1), 14, 600, i < 3 ? '#fff' : C.ink3, 'middle');
+    T(PAD + 40, yy, fit(m.name, colW - 130, 16), 16, 400, C.ink);
+    T(PAD + colW, yy, Math.round(m.qty) + ' ' + (m.unit || ''), 16, 600, C.brand, 'end');
+  });
+  if (!(rep.top || []).length) T(PAD, y + 34, 'Chưa có số bán theo món', 15, 400, C.ink3);
+  const st = rep.staff || {};
+  T(x2, y, 'Nhân sự', 19, 600, C.ink);
+  T(x2, y + 34, 'Vào ca ' + (st.came || 0) + '/' + (st.sched || 0) + ' người được xếp', 16, 400, C.ink);
+  let yy = y + 66;
+  if ((st.late || []).length) {
+    T(x2, yy, 'Đi trễ (' + st.late.length + '):', 15, 600, '#C0392B'); yy += 26;
+    st.late.slice(0, 4).forEach(l => { T(x2 + 10, yy, fit('- ' + l.name + ' ' + l.mins + ' phút' + (l.br ? ' · ' + l.br : ''), colW - 10, 15), 15, 400, C.ink); yy += 24; });
+    if (st.late.length > 4) { T(x2 + 10, yy, '+' + (st.late.length - 4) + ' người khác', 14, 400, C.ink3); yy += 24; }
+  } else { T(x2, yy, 'Không ai đi trễ', 15, 400, '#0E9F6E'); yy += 26; }
+  if ((st.absent || []).length) {
+    T(x2, yy, 'Có lịch nhưng không vào ca (' + st.absent.length + '):', 15, 600, '#C0392B'); yy += 26;
+    st.absent.slice(0, 3).forEach(l => { T(x2 + 10, yy, fit('- ' + l.name + (l.br ? ' · ' + l.br : ''), colW - 10, 15), 15, 400, C.ink); yy += 24; });
+  }
+  y = Math.max(top0 + 34 + Math.max(1, Math.min(6, (rep.top || []).length)) * 34, yy) + 18;
+  /* vận hành */
+  const op = rep.ops || {};
+  R(PAD, y, W - PAD * 2, 92, 16, C.zebra, ` stroke="${C.line}"`);
+  T(PAD + 20, y + 36, 'Sự cố đang mở', 15, 400, C.ink3);
+  T(PAD + 20, y + 72, String(op.issOpen || 0) + (op.issKhan ? ' · ' + op.issKhan + ' khẩn' : '') + (op.issOver ? ' · ' + op.issOver + ' quá hạn' : ''), 22, 600, op.issKhan || op.issOver ? '#C0392B' : C.ink);
+  const pend = (op.pend || []).filter(p => p.n);
+  T(W / 2, y + 36, 'Việc chờ duyệt', 15, 400, C.ink3);
+  T(W / 2, y + 72, pend.length ? pend.map(p => p.n + ' ' + p.l).join(' · ') : 'Không có', 18, 600, pend.length ? '#E8930C' : '#0E9F6E');
+  y += 118;
+  T(W / 2, y, 'Gửi tự động ' + (rep.stamp || '') + ' · bot Hí Hế', 13, 400, C.ink3, 'middle');
+  const H = y + 24;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Space Grotesk"><rect width="${W}" height="${H}" fill="#fff"/>${o.join('')}</svg>`;
+}
+
 function renderPng(svg) {
   const { Resvg } = require('@resvg/resvg-js');
   const path = require('path');
@@ -161,4 +264,4 @@ function renderPng(svg) {
   return r.render().asPng();
 }
 
-module.exports = { weekSvg, branchWeek, personWeek, renderPng, esc };
+module.exports = { weekSvg, branchWeek, personWeek, reportSvg, renderPng, esc, money, mil, pctTxt };
