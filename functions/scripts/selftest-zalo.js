@@ -735,6 +735,22 @@ function world(opts = {}) {
     assert.ok(/Đã ghi 60.000.000đ/.test(w.zl.last()) && /lợi nhuận/.test(w.zl.last()), w.zl.last());
     assert.strictEqual(cl.calls.length, 2, 'nhắn số không gọi AI');
   });
+  await t('danh sách in rõ kỳ; nhắn T10 trước khi chọn -> ghi vào tháng 10', async () => {
+    const cl = fakeClaude([{ tool: 'ghi_chi_phi', input: { noi_dung: 'Tiền lương', so_tien: 60000000 } }, { text: 'Khoản lương 60 triệu.' }]);
+    const w = world({ claude: cl });
+    await w.link('ua', 'za');
+    await w.say('chi 60tr lương', { zid: 'za' });
+    assert.ok(/ghi vào P&L T11\/2026/.test(w.zl.last()), w.zl.last());
+    await w.say('T10', { zid: 'za' });
+    assert.ok(/ghi vào P&L T10\/2026/.test(w.zl.last()), w.zl.last());
+    await w.say('tháng 12', { zid: 'za' });
+    assert.ok(/T12\/2025/.test(w.zl.last()), 'tháng lớn hơn tháng hiện tại -> năm trước');
+    await w.say('10/2026', { zid: 'za' });
+    assert.ok(/T10\/2026/.test(w.zl.last()));
+    await w.say('1', { zid: 'za' });
+    const tx = Object.values(w.db.store).find(x => x.catId === 'CLNC');
+    assert.strictEqual(tx.date, '2026-10-31'); assert.ok(/kỳ T10\/2026/.test(w.zl.last()));
+  });
   await t('GS không ghi chi phí thẳng được; HUY bỏ danh sách', async () => {
     const w = world();
     const T2 = mkTools(w);

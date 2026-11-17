@@ -491,6 +491,21 @@ function createZalo(deps) {
      (để AI xử lý như thường, bản nháp vẫn giữ tới khi hết hạn). */
   async function costPickStep(cfg, emp, pend, n, ref, reply, group) {
     const N = (pend.opts || []).length;
+    /* Đổi kỳ trước khi chọn nhóm: "t10", "thang 10", "t10 2026", "10/2026" -> ngày cuối tháng đó
+       (tháng lớn hơn tháng hiện tại mà không ghi năm thì hiểu là năm trước, vd tháng 1 ghi "T12") */
+    const mm = /^(?:t|thang)\s*(\d{1,2})(?:\s*(?:\/|nam)?\s*(\d{4}))?$/.exec(n) || /^(\d{1,2})\s+(\d{4})$/.exec(n);   /* n đã bỏ dấu câu: "10/2026" -> "10 2026" */
+    if (mm && Number(mm[1]) >= 1 && Number(mm[1]) <= 12) {
+      const today = dayVN(now());
+      const m = Number(mm[1]);
+      let y = mm[2] ? Number(mm[2]) : Number(today.slice(0, 4));
+      if (!mm[2] && m > Number(today.slice(5, 7))) y -= 1;
+      const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const date = y + '-' + String(m).padStart(2, '0') + '-' + String(last).padStart(2, '0');
+      const np = { ...pend, data: { ...(pend.data || {}), date } };
+      await ref.set({ pend: np }, { merge: true });
+      await reply(tools.costMenuText(cfg, np) + T.pickNum(np, group), 'cost_pick');
+      return { result: 'month_set', msg: 'đổi kỳ ' + date.slice(0, 7) };
+    }
     if (/^\d{1,2}$/.test(n)) {
       const k = Number(n);
       if (k < 1 || k > N) { await reply('Nhắn số từ 1 đến ' + N + ' nhé.', 'cost_pick'); return { result: 'bad_num' }; }
