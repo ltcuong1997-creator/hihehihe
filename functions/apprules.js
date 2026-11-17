@@ -542,5 +542,145 @@ const nxtBuild = ({ cfg, stocks, pos, sales, moves, recipes, bid, from, to }) =>
     .map(r => ({ code: r.code, name: kvName[r.code] || r.name, qty: r.sold })).sort((a, b) => b.qty - a.qty);
   return { rows, anchor, days, soldNoBom: R.soldNoBom || [], soldBom: R.soldBom || [], soldPartial: R.soldPartial, stray };
 };
-  return { ALL_PAGES, BASE_PAGES, DEFAULT_ROLES, roleList, roleOf, inScope, scopeBranches, isBiz, bizList, canIssue, ISSUE_SEV, DEFAULT_ISSUE_CATS, itemGroups, itemsInGroup, canPreq, canPreqAll, canPreqAppr, pqSees, canConfirmAtt, attChain, attStepLabel, attStepIdx, attIsLast, attCanStep, pad, hoursTxt, dShort, uid, noAccent, pushCfg, pushTargets, pushBulk, canAttAll, canRecView, canStkMove, canStkMoveAppr, stockItems, nextReqId, typeListOn, tOf, apprCfg, pickersFor, reqPickDept, stepLabel, chainOf, chainNow, curStep, skipFrom, canStep, reqAmountRaw, nxtBuild, rcpUsage, isBtp, dAdd };
+const nvlSoldIn = (sales, bids, from, to) => {
+  const out = {};            /* mã KiotViet -> { code, name, group, qty, amount, days: { ngày: sl } } */
+  let partial = 0;
+  Object.values(sales || {}).forEach(s => {
+    if (!s || !bids.includes(s.branchId)) return;
+    const ym = String(s.ym || '');
+    if (ym < from.slice(0, 7) || ym > to.slice(0, 7)) return;
+    const mTo = ym + '-' + pad(new Date(+ym.slice(0, 4), +ym.slice(5), 0).getDate());
+    const whole = ym + '-01' >= from && mTo <= to;
+    Object.keys(s.items || {}).forEach(c => {
+      const it = s.items[c] || {};
+      const o = out[c] || (out[c] = { code: c, name: it.name || c, group: it.group || '', qty: 0, amount: 0, days: {} });
+      if (it.d) {
+        Object.keys(it.d).forEach(dk => {
+          if (dk < from || dk > to) return;
+          const q = +it.d[dk] || 0;
+          o.qty += q; o.days[dk] = (o.days[dk] || 0) + q;
+          o.amount += it.da ? (+it.da[dk] || 0) : (it.qty ? (+it.amount || 0) * q / it.qty : 0);
+        });
+      } else if (whole) { o.qty += +it.qty || 0; o.amount += +it.amount || 0; }
+      else partial = 1;
+    });
+  });
+  return { list: Object.values(out).filter(x => x.qty), partial };
+};
+const txnIsPlan = (t) => !!(t && t.planned);
+const pnlLive = (t) => !!t && t.status === 'done' && !!t.catId && !t.split
+  && (!txnIsPlan(t) || !t.matchTxnId);
+const txnPerDate = (t) => {
+  const d = String((t || {}).perDate || '');
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : String((t || {}).date || '');
+};
+const txnBaseMo = (t) => String((t || {}).date || '').slice(0, 7);
+const txnPer = (t) => {
+  const pd = txnPerDate(t);
+  if (pd) return pd.slice(0, 7);
+  const b = txnBaseMo(t), p = (t || {}).perMo;
+  return /^\d{4}-\d{2}$/.test(String(p || '')) ? p : b;
+};
+const txnInPer = (t, mo) => txnPer(t) === mo;
+const allocTo = (t, bid) => (((t || {}).alloc || []).find(a => a.branchId === bid) || {}).amount || 0;
+const DEFAULT_COST_CATS = [
+  { id: 'CTNH', name: 'Tiền nhà (chi phí thuê mặt bằng)', parent: '' },
+  { id: 'CLNC', name: 'Lương nhân công', parent: '' },
+  { id: 'CDNW', name: 'Tiền điện – nước – dịch vụ', parent: '' },
+  { id: 'CNHH', name: 'Nhập hàng hóa', parent: '' },
+  { id: 'CMKT', name: 'Chi phí MKT Tiktok', parent: 'CMK' },
+  { id: 'CMKF', name: 'Chi phí MKT Facebook', parent: 'CMK' },
+  { id: 'CMKO', name: 'Chi phí MKT khác', parent: 'CMK' },
+  { id: 'CMSV', name: 'Mua sắm vật tư', parent: 'CMS' },
+  { id: 'CMSC', name: 'Mua sắm công cụ dụng cụ', parent: 'CMS' },
+  { id: 'CSCC', name: 'Chi phí sửa chữa – thay thế', parent: '' },
+  { id: 'CBVE', name: 'Dịch vụ bảo vệ / vé xe', parent: '' },
+  { id: 'CNGO', name: 'Chi phí ngoại giao – tiếp khách', parent: '' },
+  { id: 'CBOD', name: 'Chi phí hoạt động BOD', parent: '' },
+  { id: 'CTXN', name: 'Thuế phải nộp', parent: '' },
+  { id: 'QLTX', name: 'Chi phí đóng BHXH', parent: '' },
+  { id: 'QLTB', name: 'Thưởng nội bộ', parent: '' },
+  { id: 'CMSN', name: 'Thuê dịch vụ ngoài', parent: '' },
+  { id: 'CBOC', name: 'Công tác phí', parent: '' },
+  { id: 'CDTU', name: 'Chi đầu tư', parent: '' },
+  { id: 'CKHK', name: 'Chi phí khác', parent: '' },
+];
+const costCats = (cfg) => (cfg.costCats && cfg.costCats.length ? cfg.costCats : DEFAULT_COST_CATS);
+const DEFAULT_COST_GROUPS = [
+  { id: 'CMK', name: 'Chi phí Marketing' },
+  { id: 'CMS', name: 'Chi phí mua sắm' },
+];
+const costGroups = (cfg) => (cfg.costGroups && cfg.costGroups.length ? cfg.costGroups : DEFAULT_COST_GROUPS);
+const catOf = (cfg, id) => costCats(cfg).find(c => c.id === id) || { id, name: id || '—', parent: '' };
+const moLbl = (ym) => 'T' + String(ym || '').slice(5) + '/' + String(ym || '').slice(0, 4);
+const PNL_BUY_CAT = 'CNHH';
+const PNL_COMPACT = ['CLNC', 'CTNH', 'CDNW', 'CNHH', 'CMKO', 'CSCC', 'CTXN', 'CKHK'];
+const pnlCfg = (cfg) => {
+  const p = (cfg || {}).pnl || {};
+  return { cogsMode: p.cogsMode === 'tt' ? 'tt' : 'dm', buyCat: p.buyCat || PNL_BUY_CAT, useStmt: !!p.useStmt,
+    menu: Array.isArray(p.menu) && p.menu.length ? p.menu : PNL_COMPACT };
+};
+const pnlMenu = (cfg) => pnlCfg(cfg).menu.map(id => costCats(cfg).find(c => c.id === id)).filter(Boolean);
+const pnlCogs = ({ cfg, sales, recipes, stocks, pos, moves, txns, bids, mo, to }) => {
+  const P = pnlCfg(cfg);
+  const from = mo + '-01';
+  const mEnd = mo + '-' + pad(new Date(+mo.slice(0, 4), +mo.slice(5), 0).getDate());
+  const end = to && to < mEnd ? to : mEnd;
+  const cat = (cfg || {}).items || [];
+  const priceOf = (c) => +((cat.find(x => x.code === c) || {}).price) || 0;
+  const catSet = new Set(cat.map(x => x.code));
+  const bomOf = stkBomOf(recipes);
+  const goodsOf = stkGoodsMap(cfg);
+  /* ---- Định mức ---- */
+  const th = { by: {}, total: 0, noCost: {} };
+  bids.forEach(b => {
+    let c = 0;
+    nvlSoldIn(sales, [b], from, end).list.forEach(s => {
+      const g = goodsOf[String(s.code).trim().toUpperCase()];
+      if (g) { c += priceOf(g) * s.qty; return; }
+      const x = bomOf(s.code);
+      if (x && x.per.length) { c += x.per.reduce((a, u) => a + u.cost, 0) * s.qty; return; }
+      const o = th.noCost[s.code] || (th.noCost[s.code] = { code: s.code, name: (x && x.r && x.r.name) || s.name, qty: 0, amount: 0 });
+      o.qty += s.qty; o.amount += s.amount;
+    });
+    th.by[b] = c; th.total += c;
+  });
+  th.noCost = Object.values(th.noCost).sort((a, b) => b.amount - a.amount);
+  /* ---- Thực tế + đối chiếu ---- */
+  const tt = { by: {}, total: 0, ok: true };
+  const cmp = {};
+  bids.forEach(b => {
+    const base = stkLastClosed(stocks, b, dAdd(from, -1));
+    const R = stkRecon({ cfg, stocks, pos, sales, moves, bid: b, recipes, baseDate: base ? base.date : '', from: base ? dAdd(base.date, 1) : from, to: end, only: [] });
+    const v = (f) => R.rows.reduce((a, r) => a + (+r[f] || 0) * r.price, 0);
+    const buy = (txns || []).filter(t => pnlLive(t) && t.catId === P.buyCat && txnInPer(t, mo)).reduce((a, t) => a + allocTo(t, b), 0);
+    const open = v('open'), close = R.rows.reduce((a, r) => a + (r.actual == null ? 0 : r.actual * r.price), 0);
+    const xfer = v('tIn') - v('tOut');
+    /* Cơ sở không bán gì, không có kho trong kỳ (đã đóng, chưa mở) thì giá vốn = 0 và không đòi bản chốt tồn —
+       không thì một chi nhánh đóng cửa làm cả hệ thống báo "thiếu chốt tồn" mãi */
+    const idle = !R.rows.some(r => r.sold || r.inQty || r.adjIn || r.disp || r.tIn || r.tOut || r.actual != null || r.hasOpen) && !buy;
+    const ok = idle || (!!base && !!R.act);
+    /* inVal: hàng vào kho theo phiếu (nghiệm thu phiếu mua + nhập bổ sung) quy tiền — chỉ để THAM KHẢO đối chiếu
+       với tiền nhập hàng chủ đã ghi; lệch nhiều là quên ghi chi phí nhập hàng (hoặc ghi trùng) */
+    tt.by[b] = { open, buy, close, xfer, disp: v('disp'), adjIn: v('adjIn'), inVal: v('inQty') + v('adjIn'), cost: idle ? 0 : ok ? open + buy + xfer - close : null, ok, idle,
+      baseDate: base ? base.date : '', actDate: R.act ? R.act.date : '' };
+    if (ok) tt.total += tt.by[b].cost; else tt.ok = false;
+    /* Dùng thực tế (không gồm huỷ) = tồn đầu + nhập + nhập bổ sung ± chuyển − huỷ − tồn cuối = book + bán − tồn cuối */
+    R.rows.forEach(r => {
+      /* Chỉ mã có trong danh mục nguyên liệu — mã bán KiotViet chưa gắn công thức không phải NVL */
+      if (!catSet.has(r.code) || (r.actual == null && !r.sold)) return;
+      const o = cmp[r.code] || (cmp[r.code] = { code: r.code, name: r.name, unit: r.unit, price: r.price, dm: 0, tt: 0, disp: 0, counted: true });
+      o.dm += r.sold; o.disp += r.disp;
+      if (r.actual == null || !ok) o.counted = false; else o.tt += r.book + r.sold - r.actual;
+    });
+  });
+  const rows = Object.values(cmp).map(o => ({ ...o, diff: o.counted ? o.tt - o.dm : null, value: o.counted ? (o.tt - o.dm) * o.price : null, dispVal: o.disp * o.price }))
+    .sort((a, b) => Math.abs(b.value || 0) - Math.abs(a.value || 0) || b.dm - a.dm);
+  /* `cost`: giá vốn ĐANG CHỌN, mỗi cơ sở một con số (cách thực tế mà thiếu bản chốt tồn thì null) */
+  const ttBy = {};
+  bids.forEach(b => { ttBy[b] = tt.by[b].cost; });
+  return { from, to: end, mode: P.cogsMode, buyCat: P.buyCat, dm: th, tt, cmp: rows,
+    cost: P.cogsMode === 'tt' ? { by: ttBy, total: tt.total, ok: tt.ok } : { by: th.by, total: th.total, ok: true } };
+};
+  return { ALL_PAGES, BASE_PAGES, DEFAULT_ROLES, roleList, roleOf, inScope, scopeBranches, isBiz, bizList, canIssue, ISSUE_SEV, DEFAULT_ISSUE_CATS, itemGroups, itemsInGroup, canPreq, canPreqAll, canPreqAppr, pqSees, canConfirmAtt, attChain, attStepLabel, attStepIdx, attIsLast, attCanStep, pad, hoursTxt, dShort, uid, noAccent, pushCfg, pushTargets, pushBulk, canAttAll, canRecView, canStkMove, canStkMoveAppr, stockItems, nextReqId, typeListOn, tOf, apprCfg, pickersFor, reqPickDept, stepLabel, chainOf, chainNow, curStep, skipFrom, canStep, reqAmountRaw, nxtBuild, rcpUsage, isBtp, dAdd, pnlCogs, pnlCfg, pnlMenu, costCats, costGroups, catOf, txnInPer, pnlLive, allocTo, moLbl };
 };

@@ -10,7 +10,7 @@
    Chưa gắn nhóm thì nhắn riêng người đã kết nối có vai trò trong "Nhận báo cáo" mà xem được mọi chi nhánh.
    Chỉ ĐỌC dữ liệu app; ghi duy nhất ops_zguard/auto_{ngày} để nhớ đã báo gì. */
 const IMG = require('./zaloimg');
-const { isOptionItem } = require('./zalotools');   /* bỏ dòng tuỳ chọn đá / đường / % khỏi món bán chạy */
+const { isOptionItem, loadPnl } = require('./zalotools');   /* bỏ dòng tuỳ chọn đá / đường / % khỏi món bán chạy */
 
 const OPEN_ISS = ['MOI', 'TIEP_NHAN', 'DANG_XU_LY', 'CHO_DUYET'];
 const REV_CH = { dine: 'Tại chỗ', take: 'Mang về', grab: 'GrabFood', shopee: 'ShopeeFood', be: 'beFood', na: 'Chưa rõ nguồn' };
@@ -144,8 +144,12 @@ function createAuto(deps) {
       col('ops_preq').where('status', '==', 'wait').get(), col('ops_stkmove').where('status', '==', 'wait').get(),
       col('ops_attreqs').where('status', '==', 'pending').get(), col('ops_requests').where('status', '==', 'OPEN').get(),
     ]);
+    /* P&L luỹ kế tháng tới hôm nay — cùng công thức trang P&L (giá vốn theo cách đang chọn) */
+    let pnl = null;
+    try { pnl = await loadPnl(db, R, cfg, ym, brs.map(b => b.id), day); }
+    catch (e) { log.warn('zalo: P&L cho báo cáo lỗi', { err: String(e && e.message).slice(0, 160) }); }
     return {
-      day, wd: WDL[wdOf(day)], lwLabel: WDL[wdOf(day)].toLowerCase() + ' tuần trước',
+      day, wd: WDL[wdOf(day)], lwLabel: WDL[wdOf(day)].toLowerCase() + ' tuần trước', pnl,
       monthPace: Number(day.slice(8, 10)) / new Date(Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)), 0)).getUTCDate(),
       stamp: hhmm(minVN(t)) + ' ' + ddmm(dayVN(t)),
       total: { rev: sum('rev'), inv: sum('inv'), lw: sum('lw'), mtd: sum('mtd'), tgt: sum('tgt') },
@@ -159,7 +163,8 @@ function createAuto(deps) {
     const t = rep.total;
     const d = t.lw > 0 ? ' (' + (t.rev >= t.lw ? '+' : '') + Math.round((t.rev - t.lw) / t.lw * 100) + '% so với ' + rep.lwLabel + ')' : '';
     return 'Báo cáo ' + rep.wd.toLowerCase() + ' ' + ddmm(rep.day) + ': doanh thu ' + IMG.money(t.rev) + d + ', ' + t.inv + ' hoá đơn'
-      + (t.tgt ? '. Luỹ kế tháng đạt ' + Math.round(t.mtd / t.tgt * 100) + '% target' : '') + '.';
+      + (t.tgt ? '. Luỹ kế tháng đạt ' + Math.round(t.mtd / t.tgt * 100) + '% target' : '')
+      + (rep.pnl ? '. Lợi nhuận tháng tới nay ' + IMG.money(rep.pnl.profit) + (rep.pnl.rev.total ? ' (biên ' + Math.round(rep.pnl.profit / rep.pnl.rev.total * 100) + '%)' : '') : '') + '.';
   };
   const textReport = (rep) => [
     caption(rep),
@@ -167,6 +172,7 @@ function createAuto(deps) {
     rep.sources.length ? 'Nguồn đơn: ' + rep.sources.map(s => s.l + ' ' + IMG.mil(s.a)).join(', ') : '',
     rep.top.length ? 'Bán chạy: ' + rep.top.slice(0, 5).map(x => x.name + ' ' + Math.round(x.qty)).join(', ') : '',
     'Vào ca ' + rep.staff.came + '/' + rep.staff.sched + (rep.staff.late.length ? ', trễ: ' + rep.staff.late.map(l => l.name + ' ' + l.mins + 'p').join(', ') : '') + (rep.staff.absent.length ? ', vắng: ' + rep.staff.absent.map(a => a.name).join(', ') : ''),
+    rep.pnl ? 'P&L tháng: DT ' + IMG.mil(rep.pnl.rev.total) + ', giá vốn ' + IMG.mil(rep.pnl.cogs.total) + ', chi phí ' + IMG.mil(rep.pnl.cost.total) + ', lợi nhuận ' + IMG.mil(rep.pnl.profit) + '.' : '',
     'Sự cố mở: ' + rep.ops.issOpen + (rep.ops.issKhan ? ' (' + rep.ops.issKhan + ' khẩn)' : '') + '. Chờ duyệt: ' + (rep.ops.pend.filter(p => p.n).map(p => p.n + ' ' + p.l).join(', ') || 'không có') + '.',
   ].filter(Boolean).join('\n');
 

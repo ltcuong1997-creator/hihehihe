@@ -12,6 +12,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</
 const fit = (t, maxW, px) => { t = String(t || ''); const n = Math.max(1, Math.floor(maxW / (px * 0.56))); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
 const dmy = (k) => k.slice(8, 10) + '/' + k.slice(5, 7) + '/' + k.slice(0, 4);
 const dm = (k) => k.slice(8, 10) + '/' + k.slice(5, 7);
+const ddmm2 = (k) => String(k || '').slice(8, 10) + '/' + String(k || '').slice(5, 7);
 const wdOf = (k) => new Date(k + 'T00:00:00Z').getUTCDay();
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(-2).map(w => w[0] || '').join('').toUpperCase();
 const hueOf = (s) => { let h = 0; for (const ch of String(s || 'x')) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
@@ -239,6 +240,28 @@ function reportSvg(rep) {
     st.absent.slice(0, 3).forEach(l => { T(x2 + 10, yy, fit('- ' + l.name + (l.br ? ' · ' + l.br : ''), colW - 10, 15), 15, 400, C.ink); yy += 24; });
   }
   y = Math.max(top0 + 34 + Math.max(1, Math.min(6, (rep.top || []).length)) * 34, yy) + 18;
+  /* P&L luỹ kế tháng */
+  const P = rep.pnl;
+  if (P) {
+    y += 6;
+    T(PAD, y, 'P&L tháng ' + rep.day.slice(5, 7) + ' (tới ' + ddmm2(P.to) + ')', 19, 600, C.ink);
+    T(W - PAD, y, 'giá vốn ' + (P.mode === 'tt' ? 'thực tế' : 'định mức'), 14, 400, C.ink3, 'end');
+    y += 12;
+    const pct = (x) => (P.rev.total ? Math.round(x / P.rev.total * 100) + '%' : '');
+    const lines = [['Doanh thu (sổ quỹ)', P.rev.total, '', 600, C.ink], ['− Giá vốn' + (P.mode === 'tt' && !P.cogs.ok ? ' (thiếu chốt tồn)' : ''), P.cogs.total, pct(P.cogs.total), 400, C.ink],
+      ['= Lợi nhuận gộp', P.gross, pct(P.gross), 600, C.brand],
+      ...P.costs.filter(g => g.total).slice(0, 6).map(g => ['− ' + g.name, g.total, pct(g.total), 400, C.ink]),
+      ['= LỢI NHUẬN', P.profit, pct(P.profit), 600, P.profit < 0 ? '#C0392B' : '#0E9F6E']];
+    R(PAD, y, W - PAD * 2, lines.length * 34 + 16, 16, C.zebra, ` stroke="${C.line}"`);
+    lines.forEach((l, i) => {
+      const yy = y + 34 + i * 34;
+      if (i === 2 || i === lines.length - 1) o.push(`<line x1="${PAD + 18}" y1="${yy - 25}" x2="${W - PAD - 18}" y2="${yy - 25}" stroke="${C.line}"/>`);
+      T(PAD + 20, yy, fit(l[0], 560, 16), 16, l[3], l[4]);
+      T(W - PAD - 110, yy, money(l[1]), 17, l[3], l[4], 'end');
+      T(W - PAD - 20, yy, l[2], 14, 400, C.ink3, 'end');
+    });
+    y += lines.length * 34 + 40;
+  }
   /* vận hành */
   const op = rep.ops || {};
   R(PAD, y, W - PAD * 2, 92, 16, C.zebra, ` stroke="${C.line}"`);

@@ -716,6 +716,64 @@ function world(opts = {}) {
     assert.deepStrictEqual(ct.cong_thuc[0].nguyen_lieu, ['Sữa đặc: 30 ml']); assert.ok(/khuấy đều/.test(ct.cong_thuc[0].cac_buoc[0]));
   });
 
+  console.log('P&L + ghi chi phí');
+  await t('chủ nhắn "chi 60tr tiền lương" -> bot gửi danh sách nhóm 1..8 -> nhắn 1 -> ghi vào P&L (ops_txns chi trước)', async () => {
+    const cl = fakeClaude([{ tool: 'ghi_chi_phi', input: { noi_dung: 'Tiền lương tháng 11', so_tien: 60000000, nhom_goi_y: 'lương' } }, { text: 'Em ghi khoản 60.000.000đ tiền lương tháng 11 cho Hí Hế 1.' }]);
+    const w = world({ claude: cl });
+    await w.link('ua', 'za');
+    await w.say('chi 60tr tiền lương', { zid: 'za' });
+    const menu = w.zl.last();
+    assert.ok(/1\. Lương nhân công \(gợi ý\)/.test(menu) && /8\. Chi phí khác/.test(menu) && /Nhắn số \(1-8\)/.test(menu), menu);
+    assert.ok(!Object.keys(w.db.store).some(k => k.startsWith('ops_txns/')), 'chưa ghi khi chưa chọn');
+    await w.say('9', { zid: 'za' });
+    assert.ok(/từ 1 đến 8/.test(w.zl.last()));
+    await w.say('1', { zid: 'za' });
+    const tx = Object.entries(w.db.store).find(([k]) => k.startsWith('ops_txns/'));
+    assert.ok(tx, 'phải ghi');
+    assert.strictEqual(tx[1].catId, 'CLNC'); assert.strictEqual(tx[1].amount, 60000000); assert.strictEqual(tx[1].status, 'done');
+    assert.strictEqual(tx[1].prepaid, true); assert.deepStrictEqual(tx[1].alloc, [{ branchId: 'B1', amount: 60000000 }]);
+    assert.ok(/Đã ghi 60.000.000đ/.test(w.zl.last()) && /lợi nhuận/.test(w.zl.last()), w.zl.last());
+    assert.strictEqual(cl.calls.length, 2, 'nhắn số không gọi AI');
+  });
+  await t('GS không ghi chi phí thẳng được; HUY bỏ danh sách', async () => {
+    const w = world();
+    const T2 = mkTools(w);
+    const cfg = w.db.store['ops_config/main'];
+    const r = await T2.run(T2.ctxOf(cfg, GS, { zaloId: 'z1' }), 'ghi_chi_phi', { noi_dung: 'x', so_tien: 1000 });
+    assert.ok(/Chỉ ADMIN/.test(r.loi));
+    const cl = fakeClaude([{ tool: 'ghi_chi_phi', input: { noi_dung: 'Điện', so_tien: 3200000 } }, { text: 'Khoản tiền điện 3.200.000đ.' }]);
+    const w2 = world({ claude: cl });
+    await w2.link('ua', 'za');
+    await w2.say('tiền điện 3tr2', { zid: 'za' });
+    await w2.say('huỷ', { zid: 'za' });
+    assert.ok(/Đã bỏ/.test(w2.zl.last()));
+    assert.ok(!Object.keys(w2.db.store).some(k => k.startsWith('ops_txns/')));
+  });
+  await t('pnl_thang: doanh thu sổ quỹ − giá vốn định mức − chi phí (bỏ mã Nhập hàng) = lợi nhuận', async () => {
+    const w = world({ cfg: { items: [{ code: 'SD01', name: 'Sữa đặc', unit: 'hộp', price: 20000 }] } });
+    const cfg = w.db.store['ops_config/main'];
+    w.db.store['ops_revenue/B1_2026-11-10'] = { branchId: 'B1', date: '2026-11-10', amount: 10000000 };
+    w.db.store['ops_recipes/R1'] = { name: 'Bạc xỉu', kvCode: 'BX', items: [{ sku: 'SD01', qty: 0.1, unit: 'hộp', cost: 20000 }] };
+    w.db.store['ops_sales/B1_2026-11'] = { branchId: 'B1', ym: '2026-11', items: { BX: { name: 'Bạc xỉu', qty: 100, d: { '2026-11-10': 100 }, da: { '2026-11-10': 3000000 } } } };
+    w.db.store['ops_txns/D1'] = { id: 'D1', status: 'done', planned: true, prepaid: true, catId: 'CLNC', amount: 6000000, date: '2026-11-05', alloc: [{ branchId: 'B1', amount: 6000000 }] };
+    w.db.store['ops_txns/D2'] = { id: 'D2', status: 'done', planned: true, prepaid: true, catId: 'CNHH', amount: 900000, date: '2026-11-06', alloc: [{ branchId: 'B1', amount: 900000 }] };
+    const T2 = mkTools(w);
+    const r = await T2.run(T2.ctxOf(cfg, { id: 'A1', role: 'ADMIN', branches: [] }, { zaloId: 'z' }), 'pnl_thang', {});
+    assert.strictEqual(r.doanh_thu, 10000000); assert.strictEqual(r.gia_von, 200000); assert.strictEqual(r.loi_nhuan_gop, 9800000);
+    assert.strictEqual(r.tong_chi_phi, 6000000, 'Nhập hàng không vào chi phí'); assert.strictEqual(r.loi_nhuan, 3800000);
+    assert.deepStrictEqual(r.chi_phi_theo_nhom.map(x => x.nhom), ['Lương nhân công']);
+    /* cách thực tế: tồn đầu (chốt 31/10) + nhập hàng − tồn cuối */
+    cfg.pnl = { cogsMode: 'tt' };
+    w.db.store['ops_stock/B1_2026-10-31'] = { branchId: 'B1', date: '2026-10-31', closed: true, items: { SD01: 50 } };
+    w.db.store['ops_stock/B1_2026-11-14'] = { branchId: 'B1', date: '2026-11-14', closed: true, items: { SD01: 30 } };
+    const T3 = mkTools(w);
+    const r2 = await T3.run(T3.ctxOf(cfg, { id: 'A1', role: 'ADMIN', branches: [] }, { zaloId: 'z' }), 'pnl_thang', {});
+    assert.strictEqual(r2.gia_von, 50 * 20000 + 900000 - 30 * 20000); assert.ok(/thực tế/.test(r2.gia_von_theo));
+    assert.strictEqual(r2.so_sanh_gia_von.dinh_muc, 200000);
+    const nv = await T3.run(T3.ctxOf(cfg, GS, { zaloId: 'z' }), 'pnl_thang', {});
+    assert.ok(nv.loi, 'GS không xem P&L');
+  });
+
   console.log('bot tự báo');
   const at = (iso) => { NOW = Date.parse(iso); };
   const NOW0 = NOW;

@@ -76,6 +76,50 @@ function pickBranches(cfg, allowed, asked) {
 const bName = (cfg, id) => { const b = (cfg.branches || []).find(x => x.id === id); return b ? (b.name || b.code || id) : id; };
 const monthsIn = (from, to) => { const out = []; let m = from.slice(0, 7); const end = to.slice(0, 7); while (m <= end && out.length < 4) { out.push(m); const [y, mo] = m.split('-').map(Number); m = mo === 12 ? (y + 1) + '-01' : y + '-' + String(mo + 1).padStart(2, '0'); } return out; };
 
+/* ===== P&L một tháng — cùng công thức trang P&L của app (pnlCogs + chi phí ghi tay theo kỳ ghi nhận) =====
+   Doanh thu = Sổ quỹ (ops_revenue). Giá vốn = định mức hoặc thực tế theo cfg.pnl.cogsMode. Chi phí = khoản đã ghi
+   (ops_txns còn hiệu lực, đúng kỳ) TRỪ mã Nhập hàng hoá (đã nằm trong giá vốn / là tồn kho). Gom theo nhóm GỌN. */
+async function loadPnl(db, R, cfg, mo, bids, today) {
+  const prevMo = (() => { const [y, m] = mo.split('-').map(Number); return m === 1 ? (y - 1) + '-12' : y + '-' + String(m - 1).padStart(2, '0'); })();
+  const mEnd = mo + '-' + String(new Date(Date.UTC(Number(mo.slice(0, 4)), Number(mo.slice(5, 7)), 0)).getUTCDate()).padStart(2, '0');
+  const to = today && today.slice(0, 7) === mo ? today : mEnd;
+  const winFrom = new Date(Date.parse(mo + '-01T00:00:00Z') - 70 * 864e5).toISOString().slice(0, 10);
+  const [rv, tx, rc, po, mv, ...st] = await Promise.all([
+    db.collection('ops_revenue').where('date', '>=', mo + '-01').where('date', '<=', to).select('branchId', 'amount').get(),
+    db.collection('ops_txns').where('date', '>=', winFrom).where('date', '<=', mEnd).get(),
+    db.collection('ops_recipes').get(), db.collection('ops_po').get(),
+    db.collection('ops_stkmove').where('date', '>=', prevMo + '-01').get(),
+    ...bids.map(b => db.collection('ops_stock').where('branchId', '==', b).get()),
+  ]);
+  const sales = {};
+  const sd = bids.length ? await db.getAll(...bids.flatMap(b => [mo, prevMo].map(m => db.collection('ops_sales').doc(b + '_' + m)))) : [];
+  sd.forEach(x => { if (x.exists) sales[x.id] = x.data() || {}; });
+  const stocks = {};
+  st.forEach(q => q.docs.forEach(d => { stocks[d.id] = { ...(d.data() || {}), id: d.id }; }));
+  const txns = tx.docs.map(d => ({ ...(d.data() || {}), id: d.id }));
+  const G = R.pnlCogs({ cfg, sales, recipes: rc.docs.map(d => ({ ...(d.data() || {}), id: d.id })), stocks, pos: po.docs.map(d => ({ ...(d.data() || {}), id: d.id })),
+    moves: mv.docs.map(d => ({ ...(d.data() || {}), id: d.id })), txns, bids, mo, to });
+  const P = R.pnlCfg(cfg);
+  const rev = {}; bids.forEach(b => { rev[b] = 0; });
+  rv.docs.forEach(d => { const v = d.data() || {}; if (rev[v.branchId] != null) rev[v.branchId] += Number(v.amount) || 0; });
+  const menu = R.pnlMenu(cfg).filter(c => c.id !== P.buyCat);
+  const groups = menu.map(c => ({ id: c.id, name: c.name, by: {}, total: 0 }));
+  const other = { id: '_', name: 'Mã chi phí khác', by: {}, total: 0 };
+  txns.filter(t => R.pnlLive(t) && R.txnInPer(t, mo) && t.catId !== P.buyCat).forEach(t => {
+    const g = groups.find(x => x.id === t.catId) || other;
+    bids.forEach(b => { const v = R.allocTo(t, b); g.by[b] = (g.by[b] || 0) + v; g.total += v; });
+  });
+  const costs = [...groups, ...(other.total ? [other] : [])];
+  const sum = (o) => bids.reduce((a, b) => a + (o[b] || 0), 0);
+  const costBy = {}; bids.forEach(b => { costBy[b] = costs.reduce((a, g) => a + (g.by[b] || 0), 0); });
+  const revT = sum(rev), cogsT = G.cost.total, costT = sum(costBy);
+  return {
+    mo, to, mode: P.cogsMode, rev: { by: rev, total: revT }, cogs: { by: G.cost.by, total: cogsT, ok: G.cost.ok, noCost: G.dm.noCost.length },
+    gross: revT - cogsT, costs, cost: { by: costBy, total: costT }, profit: revT - cogsT - costT,
+    tt: G.tt, dmTotal: G.dm.total, cmpTop: G.cmp.filter(r => r.value != null && r.value > 0).slice(0, 5),
+  };
+}
+
 /* ---------------------------------------------------------------------------------------------- */
 function createTools(deps) {
   const { db, now, log, fetchFn } = deps;
@@ -112,6 +156,23 @@ function createTools(deps) {
         xep_theo: { type: 'string', enum: ['so_luong', 'doanh_thu', 'ban_cham'], description: 'ban_cham = món bán ÍT nhất trước (có bán trong kỳ)' },
         gioi_han: { type: 'integer', minimum: 1, maximum: 40, description: 'Số món trả về (mặc định 15)' },
       }, required: ['tu_ngay', 'den_ngay'], additionalProperties: false },
+    },
+    {
+      name: 'ghi_chi_phi',
+      description: 'GHI MỘT KHOẢN CHI PHÍ vào P&L của app (chỉ ADMIN). Gọi NGAY khi chủ nhắn kiểu "chi 60tr tiền lương", "tiền điện 3tr2", "trả tiền nhà 25 triệu chi nhánh 1". KHÔNG tự chọn nhóm: máy chủ tự gửi danh sách nhóm chi phí đánh số 1, 2, 3... để chủ chọn, chủ nhắn số là ghi luôn. Chỉ truyền nhom_goi_y nếu đoán được (vd lương -> Lương nhân công). Nhiều chi nhánh mà chủ không nói chi nhánh nào thì hỏi lại: một chi nhánh hay chia đều.',
+      input_schema: { type: 'object', properties: {
+        noi_dung: { type: 'string', description: 'Nội dung khoản chi, vd "Tiền lương tháng 11"' },
+        so_tien: { type: 'number', description: 'Số tiền (đồng). "60tr" = 60000000, "3tr2" = 3200000, "500k" = 500000' },
+        chi_nhanh: { type: 'string', description: 'Mã chi nhánh (id) gánh khoản này' },
+        chia_deu: { type: 'boolean', description: 'Chia đều cho mọi chi nhánh đang mở' },
+        ngay: { type: 'string', description: 'YYYY-MM-DD ngày ghi nhận (quyết định tháng P&L). Bỏ trống = hôm nay. "lương tháng 10" thì để ngày cuối tháng 10.' },
+        nhom_goi_y: { type: 'string', description: 'Tên nhóm chi phí đoán được (để đánh dấu gợi ý)' },
+      }, required: ['noi_dung', 'so_tien'], additionalProperties: false },
+    },
+    {
+      name: 'pnl_thang',
+      description: 'P&L (lãi lỗ) một tháng đúng như trang P&L của app: doanh thu (sổ quỹ), giá vốn (định mức hoặc thực tế theo cài đặt), lợi nhuận gộp, chi phí theo nhóm, lợi nhuận, biên lãi — tổng và từng chi nhánh; kèm chênh lệch giá vốn định mức vs thực tế nếu có bản chốt tồn. Chỉ người xem được trang P&L.',
+      input_schema: { type: 'object', properties: { thang: { type: 'string', description: 'YYYY-MM; bỏ trống = tháng này' }, chi_nhanh: brArr }, additionalProperties: false },
     },
     {
       name: 'phan_tich_doanh_thu',
@@ -557,6 +618,58 @@ function createTools(deps) {
   }
 
 
+  /* ===== Ghi chi phí (chủ) -> hỏi nhóm 1..N -> chủ nhắn số là ghi (zalo.js xử lý số) ===== */
+  async function ghi_chi_phi(c, a) {
+    if (c.me.role !== 'ADMIN') return err('Chỉ ADMIN được ghi chi phí thẳng vào P&L qua bot. Người khác lập Đề nghị thanh toán (soan_de_nghi_chi) để chờ duyệt.');
+    const amount = Math.round(Number(a.so_tien) || 0);
+    if (!(amount > 0)) return err('Số tiền phải lớn hơn 0.');
+    const desc = clip(String(a.noi_dung || '').trim(), 140);
+    if (!desc) return err('Thiếu nội dung khoản chi.');
+    const open = c.R.bizList(c.cfg).filter(b => b.status !== 'closed').map(b => b.id);
+    let alloc;
+    if (a.chi_nhanh) {
+      const p = pickBranches(c.cfg, open, [a.chi_nhanh]);
+      if (p.ids.length !== 1) return { ...err('Không rõ chi nhánh.'), ...brNote(c, p), cac_chi_nhanh: open.map(id => bName(c.cfg, id)) };
+      alloc = [{ branchId: p.ids[0], amount }];
+    } else if (open.length === 1) alloc = [{ branchId: open[0], amount }];
+    else if (a.chia_deu) {
+      const per = Math.round(amount / open.length);
+      alloc = open.map((b, i) => ({ branchId: b, amount: i === open.length - 1 ? amount - per * (open.length - 1) : per }));
+    } else return { loi: 'Có nhiều chi nhánh — hỏi chủ: khoản này của chi nhánh nào, hay chia đều?', cac_chi_nhanh: open.map(id => bName(c.cfg, id)) };
+    const day = a.ngay && isDay(a.ngay) ? a.ngay : H.dayVN(now());
+    const menu = c.R.pnlMenu(c.cfg);
+    if (!menu.length) return err('Chưa khai mã chi phí — vào Cấu hình › Danh mục chi phí.');
+    const hint = a.nhom_goi_y ? menu.findIndex(m => strip(m.name).includes(strip(a.nhom_goi_y)) || strip(a.nhom_goi_y).includes(strip(m.name).split(' ')[0])) : -1;
+    await setPend(c, { kind: 'costPick', data: { desc, amount, date: day, alloc }, opts: menu.map(m => m.id), hint });
+    return { da_soan: true, cho_chon_nhom: true, khoan_chi: { noi_dung: desc, so_tien: amount, chi_nhanh: alloc.map(x => bName(c.cfg, x.branchId)).join(', '), ky: c.R.moLbl(day.slice(0, 7)) },
+      ghi_chu: 'Máy chủ tự gửi danh sách nhóm đánh số ngay sau câu của em. Em chỉ viết MỘT câu ngắn xác nhận khoản chi (số tiền, nội dung, chi nhánh, kỳ), KHÔNG liệt kê nhóm, KHÔNG hỏi gì thêm.' };
+  }
+  const costMenuText = (cfg, pend) => {
+    const R = appRules(cfg);
+    const ids = pend.opts || [];
+    return 'Chi vào nhóm nào?\n' + ids.map((id, i) => (i + 1) + '. ' + R.catOf(cfg, id).name + (i === pend.hint ? ' (gợi ý)' : '')).join('\n');
+  };
+
+  async function pnl_thang(c, a) {
+    if (!pagesOf(c).includes('pnl')) return err('Vai trò của người hỏi không xem được trang P&L trong app.');
+    const today = H.dayVN(now());
+    const mo = a.thang && /^\d{4}-\d{2}$/.test(a.thang) ? a.thang : today.slice(0, 7);
+    const p = pickBranches(c.cfg, bizMine(c), a.chi_nhanh);
+    if (!p.ids.length) return { ...err('Không có chi nhánh nào được xem.'), ...brNote(c, p) };
+    const r = await loadPnl(db, c.R, c.cfg, mo, p.ids, today);
+    const pct = (x) => (r.rev.total ? Math.round(x / r.rev.total * 1000) / 10 + '%' : '');
+    return {
+      thang: mo, den_ngay: r.to, gia_von_theo: r.mode === 'tt' ? 'thực tế (tồn đầu + nhập hàng − tồn cuối)' : 'định mức (bán × giá vốn công thức)',
+      doanh_thu: r.rev.total, gia_von: r.cogs.total, gia_von_pct: pct(r.cogs.total), loi_nhuan_gop: r.gross, bien_gop: pct(r.gross),
+      chi_phi_theo_nhom: r.costs.filter(g => g.total).map(g => ({ nhom: g.name, tien: g.total, pct: pct(g.total) })),
+      tong_chi_phi: r.cost.total, loi_nhuan: r.profit, bien_lai: pct(r.profit),
+      tung_chi_nhanh: p.ids.length > 1 ? p.ids.map(b => ({ chi_nhanh: bName(c.cfg, b), doanh_thu: r.rev.by[b], gia_von: r.cogs.by[b], chi_phi: r.cost.by[b], loi_nhuan: (r.rev.by[b] || 0) - (r.cogs.by[b] || 0) - (r.cost.by[b] || 0) })) : undefined,
+      ...(r.mode === 'tt' && !r.cogs.ok ? { canh_bao: 'Có chi nhánh thiếu bản chốt tồn đầu / cuối kỳ nên giá vốn thực tế chưa đủ — vào Kho chốt tồn.' } : {}),
+      ...(r.mode === 'dm' && r.cogs.noCost ? { canh_bao: r.cogs.noCost + ' món bán ra chưa có giá vốn định mức (chưa khai công thức).' } : {}),
+      so_sanh_gia_von: r.tt.ok ? { dinh_muc: Math.round(r.dmTotal), thuc_te: Math.round(r.tt.total), chenh: Math.round(r.tt.total - r.dmTotal), hao_hut_nhieu_nhat: r.cmpTop.map(x => x.name + ' ' + Math.round(x.value).toLocaleString('vi-VN') + 'đ') } : undefined,
+    };
+  }
+
   /* ===== Phân tích doanh thu: kỳ này so với kỳ so sánh ===== */
   async function phan_tich_doanh_thu(c, a) {
     if (!pagesOf(c).includes('revenue')) return err('Vai trò của người hỏi không được xem Doanh thu trong app.');
@@ -958,10 +1071,10 @@ function createTools(deps) {
   const sniff = (b) => b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b[0] === 0x89 && b[1] === 0x50 ? 'image/png'
     : b.slice(0, 4).toString() === 'RIFF' && b.slice(8, 12).toString() === 'WEBP' ? 'image/webp' : b.slice(0, 3).toString() === 'GIF' ? 'image/gif' : null;
 
-  const RUN = { doanh_thu, phan_tich_doanh_thu, tien_do_target, du_bao_kho, tim_nguoi_trong, cong_cua_toi, cong_thuc, anh_lich, ban_theo_mon, nguoi_trong_ca, su_co, lich_lam_viec, viec_cho_duyet, tra_cuu, soan_bao_su_co, soan_de_xuat_mua, soan_phieu_kho, soan_de_nghi_chi, soan_duyet };
+  const RUN = { doanh_thu, ghi_chi_phi, pnl_thang, phan_tich_doanh_thu, tien_do_target, du_bao_kho, tim_nguoi_trong, cong_cua_toi, cong_thuc, anh_lich, ban_theo_mon, nguoi_trong_ca, su_co, lich_lam_viec, viec_cho_duyet, tra_cuu, soan_bao_su_co, soan_de_xuat_mua, soan_phieu_kho, soan_de_nghi_chi, soan_duyet };
   /* Trong nhóm Zalo quản lý: hỏi số liệu theo quyền NHÓM (c.me); việc gắn với một người (lịch, việc chờ
      duyệt, soạn nháp) chạy bằng quyền của CHÍNH người hỏi đã kết nối (c.actor), chưa kết nối thì từ chối. */
-  const PERSONAL = ['lich_lam_viec', 'cong_cua_toi', 'viec_cho_duyet', 'soan_bao_su_co', 'soan_de_xuat_mua', 'soan_phieu_kho', 'soan_de_nghi_chi', 'soan_duyet'];
+  const PERSONAL = ['ghi_chi_phi', 'lich_lam_viec', 'cong_cua_toi', 'viec_cho_duyet', 'soan_bao_su_co', 'soan_de_xuat_mua', 'soan_phieu_kho', 'soan_de_nghi_chi', 'soan_duyet'];
   async function run(c, name, input) {
     const fn = RUN[name];
     if (!fn) return err('Không có công cụ ' + name);
@@ -1020,6 +1133,28 @@ function createTools(deps) {
         msgs: [{ at: iso, by: me.id, byName: me.name || me.id, sys: true, text: 'Lập đề xuất qua Zalo và gửi cấp trên phê duyệt' }],
       });
       return { ok: true, msg: 'Đã tạo đề xuất mua ' + code + ' (' + (d.items || []).length + ' món) và gửi cấp trên phê duyệt.', ref: id };
+    }
+    if (pend.kind === 'costPick') {
+      /* pend.pick: số chủ nhắn (1..N) — zalo.js gắn vào trước khi gọi */
+      const d = pend.data || {};
+      if (me.role !== 'ADMIN') return { ok: false, msg: 'Chỉ ADMIN được ghi chi phí.' };
+      const catId = (pend.opts || [])[Number(pend.pick) - 1];
+      if (!catId) return { ok: false, msg: 'Số nhóm không hợp lệ, nhắn số từ 1 đến ' + (pend.opts || []).length + '.' };
+      const id = R.uid('DC');
+      /* Đúng bản ghi nút "+ Thêm" (PnlAddModal) ghi cho khoản CHI TRƯỚC: chi phí thật, không chờ ghép sao kê */
+      await db.collection('ops_txns').doc(id).create({
+        id, planned: true, prepaid: true, status: 'done', catId, alloc: d.alloc || [], note: 'Ghi qua bot Zalo',
+        desc: d.desc, amount: d.amount, date: d.date, by: me.id, at: iso, viaZalo: true,
+      });
+      const mo = String(d.date).slice(0, 7);
+      let tail = '';
+      try {
+        const bids = R.bizList(cfg).filter(b => b.status !== 'closed').map(b => b.id);
+        const r = await loadPnl(db, R, cfg, mo, bids, new Date(now() + 7 * 3600e3).toISOString().slice(0, 10));
+        tail = '\nP&L ' + R.moLbl(mo) + ' tới nay: doanh thu ' + r.rev.total.toLocaleString('vi-VN') + 'đ, chi phí ' + r.cost.total.toLocaleString('vi-VN') + 'đ, lợi nhuận ' + Math.round(r.profit).toLocaleString('vi-VN') + 'đ.';
+      } catch (e) { log.warn('zalo: tính P&L sau khi ghi chi lỗi', { err: String(e && e.message).slice(0, 160) }); }
+      return { ok: true, msg: 'Đã ghi ' + Number(d.amount).toLocaleString('vi-VN') + 'đ "' + d.desc + '" vào ' + R.catOf(cfg, catId).name + ' · kỳ ' + R.moLbl(mo)
+        + ' · ' + (d.alloc || []).map(x => bName(cfg, x.branchId)).join(', ') + '.' + tail, ref: id };
     }
     if (pend.kind === 'move') {
       const d = pend.data || {};
@@ -1139,7 +1274,7 @@ function createTools(deps) {
     return { ok: false, msg: 'Không rõ bản nháp.' };
   }
 
-  return { DEFS, run, ctxOf, execPending, fetchImage, pendingFor, sendSchedImage, PHOTO_TTL };
+  return { DEFS, run, ctxOf, execPending, fetchImage, pendingFor, sendSchedImage, costMenuText, PHOTO_TTL };
 }
 
-module.exports = { createTools, matchBranch, pickBranches, hmVN, isDay, strip, isOptionItem, DEF_ISSUE_CATS, PEND_TTL };
+module.exports = { createTools, loadPnl, matchBranch, pickBranches, hmVN, isDay, strip, isOptionItem, DEF_ISSUE_CATS, PEND_TTL };
