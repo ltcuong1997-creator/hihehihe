@@ -647,7 +647,10 @@ function createTools(deps) {
   const costMenuText = (cfg, pend) => {
     const R = appRules(cfg);
     const ids = pend.opts || [];
-    return 'Chi vào nhóm nào?\n' + ids.map((id, i) => (i + 1) + '. ' + R.catOf(cfg, id).name + (i === pend.hint ? ' (gợi ý)' : '')).join('\n');
+    const d = pend.data || {};
+    /* Kỳ ghi in CỐ ĐỊNH ở đầu danh sách (không nhờ AI nói) — chủ thấy sai tháng thì nhắn T10 để đổi */
+    return 'Khoản chi ' + Number(d.amount || 0).toLocaleString('vi-VN') + 'đ "' + (d.desc || '') + '" — ghi vào P&L ' + R.moLbl(String(d.date || '').slice(0, 7))
+      + ' (sai tháng thì nhắn T + số tháng, vd T10).\nChi vào nhóm nào?\n' + ids.map((id, i) => (i + 1) + '. ' + R.catOf(cfg, id).name + (i === pend.hint ? ' (gợi ý)' : '')).join('\n');
   };
 
   async function pnl_thang(c, a) {
