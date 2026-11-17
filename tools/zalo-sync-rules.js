@@ -27,12 +27,17 @@ const NAMES = [
   /* Nhập - xuất - tồn nguyên liệu (dự báo hết hàng): nxtBuild + các hàm nó gọi, đúng thứ tự phụ thuộc */
   'dKey', 'dAdd', 'stkLastClosed', 'isBtp', 'rcpUsage', 'stkBomOf', 'stkGoodsMap', 'stkKey', 'stkClosedOn', 'poIsDept', 'poRcBatches',
   'poReceived', 'poInDate', 'poRcLines', 'mvAdjIn', 'mvOutOK', 'mvInOK', 'stkRecon', 'nxtBuild',
+  /* P&L: giá vốn định mức / thực tế + chi phí ghi tay (17/11/2026) */
+  'nvlSoldIn', 'txnIsPlan', 'pnlLive', 'txnPerDate', 'txnBaseMo', 'txnPer', 'txnInPer', 'allocTo',
+  'DEFAULT_COST_CATS', 'costCats', 'DEFAULT_COST_GROUPS', 'costGroups', 'catOf', 'moLbl',
+  'PNL_BUY_CAT', 'PNL_COMPACT', 'pnlCfg', 'pnlMenu', 'pnlCogs',
 ];
 const EXPORTS = ['ALL_PAGES', 'BASE_PAGES', 'DEFAULT_ROLES', 'roleList', 'roleOf', 'inScope', 'scopeBranches', 'isBiz', 'bizList', 'canIssue', 'ISSUE_SEV',
   'DEFAULT_ISSUE_CATS', 'itemGroups', 'itemsInGroup', 'canPreq', 'canPreqAll', 'canPreqAppr', 'pqSees', 'canConfirmAtt', 'attChain', 'attStepLabel',
   'attStepIdx', 'attIsLast', 'attCanStep', 'pad', 'hoursTxt', 'dShort', 'uid', 'noAccent', 'pushCfg', 'pushTargets', 'pushBulk', 'canAttAll', 'canRecView',
   'canStkMove', 'canStkMoveAppr', 'stockItems', 'nextReqId', 'typeListOn', 'tOf', 'apprCfg', 'pickersFor', 'reqPickDept', 'stepLabel',
-  'chainOf', 'chainNow', 'curStep', 'skipFrom', 'canStep', 'reqAmountRaw', 'nxtBuild', 'rcpUsage', 'isBtp', 'dAdd'];
+  'chainOf', 'chainNow', 'curStep', 'skipFrom', 'canStep', 'reqAmountRaw', 'nxtBuild', 'rcpUsage', 'isBtp', 'dAdd',
+  'pnlCogs', 'pnlCfg', 'pnlMenu', 'costCats', 'costGroups', 'catOf', 'txnInPer', 'pnlLive', 'allocTo', 'moLbl'];
 
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, 'functions', 'apprules.js');

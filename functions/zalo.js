@@ -258,6 +258,7 @@ const T = {
   /* Đầu mọi tin có bản nháp: tóm tắt của AI đọc lướt dễ tưởng đã ghi xong */
   draftHead: 'BẢN NHÁP — CHƯA GHI VÀO APP\n',
   pendDrop: 'Đã bỏ bản nháp.',
+  pickNum: (pend, group) => '\n' + (group ? 'Gõ "bot" + số (vd bot 1)' : 'Nhắn số (1-' + (pend.opts || []).length + ')') + ' để ghi luôn, ' + (group ? '"bot huy"' : 'HUY') + ' để bỏ.',
   aiDown: 'Trợ lý AI đang tắt, em chỉ hiểu lệnh: LICH (lịch của tôi), GIUP, HUY KET NOI.',
   aiCap: 'Trợ lý AI đã dùng hết ngân sách tháng này, em tạm chỉ hiểu lệnh: LICH, GIUP, HUY KET NOI. Báo quản trị nếu cần tăng.',
   aiFail: 'Em chưa xử lý được câu này, anh/chị nói lại ngắn gọn hơn giúp em nhé.',
@@ -486,6 +487,25 @@ function createZalo(deps) {
     return { res };
   }
 
+  /* Đang chờ chủ chọn nhóm chi phí: số 1..N -> ghi; HUY -> bỏ; OK -> nhắc lại danh sách. Câu khác -> null
+     (để AI xử lý như thường, bản nháp vẫn giữ tới khi hết hạn). */
+  async function costPickStep(cfg, emp, pend, n, ref, reply, group) {
+    const N = (pend.opts || []).length;
+    if (/^\d{1,2}$/.test(n)) {
+      const k = Number(n);
+      if (k < 1 || k > N) { await reply('Nhắn số từ 1 đến ' + N + ' nhé.', 'cost_pick'); return { result: 'bad_num' }; }
+      await ref.set({ pend: FV.delete() }, { merge: true });
+      let r;
+      try { r = await tools.execPending(cfg, emp, { ...pend, pick: k }); }
+      catch (e) { log.error('zalo: ghi chi phí lỗi', { err: String(e && e.message) }); r = { ok: false, msg: 'Lỗi máy chủ khi ghi, chưa ghi gì. Anh/chị thử lại sau.' }; }
+      await reply(r.msg, 'cost_pick');
+      return { result: r.ok ? 'cost_saved' : 'cost_fail', msg: r.msg };
+    }
+    if (NO.includes(n)) { await ref.set({ pend: FV.delete() }, { merge: true }); await reply(T.pendDrop, 'pend_drop'); return { result: 'drop', msg: T.pendDrop }; }
+    if (YES.includes(n)) { await reply(tools.costMenuText(cfg, pend) + T.pickNum(pend, group), 'cost_pick'); return { result: 'menu_again' }; }
+    return null;
+  }
+
   /* ---------- Người đã kết nối (chat riêng) ---------- */
   async function handleLinked(v, link, pc, gref, g) {
     g = g || {};
@@ -509,7 +529,12 @@ function createZalo(deps) {
 
     /* 1) Xác nhận / bỏ bản nháp — code thường, không qua AI */
     const pend = g.pend && Number(g.pend.exp) > t ? g.pend : null;
-    if (pend && isText && (YES.includes(n) || NO.includes(n))) {
+    /* 1a) Đang chờ chọn nhóm chi phí: nhắn số là ghi luôn */
+    if (pend && pend.kind === 'costPick' && isText) {
+      const r0 = await costPickStep(cfg, emp, pend, n, gref, reply);
+      if (r0) { await pushHist(gref, g, [{ r: 'u', t: v.text }, { r: 'a', t: r0.msg || '' }]); return { cmd: 'cost_pick', result: r0.result, empId }; }
+    }
+    if (pend && pend.kind !== 'costPick' && isText && (YES.includes(n) || NO.includes(n))) {
       await gref.set({ pend: FV.delete() }, { merge: true });
       if (NO.includes(n)) { await reply(T.pendDrop, 'pend_drop'); return { cmd: 'pend_drop', result: 'ok', empId }; }
       let r;
@@ -572,7 +597,8 @@ function createZalo(deps) {
     const r = await runAi({ zc, cfg, emp, v, text: userText, image, photo, history, reply });
     if (r.stop) return { ...r.stop, empId };
     const res = r.res;
-    const text = res.ok ? (res.pend ? T.draftHead : '') + res.text + (res.pend ? T.confirm : '') : (res.pend ? T.draftHead + 'Em đã soạn nháp.' + T.confirm : T.aiFail);
+    const text = res.pend && res.pend.kind === 'costPick' ? (res.ok ? res.text : 'Khoản chi đã soạn.') + '\n\n' + tools.costMenuText(cfg, res.pend) + T.pickNum(res.pend, false)
+      : res.ok ? (res.pend ? T.draftHead : '') + res.text + (res.pend ? T.confirm : '') : (res.pend ? T.draftHead + 'Em đã soạn nháp.' + T.confirm : T.aiFail);
     await reply(text, 'ai');
     await pushHist(gref, g, [{ r: 'u', t: userText || '[ảnh]' }, { r: 'a', t: text }]);
     return { cmd: 'ai', result: res.ok ? 'ok' : 'ai_' + res.why, empId, aiUsd: res.usd || 0, aiTools: (res.tools || []).join(',') };
@@ -643,7 +669,11 @@ function createZalo(deps) {
 
     /* Xác nhận / bỏ bản nháp của CHÍNH người gửi — code thường, không qua AI */
     const pend = actor && sg.pend && Number(sg.pend.exp) > t ? sg.pend : null;
-    if (pend && isText && (YES.includes(n) || NO.includes(n))) {
+    if (pend && pend.kind === 'costPick' && isText) {
+      const r0 = await costPickStep(cfg, actor, pend, n, sref, reply, true);
+      if (r0) return { cmd: 'cost_pick', result: r0.result, empId };
+    }
+    if (pend && pend.kind !== 'costPick' && isText && (YES.includes(n) || NO.includes(n))) {
       await sref.set({ pend: FV.delete() }, { merge: true });
       if (NO.includes(n)) { await reply(T.pendDrop, 'pend_drop'); return { cmd: 'pend_drop', result: 'ok', empId }; }
       let r;
@@ -668,7 +698,8 @@ function createZalo(deps) {
     const r = await runAi({ zc, cfg, emp: groupEmp(cfg, v), v, text: gtext, image, photo: image || null, history, group: { id: gid, actor }, reply });
     if (r.stop) return { ...r.stop, empId };
     const res = r.res;
-    const text = res.ok ? (res.pend ? T.draftHead : '') + res.text + (res.pend ? T.confirmG : '') : (res.pend ? T.draftHead + 'Em đã soạn nháp.' + T.confirmG : T.aiFail);
+    const text = res.pend && res.pend.kind === 'costPick' ? (res.ok ? res.text : 'Khoản chi đã soạn.') + '\n\n' + tools.costMenuText(cfg, res.pend) + T.pickNum(res.pend, true)
+      : res.ok ? (res.pend ? T.draftHead : '') + res.text + (res.pend ? T.confirmG : '') : (res.pend ? T.draftHead + 'Em đã soạn nháp.' + T.confirmG : T.aiFail);
     await reply(text, 'ai');
     await pushHist(hgref, hg, [{ r: 'u', t: (v.zname ? v.zname + ': ' : '') + (gtext || '[ảnh]') }, { r: 'a', t: text }]);
     return { cmd: 'ai', result: res.ok ? 'ok' : 'ai_' + res.why, empId, aiUsd: res.usd || 0, aiTools: (res.tools || []).join(',') };
