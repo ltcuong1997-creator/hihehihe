@@ -254,11 +254,11 @@ const T = {
   aiOk: 'Cảm ơn anh/chị. Từ giờ cứ nhắn bình thường, ví dụ: "doanh thu hôm nay", "tuần này bán bao nhiêu ly bạc xỉu", "máy pha chi nhánh 1 không lên nhiệt" (gửi kèm ảnh càng tốt), "có gì chờ tôi duyệt".',
   helpAi: 'Em là trợ lý ' + APP + ', anh/chị cứ nhắn bình thường, ví dụ:\n- doanh thu hôm nay theo nguồn đơn\n- vì sao doanh thu tuần này tụt\n- tháng này đạt bao nhiêu % target\n- nguyên liệu nào sắp hết\n- ai rảnh thay ca tối thứ 7\n- gửi ảnh lịch tuần này chi nhánh 1\n- pha bạc xỉu thế nào\n- huỷ 2 hộp sữa tươi hết hạn (gửi kèm ảnh)\n- (gửi ảnh hoá đơn NCC) nhập kho giúp em\n- ghi chi phí sửa máy pha 1.200.000đ\n- có gì chờ tôi duyệt\nLệnh nhanh: LICH (ảnh lịch của tôi), HUY KET NOI.',
   confirm: '\n\nNhắn OK để xác nhận, HUY để bỏ (bản nháp giữ 10 phút).',
-  confirmG: '\n\nGõ "bot ok" để xác nhận, "bot huy" để bỏ (bản nháp giữ 10 phút).',
+  confirmG: '\n\nNhắn OK để xác nhận, HUY để bỏ (bản nháp giữ 10 phút).',
   /* Đầu mọi tin có bản nháp: tóm tắt của AI đọc lướt dễ tưởng đã ghi xong */
   draftHead: 'BẢN NHÁP — CHƯA GHI VÀO APP\n',
   pendDrop: 'Đã bỏ bản nháp.',
-  pickNum: (pend, group) => '\n' + (group ? 'Gõ "bot" + số (vd bot 1)' : 'Nhắn số (1-' + (pend.opts || []).length + ')') + ' để ghi luôn, ' + (group ? '"bot huy"' : 'HUY') + ' để bỏ.',
+  pickNum: (pend) => '\nNhắn số (1-' + (pend.opts || []).length + ') để ghi luôn, HUY để bỏ.',
   aiDown: 'Trợ lý AI đang tắt, em chỉ hiểu lệnh: LICH (lịch của tôi), GIUP, HUY KET NOI.',
   aiCap: 'Trợ lý AI đã dùng hết ngân sách tháng này, em tạm chỉ hiểu lệnh: LICH, GIUP, HUY KET NOI. Báo quản trị nếu cần tăng.',
   aiFail: 'Em chưa xử lý được câu này, anh/chị nói lại ngắn gọn hơn giúp em nhé.',
@@ -270,7 +270,7 @@ const T = {
   groupOn: 'Đã gắn nhóm này làm NHÓM BAN QUẢN TRỊ của ' + APP + '.\n- Ai trong nhóm cũng hỏi được: gõ "bot" + câu hỏi, vd "bot doanh thu hôm nay", "bot món nào bán chạy tuần này".\n- Ghi vào app (báo sự cố, đề xuất mua, duyệt): chỉ người đã kết nối Zalo với app.\n- Chat bình thường bot không đọc, không lưu. Tin bắt đầu bằng "bot" được trợ lý AI (Claude của Anthropic) xử lý.\nGỡ nhóm: ADMIN gõ "bot huy nhom".',
   groupOffDone: 'Đã gỡ nhóm khỏi app ' + APP + '. Bot không trả lời trong nhóm này nữa.',
   groupNotOn: 'Nhóm này chưa được gắn với app.',
-  groupHelp: 'Trong nhóm, gõ "bot" + câu hỏi, ví dụ:\n- bot doanh thu hôm nay theo nguồn\n- bot món nào bán chạy tuần này\n- bot ai đang trong ca\n- bot gửi ảnh lịch tuần này\n- bot sự cố nào chưa xử lý\nNgười đã kết nối Zalo với app: thêm báo sự cố, huỷ / nhập hàng, ghi chi phí, đề xuất mua, duyệt việc — "bot ok" để xác nhận.',
+  groupHelp: 'Trong nhóm, gõ "bot" + câu hỏi, ví dụ:\n- bot doanh thu hôm nay theo nguồn\n- bot món nào bán chạy tuần này\n- bot ai đang trong ca\n- bot gửi ảnh lịch tuần này\n- bot sự cố nào chưa xử lý\nNgười đã kết nối Zalo với app: thêm báo sự cố, huỷ / nhập hàng, ghi chi phí, đề xuất mua, duyệt việc — nhắn OK để xác nhận (chi phí: nhắn số nhóm).',
   groupPrivate: 'Kết nối / ngắt kết nối Zalo làm trong tin nhắn riêng với bot nhé.',
   codeBad: 'Mã không đúng hoặc đã hết hạn. Lấy mã mới trong app (Hồ sơ của tôi > Kết nối Zalo) rồi nhắn lại.',
   codeGone: 'Mã kết nối đã hết hạn hoặc không còn dùng được. Lấy mã mới trong app rồi nhắn lại.',
@@ -880,6 +880,23 @@ function createZalo(deps) {
     return out;
   }
 
+  /* Tin nhóm không gọi bot nhưng là câu trả lời ngắn cho bản nháp đang chờ của chính người gửi, tạo trong
+     đúng nhóm này: số / đổi tháng chỉ cho chọn nhóm chi phí; ok / huỷ cho mọi bản nháp. Chỉ đọc Firestore khi
+     câu khớp mẫu ngắn — chat thường của nhóm không tốn thêm lượt đọc. */
+  async function pendReply(ev, body) {
+    if (ev.event !== 'message.text.received') return false;
+    const n = normalize(body);
+    const pick = /^\d{1,2}$/.test(n) || /^(?:t|thang)\s*\d{1,2}(?:\s*(?:nam)?\s*\d{4})?$/.test(n) || /^\d{1,2}\s+\d{4}$/.test(n);
+    const yn = YES.includes(n) || NO.includes(n);
+    if (!pick && !yn) return false;
+    try {
+      const s = await col('guard').doc(String(ev.zaloId)).get();
+      const p = s.exists ? (s.data() || {}).pend : null;
+      if (!p || !(Number(p.exp) > now()) || String(p.where || '') !== String(ev.chatId)) return false;
+      return yn || p.kind === 'costPick';
+    } catch (e) { return false; }
+  }
+
   /* ---------- zaloHook: kiểm header, lưu tin, trả 200 ---------- */
   async function hook(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ message: 'Method Not Allowed' }); return; }
@@ -903,6 +920,9 @@ function createZalo(deps) {
          đầu tin khi người dùng @tag bot — tên không bắt đầu bằng "Bot" mà không biết tên là bỏ sót tin. */
       try { bn = await botName(zcfg(await getCfg())); } catch (e) { bn = ''; }
       gtext = groupCall(body, bn);
+      /* Trả lời NGẮN cho bản nháp của CHÍNH người gửi trong nhóm này (số nhóm chi phí "1", "T10", "ok", "huy")
+         — người ta trả lời tự nhiên, không ai gõ "bot 1". Không nhận thì khoản chi treo mãi, không vào P&L. */
+      if (gtext === null && await pendReply(ev, body)) gtext = String(body).trim();
       if (gtext === null) { res.status(200).json({ message: 'Success' }); return; }
     }
     try {

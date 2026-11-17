@@ -35010,6 +35010,107 @@ function PnlCatDetail({ node, brs, mo, onEdit, onPeek, onClose }) {
 /* ---- Bảng đối chiếu GIÁ VỐN: định mức (bán quy BOM) vs thực tế (tồn đầu + nhập − huỷ ± chuyển − tồn cuối) ----
    Dòng nào chênh dương là dùng NHIỀU hơn định mức (hao hụt, pha dư, thất thoát); âm là dùng ít hơn (pha thiếu
    định lượng, hoặc đếm / nhập sai). Chỉ tính được ở cơ sở có đủ bản chốt tồn đầu kỳ và cuối kỳ. */
+/* ---- NHẬT KÝ THU CHI ----
+   Một dòng thời gian mọi khoản tiền vào / ra của kỳ, đọc như sổ: doanh thu bán hàng (sổ quỹ KiotViet, mỗi
+   ngày mỗi cơ sở một dòng), thu khác, và mọi khoản chi đã ghi (app, bot Zalo, sao kê) — kể cả mã Nhập hàng
+   hoá (đánh dấu "vào giá vốn" vì không cộng vào chi phí P&L). Chỉ đọc lại đúng dữ liệu ma trận đang dùng,
+   không đẻ kho mới; bấm khoản chi nhập tay để sửa / xoá. Số tiền chỉ tính phần thuộc các cơ sở người xem. */
+function PnlLogTab({ mo, brs, canEdit, onEdit }) {
+  const { cfg, revenue, txns, incomes, employees } = useApp();
+  const PC = pnlCfg(cfg);
+  const [kind, setKind] = useState('all');
+  const [src, setSrc] = useState('all');
+  const [q, setQ] = useState('');
+  const bIds = brs.map(b => b.id);
+  const sysOn = brs.length > 0 && brs.length === bizList(cfg).length;
+  const bn = (id) => (brs.find(b => b.id === id) || {}).name || id;
+  const who = (id) => { if (!id) return ''; if (/^robot/.test(id)) return 'Robot'; const e = (employees || []).find(x => x.id === id); return e ? e.name : id; };
+  const rows = useMemo(() => {
+    const out = [];
+    Object.values(revenue || {}).forEach(r => {
+      if (!r || String(r.date || '').slice(0, 7) !== mo || bIds.indexOf(r.branchId) < 0 || !(+r.amount)) return;
+      const pay = [['TM', r.cash], ['CK', r.bank], ['Ví', r.wallet]].filter(x => +x[1]).map(x => x[0] + ' ' + shortMoney(x[1])).join(' · ');
+      out.push({ id: 'rv_' + r.branchId + r.date, date: r.date, io: 'in', cat: 'Doanh thu bán hàng', desc: 'Sổ quỹ' + (r.invoices ? ' · ' + r.invoices + ' hoá đơn' : '') + (pay ? ' · ' + pay : ''),
+        br: bn(r.branchId), amt: +r.amount || 0, src: r.src === 'file' ? 'file' : 'kv', by: r.src === 'file' ? who(r.by) : 'Robot KiotViet' });
+    });
+    (incomes || []).forEach(t => {
+      if (!incLive(t) || incPer(t) !== mo || (!sysOn && incIsSys(t))) return;
+      const amt = incIsSys(t) ? (+t.amount || 0) : bIds.reduce((a, b) => a + allocTo(t, b), 0);
+      if (!amt) return;
+      out.push({ id: 'in_' + t.id, date: t.date, io: 'in', cat: ((incCats(cfg).find(c => c.id === t.catId) || {}).name) || 'Thu khác', desc: t.desc || '',
+        br: incIsSys(t) ? 'Hệ thống' : (t.alloc || []).filter(a => bIds.indexOf(a.branchId) >= 0).map(a => bn(a.branchId)).join(', '), amt, src: 'app', by: who(t.by) });
+    });
+    (txns || []).forEach(t => {
+      if (!txnInPer(t, mo) || !pnlLive(t)) return;
+      const amt = bIds.reduce((a, b) => a + allocTo(t, b), 0);
+      if (!amt) return;
+      out.push({ id: 'tx_' + t.id, t, date: txnPerDate(t), io: 'out', cat: catOf(cfg, t.catId).name, desc: t.desc || '', note: t.note && t.note !== 'Ghi qua bot Zalo' ? t.note : '',
+        br: (t.alloc || []).filter(a => bIds.indexOf(a.branchId) >= 0 && +a.amount).map(a => bn(a.branchId)).join(', '), amt,
+        src: t.viaZalo ? 'zalo' : txnIsPlan(t) ? 'app' : 'stmt', est: txnIsEst(t), cogs: t.catId === PC.buyCat, by: who(t.by) });
+    });
+    return out.sort((a, b) => String(b.date).localeCompare(String(a.date)) || (a.io === b.io ? b.amt - a.amt : a.io === 'in' ? -1 : 1));
+  }, [revenue, incomes, txns, mo, bIds.join(','), cfg, employees, sysOn]);
+  const ql = q.trim().toLowerCase();
+  const shown = rows.filter(r => (kind === 'all' || r.io === kind) && (src === 'all' || r.src === src)
+    && (!ql || (r.cat + ' ' + r.desc + ' ' + r.br + ' ' + r.by).toLowerCase().includes(ql)));
+  const sum = (io, list) => list.filter(r => r.io === io).reduce((a, r) => a + r.amt, 0);
+  const tIn = sum('in', shown), tOut = sum('out', shown);
+  const days = [];
+  shown.forEach(r => { const d = days[days.length - 1]; if (d && d.date === r.date) d.list.push(r); else days.push({ date: r.date, list: [r] }); });
+  const SRC = { kv: ['KiotViet', 't-gray'], file: ['File', 't-gray'], zalo: ['Zalo bot', 't-blue'], app: ['Nhập tay', 't-gray'], stmt: ['Sao kê', 't-gray'] };
+  const nZalo = rows.filter(r => r.src === 'zalo').length;
+  const dLbl = (d) => { const x = new Date(d + 'T00:00:00'); return ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][x.getDay()] + ' · ' + d.slice(8) + '/' + d.slice(5, 7); };
+  return (
+    <div className="card">
+      <div className="card-h" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <div><h3>Nhật ký thu chi · {moLbl(mo)}</h3>
+          <p>Thu {money(tIn)} · chi {money(tOut)} · chênh <b style={{ color: tIn - tOut < 0 ? 'var(--red)' : 'var(--green)' }}>{money(tIn - tOut)}</b>
+            {' · '}{shown.length} dòng{nZalo ? ' · ' + nZalo + ' khoản ghi qua Zalo' : ''}</p></div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Seg value={kind} onChange={setKind} options={[{ v: 'all', l: 'Tất cả' }, { v: 'in', l: 'Thu' }, { v: 'out', l: 'Chi' }]} />
+          <select className="inp" style={{ width: 'auto' }} value={src} onChange={e => setSrc(e.target.value)}>
+            <option value="all">Mọi nguồn</option><option value="zalo">Ghi qua Zalo</option><option value="app">Nhập tay trên app</option>
+            <option value="kv">Robot KiotViet</option><option value="file">Nạp file</option>{PC.useStmt && <option value="stmt">Sao kê</option>}
+          </select>
+          <input className="inp" style={{ width: 180 }} placeholder="Tìm nội dung, nhóm…" value={q} onChange={e => setQ(e.target.value)} />
+        </div>
+      </div>
+      <div className="card-b scroll-x">
+        <table className="tb tb-compact">
+          <thead><tr><th>Ngày</th><th>Nhóm</th><th>Nội dung</th><th>Cơ sở</th><th>Nguồn</th><th style={{ textAlign: 'right' }}>Thu</th><th style={{ textAlign: 'right' }}>Chi</th></tr></thead>
+          <tbody>
+            {days.map(D => {
+              const di = sum('in', D.list), dout = sum('out', D.list);
+              return (<React.Fragment key={D.date}>
+                <tr style={{ background: '#FAF7F8' }}>
+                  <td colSpan={5}><b>{dLbl(D.date)}</b></td>
+                  <td className="mono" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--green)' }}>{di ? money(di) : ''}</td>
+                  <td className="mono" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--red)' }}>{dout ? money(dout) : ''}</td>
+                </tr>
+                {D.list.map(r => {
+                  const can = canEdit && r.t && txnIsPlan(r.t);
+                  return (
+                    <tr key={r.id} onClick={can ? () => onEdit(r.t) : undefined} style={can ? { cursor: 'pointer' } : null} title={can ? 'Bấm để sửa / xoá' : undefined}>
+                      <td className="mono rc-sub">{r.date.slice(8)}/{r.date.slice(5, 7)}</td>
+                      <td><b>{r.cat}</b>{r.cogs && <div className="rc-sub">vào giá vốn, không tính chi phí</div>}</td>
+                      <td style={{ whiteSpace: 'normal', minWidth: 180 }}>{r.desc}{r.note && <div className="rc-sub">{r.note}</div>}{r.est && <span className="tag t-amber" style={{ marginLeft: 6 }}>dự chi</span>}</td>
+                      <td>{r.br}</td>
+                      <td><span className={'tag ' + SRC[r.src][1]}>{SRC[r.src][0]}</span>{r.by && <div className="rc-sub">{r.by}</div>}</td>
+                      <td className="mono" style={{ textAlign: 'right', color: 'var(--green)' }}>{r.io === 'in' ? money(r.amt) : ''}</td>
+                      <td className="mono" style={{ textAlign: 'right', color: r.cogs ? 'var(--ink-3, #888)' : 'var(--red)' }}>{r.io === 'out' ? money(r.amt) : ''}</td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>);
+            })}
+            {!days.length && <tr><td colSpan={7}><Empty title="Chưa có khoản thu chi nào" desc={rows.length ? 'Không có dòng khớp bộ lọc.' : 'Doanh thu do robot KiotViet nạp; chi phí ghi bằng nút + Thêm ở Ma trận P&L hoặc nhắn bot Zalo.'} /></td></tr>}
+          </tbody>
+        </table>
+        <div className="hint" style={{ marginTop: 8 }}>Thu = doanh thu sổ quỹ + thu khác · Chi = mọi khoản chi của kỳ (theo ngày ghi nhận){canEdit ? ' · bấm khoản chi nhập tay / qua Zalo để sửa hoặc xoá' : ''}.</div>
+      </div>
+    </div>
+  );
+}
 function PnlCmpTab({ GV, brs, mo }) {
   const [q, setQ] = useState('');
   const rows = GV.cmp.filter(r => !q || (r.name + ' ' + r.code).toLowerCase().includes(q.toLowerCase()));
@@ -35399,6 +35500,7 @@ function PnlView() {
           <span className="tag t-gray">ĐVT: triệu đồng</span>
           <Seg value={tab} onChange={setTab} options={[
             { v: 'matrix', l: 'Ma trận P&L' },
+            { v: 'log', l: 'Nhật ký thu chi' },
             { v: 'cmp', l: 'Định mức vs thực tế' },
             /* Không hạch toán bằng sao kê nữa (chủ chốt 17/11/2026) — bật lại bằng cfg.pnl.useStmt */
             ...(PC.useStmt ? [{ v: 'sk', l: 'Sao kê quỹ chi', n: pend.length || null }, { v: 'inc', l: 'Sao kê quỹ thu', n: pendInc.length || null }] : []),
@@ -35773,6 +35875,7 @@ function PnlView() {
         )}
       </div>
 
+      {tab === 'log' && <PnlLogTab mo={mo} brs={brs} canEdit={canEdit} onEdit={(t) => setAdd({ catId: t.catId, edit: t })} />}
       {tab === 'cmp' && <PnlCmpTab GV={GV} brs={brs} mo={mo} />}
       {tab === 'inc' && (
         <PnlIncTab mo={mo} canEdit={canEdit} onAdd={() => setAddInc({})} onImport={() => setImpInc(true)} onEdit={setAddInc} />
