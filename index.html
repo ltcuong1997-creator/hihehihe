@@ -15366,7 +15366,7 @@ const zaloCfg = (cfg) => {
     /* Bot tự báo — cùng quy tắc acfg() ở functions/zaloauto.js */
     auto: (() => { const a = (z.auto && typeof z.auto === 'object') ? z.auto : {}; const al = a.alerts || {};
       return { report: a.report !== false, remind: a.remind !== false, maxPerDay: Math.min(50, num(a.maxPerDay, 12)),
-        alerts: { late: al.late !== false, iss: al.iss !== false, rev: al.rev !== false, pend: al.pend !== false } }; })(),
+        alerts: { late: al.late !== false, iss: al.iss !== false, rev: al.rev !== false, pend: al.pend !== false, robot: al.robot !== false } }; })(),
   };
 };
 const zaloOk = (u, cfg) => {
@@ -15656,7 +15656,7 @@ function ZaloTab() {
             <Field label="Bot tự báo" hint="Báo cáo + cảnh báo gửi vào nhóm Zalo ban quản trị (1 tin cho cả nhóm). Chưa gắn nhóm thì nhắn riêng người đã kết nối có vai trò ở ô Nhận báo cáo (chỉ vai trò xem được mọi chi nhánh). Mỗi chuyện báo 1 lần.">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label className="chk"><input type="checkbox" checked={d.auto.report} onChange={() => setD({ auto: { ...d.auto, report: !d.auto.report } })} /> Ảnh báo cáo cuối ngày lúc 23:50</label>
-                {[['late', 'Nhân viên chưa vào ca sau giờ bắt đầu 15 phút'], ['iss', 'Sự cố Khẩn quá 2 giờ / Cao quá 12 giờ chưa xử lý'], ['rev', '20h: doanh thu tới giờ đó thấp hơn 60% cùng thứ tuần trước'], ['pend', '9h: việc chờ duyệt quá 24 giờ']].map(([k, l]) => (
+                {[['late', 'Nhân viên chưa vào ca sau giờ bắt đầu 15 phút'], ['iss', 'Sự cố Khẩn quá 2 giờ / Cao quá 12 giờ chưa xử lý'], ['rev', '20h: doanh thu tới giờ đó thấp hơn 60% cùng thứ tuần trước'], ['pend', '9h: việc chờ duyệt quá 24 giờ'], ['robot', 'Robot KiotViet quá 3 giờ chưa chạy / chạy lỗi (doanh thu trên app đang cũ)']].map(([k, l]) => (
                   <label key={k} className="chk"><input type="checkbox" checked={d.auto.alerts[k]} onChange={() => setD({ auto: { ...d.auto, alerts: { ...d.auto.alerts, [k]: !d.auto.alerts[k] } } })} /> {l}</label>
                 ))}
                 <label className="chk"><input type="checkbox" checked={d.auto.remind} onChange={() => setD({ auto: { ...d.auto, remind: !d.auto.remind } })} /> 20h nhắc riêng từng người lịch ca ngày mai</label>

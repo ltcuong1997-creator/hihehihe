@@ -51,8 +51,11 @@ const datesToRun = () => {
     return out;
   }
   const t = vnToday();
-  /* Hóa đơn cuối ngày có thể chốt sau 0h — lần chạy đầu ngày kéo lại cả hôm qua */
-  return vnNow().getUTCHours() < 2 ? [addDay(t, -1), t] : [t];
+  /* TỰ VÁ (17/11/2026): GitHub bỏ / dời rất nhiều lượt chạy theo lịch (có ngày 34 lượt chỉ chạy 3), mà trước
+     đây mỗi lượt chỉ kéo "hôm nay" -> lượt cuối của ngày rơi lúc 21h là mất luôn doanh thu 21h–24h, hôm sau
+     không ai kéo lại. Nay lượt nào cũng kéo lại CẢ HÔM QUA (ghi kiểu thay theo ngày nên không cộng trùng),
+     lượt trước 6h sáng kéo thêm hôm kia: chỉ cần 1 lượt bất kỳ hôm sau chạy được là ngày hôm trước đủ số. */
+  return vnNow().getUTCHours() < 6 ? [addDay(t, -2), addDay(t, -1), t] : [addDay(t, -1), t];
 };
 
 /* ---- Đăng nhập KiotViet ---- */

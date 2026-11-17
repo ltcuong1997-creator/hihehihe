@@ -865,6 +865,22 @@ function world(opts = {}) {
     assert.ok(rem && rem.chat_id === 'z1' && /Ca tối 17:00-22:00/.test(rem.text), JSON.stringify(rem));
     NOW = NOW0;
   });
+  await t('robot KiotViet quá 3 giờ chưa chạy -> cảnh báo nhóm 1 lần / khung 3 giờ', async () => {
+    const w = world();
+    w.db.store['ops_zgroup/g1'] = { active: true };
+    w.db.store['ops_robot/kiotviet'] = { ok: true, at: '2026-11-15T02:00:00Z' };
+    at('2026-11-15T06:10:00Z');   /* 13:10 VN, robot chạy lần cuối 09:00 */
+    await w.z.autoTick();
+    assert.ok(/Robot KiotViet đã 4 giờ chưa chạy/.test(w.zl.last()), w.zl.last());
+    const n = w.zl.sent.length;
+    await w.z.autoTick();
+    assert.strictEqual(w.zl.sent.length, n);
+    w.db.store['ops_robot/kiotviet'] = { ok: true, at: '2026-11-15T06:00:00Z' };
+    const w2 = world(); w2.db.store['ops_zgroup/g1'] = { active: true }; w2.db.store['ops_robot/kiotviet'] = w.db.store['ops_robot/kiotviet'];
+    await w2.z.autoTick();
+    assert.ok(!w2.zl.sent.some(x => /Robot KiotViet/.test(x.text)), 'robot vừa chạy thì im');
+    NOW = NOW0;
+  });
   await t('ADMIN gửi thử báo cáo cho chính mình; người khác bị chặn', async () => {
     const w = world();
     await w.link('ua', 'za');
