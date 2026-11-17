@@ -15,7 +15,7 @@ const { isOptionItem, loadPnl } = require('./zalotools');   /* bỏ dòng tuỳ 
 const OPEN_ISS = ['MOI', 'TIEP_NHAN', 'DANG_XU_LY', 'CHO_DUYET'];
 const REV_CH = { dine: 'Tại chỗ', take: 'Mang về', grab: 'GrabFood', shopee: 'ShopeeFood', be: 'beFood', na: 'Chưa rõ nguồn' };
 const WDL = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
-const DEF_AUTO = { report: true, alerts: { late: true, iss: true, rev: true, pend: true }, remind: true, maxPerDay: 12 };
+const DEF_AUTO = { report: true, alerts: { late: true, iss: true, rev: true, pend: true, robot: true }, remind: true, maxPerDay: 12 };
 
 /* cfg.zalo.auto — thiếu thì mặc định bật hết. Cùng quy tắc với zaloAuto() trong index.html. */
 function acfg(cfg) {
@@ -24,7 +24,7 @@ function acfg(cfg) {
   const n = Number(a.maxPerDay);
   return {
     report: a.report !== false, remind: a.remind !== false,
-    alerts: { late: al.late !== false, iss: al.iss !== false, rev: al.rev !== false, pend: al.pend !== false },
+    alerts: { late: al.late !== false, iss: al.iss !== false, rev: al.rev !== false, pend: al.pend !== false, robot: al.robot !== false },
     maxPerDay: Number.isFinite(n) && n >= 1 ? Math.min(50, Math.floor(n)) : DEF_AUTO.maxPerDay,
   };
 }
@@ -266,6 +266,19 @@ function createAuto(deps) {
       const cnt = (q) => q.docs.map(d => d.data() || {}).filter(x => (!x.branchId || bidOk.has(x.branchId)) && old(x)).length;
       const parts = [['đề xuất mua', cnt(pq)], ['phiếu kho', cnt(mv)], ['đơn công', cnt(ar)], ['đề xuất / đề nghị thanh toán', cnt(rq)]].filter(p => p[1]);
       if (parts.length) await alert('pend_' + day, 'Việc chờ duyệt quá 24 giờ: ' + parts.map(p => p[1] + ' ' + p[0]).join(', ') + '. Người duyệt nhắn bot "có gì chờ tôi duyệt" để xử lý nhanh.');
+    }
+    /* 4b) Robot KiotViet (GitHub Actions) quá 3 giờ chưa chạy / chạy lỗi, trong 9h–23h45 -> doanh thu trên app
+       đang cũ. Báo tối đa 1 lần mỗi 3 giờ (khoá theo khung giờ) để chủ biết mà bấm chạy tay. */
+    if (A.alerts.robot && m >= 9 * 60) {
+      const rs = await col('ops_robot').doc('kiotviet').get();
+      const rb = rs.exists ? rs.data() || {} : null;
+      const last = rb ? Date.parse(rb.at || 0) : 0;
+      const hrs = last ? (t - last) / 3600e3 : null;
+      if (rb && (rb.ok === false || hrs > 3)) {
+        await alert('robot_' + Math.floor(m / 180), rb.ok === false
+          ? 'Robot KiotViet lần chạy gần nhất (' + hhmm(minVN(last)) + ') bị LỖI: ' + String(rb.err || '').slice(0, 160) + '. Doanh thu / số bán trên app chưa cập nhật — vào GitHub › Actions › Robot KiotViet › Run workflow để chạy lại.'
+          : 'Robot KiotViet đã ' + Math.floor(hrs) + ' giờ chưa chạy (lần cuối ' + hhmm(minVN(last)) + ' ' + ddmm(dayVN(last)) + ') — GitHub đang dời lịch. Doanh thu trên app có thể đang cũ; vào GitHub › Actions › Robot KiotViet › Run workflow để chạy ngay.');
+      }
     }
     /* 5) 20h: nhắc riêng từng người có ca ngày mai */
     if (A.remind && m >= 20 * 60 && m < 20 * 60 + 15 && (await claim(day, 'remind'))) {
