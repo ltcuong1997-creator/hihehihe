@@ -296,6 +296,7 @@ function createTools(deps) {
         ly_do: { type: 'string' },
         can_truoc: { type: 'string', description: 'YYYY-MM-DD cần chi trước ngày (bỏ trống = 3 ngày nữa)' },
         nguoi_duyet: { type: 'string', description: 'Tên cấp duyệt người dùng chọn (chỉ khi được hỏi)' },
+        lap_de_nghi: { type: 'boolean', description: 'Chỉ true khi ADMIN nói RÕ muốn lập Đề nghị thanh toán (không phải ghi chi phí vào P&L)' },
       }, required: ['chi_nhanh', 'noi_dung', 'so_tien'], additionalProperties: false },
     },
     {
@@ -539,7 +540,8 @@ function createTools(deps) {
 
   /* ===== Công cụ soạn nháp ===== */
   async function setPend(c, pend) {
-    await db.collection(COL.guard).doc(String(c.zaloId)).set({ pend: { ...pend, at: now(), exp: now() + PEND_TTL } }, { merge: true });
+    /* where: nháp tạo trong nhóm nào ('' = chat riêng) — tin nhóm "1" / "ok" không gọi bot chỉ được nhận đúng nhóm đó */
+    await db.collection(COL.guard).doc(String(c.zaloId)).set({ pend: { ...pend, where: String(c.chatGroup || c.group || ''), at: now(), exp: now() + PEND_TTL } }, { merge: true });
     c.pendSet = pend;
   }
 
@@ -955,6 +957,8 @@ function createTools(deps) {
 
   async function soan_de_nghi_chi(c, a) {
     const R = c.R, cfg = c.cfg;
+    /* Chủ nhắn "tiền điện 3tr2" mà AI lỡ chọn công cụ này -> phiếu đề nghị không vào P&L. Chặn, chỉ cho khi nói rõ. */
+    if (c.me.role === 'ADMIN' && !a.lap_de_nghi) return err('Người hỏi là ADMIN: ghi chi phí thì gọi ghi_chi_phi (vào P&L) với cùng nội dung / số tiền / chi nhánh. Chỉ lập Đề nghị thanh toán khi chủ nói rõ (truyền lap_de_nghi: true).');
     const T = R.tOf(cfg, 'PAY');
     if (T.off || (T.creators && T.creators.length && !T.creators.includes(c.me.role))) return err('Vai trò của người hỏi không được lập Đề nghị thanh toán trong app.');
     const p = pickBranches(cfg, R.scopeBranches(c.me, cfg), [a.chi_nhanh]);

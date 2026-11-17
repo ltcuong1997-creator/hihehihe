@@ -765,6 +765,36 @@ function world(opts = {}) {
     assert.ok(/Đã bỏ/.test(w2.zl.last()));
     assert.ok(!Object.keys(w2.db.store).some(k => k.startsWith('ops_txns/')));
   });
+  await t('TRONG NHÓM: chủ ghi chi -> trả lời "1" KHÔNG gõ "bot" vẫn ghi vào P&L; người khác nhắn "1" không ăn', async () => {
+    const cl = fakeClaude([{ tool: 'ghi_chi_phi', input: { noi_dung: 'Tiền điện', so_tien: 3200000 } }, { text: 'Khoản tiền điện 3.200.000đ.' }]);
+    const w = world({ claude: cl });
+    await w.link('ua', 'za');
+    await w.link('u1', 'zl');
+    await w.say('bot ket noi nhom', { gid: 'g1', zid: 'za' });
+    await w.say('bot tiền điện 3tr2', { gid: 'g1', zid: 'za' });
+    assert.ok(/Nhắn số \(1-8\)/.test(w.zl.last()) && !/bot 1/.test(w.zl.last()), w.zl.last());
+    const n0 = w.zl.sent.length;
+    await w.say('1', { gid: 'g1', zid: 'zl' });
+    assert.strictEqual(w.zl.sent.length, n0, 'người khác nhắn số: chat thường, bot im');
+    await w.say('1', { gid: 'g9', zid: 'za' });
+    assert.strictEqual(w.zl.sent.length, n0, 'nhóm khác: không ăn');
+    assert.ok(!Object.keys(w.db.store).some(k => k.startsWith('ops_txns/')));
+    await w.say('1', { gid: 'g1', zid: 'za' });
+    const tx = Object.values(w.db.store).find(x => x.catId === 'CLNC');
+    assert.ok(tx && tx.amount === 3200000, 'phải ghi vào P&L');
+    assert.ok(/Đã ghi 3.200.000đ/.test(w.zl.last()), w.zl.last());
+    const n1 = w.zl.sent.length;
+    await w.say('1', { gid: 'g1', zid: 'za' });
+    assert.strictEqual(w.zl.sent.length, n1, 'hết nháp: "1" lại là chat thường');
+  });
+  await t('ADMIN: AI lỡ gọi soan_de_nghi_chi -> bị chặn, chỉ cho khi nói rõ lập đề nghị', async () => {
+    const w = world();
+    const T2 = mkTools(w);
+    const cfg = w.db.store['ops_config/main'];
+    const ad = { id: 'A1', role: 'ADMIN', branches: [] };
+    const r = await T2.run(T2.ctxOf(cfg, ad, { zaloId: 'z' }), 'soan_de_nghi_chi', { chi_nhanh: 'B1', noi_dung: 'Tiền điện', so_tien: 3200000 });
+    assert.ok(/ghi_chi_phi/.test(r.loi), JSON.stringify(r));
+  });
   await t('pnl_thang: doanh thu sổ quỹ − giá vốn định mức − chi phí (bỏ mã Nhập hàng) = lợi nhuận', async () => {
     const w = world({ cfg: { items: [{ code: 'SD01', name: 'Sữa đặc', unit: 'hộp', price: 20000 }] } });
     const cfg = w.db.store['ops_config/main'];
