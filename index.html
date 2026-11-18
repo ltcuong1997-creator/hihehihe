@@ -427,6 +427,22 @@ svg{flex-shrink:0}
 
 .field{margin-bottom:13px}
 .field label{display:block;font-size:12.5px;font-weight:600;color:var(--txt-2);margin-bottom:5px}
+.bq-wrap{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start}
+.bq-list{position:sticky;top:12px}
+.bq-items{display:grid;gap:4px;max-height:62vh;overflow:auto;margin:0 -6px;padding:0 6px}
+.bq-it{display:flex;gap:9px;align-items:flex-start;text-align:left;padding:8px 10px;border:1px solid transparent;border-radius:10px;background:none;cursor:pointer;font:inherit;color:inherit}
+.bq-it:hover{background:var(--line-soft)}
+.bq-it.on{border-color:var(--brand);background:#FFF8F5}
+.bq-it-n{display:grid;gap:2px;min-width:0}.bq-it-n b{font-size:13px}.bq-it-n small{font-size:11px;color:var(--ink-3,#8a8a8a)}
+.bq-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none}.bq-dot.ok{background:var(--green)}.bq-dot.no{background:var(--red)}
+.bq-f{display:grid;gap:4px}.bq-f>span{font-size:11px;font-weight:700;color:var(--ink-3,#8a8a8a)}
+.bq-tb td{vertical-align:middle}.bq-in{padding:6px 8px;font-size:13px}
+.bq-new td{background:#FFFBF0}.bq-new-f td{background:#FFFBF0;padding-top:0}
+.bq-newbox{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:4px 0 8px}
+.bq-paste{margin-top:10px}
+.bq-foot{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.bq-sum{margin-left:auto;font-size:13.5px}
+@media (max-width:900px){.bq-wrap{grid-template-columns:1fr}.bq-list{position:static}.bq-items{max-height:36vh}}
 .inp{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;transition:.15s;font-size:14px}
 .inp:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(24,72,74,.13)}
 /* ---- Dropdown ----
@@ -46731,11 +46747,414 @@ const rcpUsage = (recipes, sold, all) => {
   return Object.values(out).sort((a, b) => b.cost - a.cost || (a.name || '').localeCompare(b.name || ''));
 };
 
+/* ---- NHẬP NHANH ĐỊNH MỨC ----
+   Có số bán rồi mà món chưa có định mức thì giá vốn = 0, P&L sai. Màn này để điền cho NHANH: bên trái là
+   món đang bán trên KiotViet (chưa có định mức lên đầu, bán nhiều xếp trước) + bán thành phẩm; bên phải là
+   một bảng gõ thẳng: Mã · Định mức. Mã có trong danh mục tự điền tên / ĐVT / giá; mã CHƯA có thì mở ngay dòng
+   khai mã mới (tên, ĐVT mua, quy đổi, ĐVT dùng, giá mua) hoặc khai là bán thành phẩm (mẻ ra bao nhiêu) —
+   lưu một lần là tạo mã + ghi định mức. Dán được thẳng từ Excel (Mã / Tên / Định mức / ĐVT / Giá).
+   Định mức luôn ghi theo ĐVT DÙNG của mã (đơn vị giá vốn) — để giá vốn = định mức × giá/ĐVT không lệch đơn vị.
+   Giá vốn trong công thức là bản chụp, nên đổi giá ở đây là cập nhật luôn mọi công thức đang dùng mã đó. */
+const BQ_OPT = /^(it|nhieu|khong|ko|them|bot|binh thuong|bth)?\s*(da|duong|ngot)?\s*(\d+\s*%)?\s*(da|duong|ngot)?\s*(bt|bth|binh thuong)?$/;
+const bqIsOpt = (name) => { const k = noAccent(String(name || '')).toLowerCase().replace(/[()\-]/g, ' ').replace(/\s+/g, ' ').trim(); return !!k && k.length <= 22 && BQ_OPT.test(k); };
+/* "1,5" -> 1.5 · "1.000" -> 1000 · "25k" -> 25000 */
+const bqNum = (v) => {
+  let s = String(v == null ? '' : v).trim().toLowerCase().replace(/\s|₫|đ/g, '');
+  if (!s) return 0;
+  const k = /k$/.test(s); s = s.replace(/k$/, '');
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
+  else s = s.replace(',', '.');
+  const n = parseFloat(s) || 0;
+  return k ? n * 1000 : n;
+};
+const bqR = (n) => Math.round((+n || 0) * 100) / 100;
+/* Giá vốn 1 ĐVT mẻ của bán thành phẩm, giá NVL lấy theo danh mục hiện tại (rơi về giá chụp trong công thức) */
+const bqBtpCost = (b, cfg, recipes, depth) => {
+  const q = +((b || {}).batch || {}).qty || 0;
+  if (!b || !q) return 0;
+  const tot = (b.items || []).reduce((a, it) => {
+    if (it.noStock) return a;
+    const m = matOf(cfg, it.sku);
+    const sub = !m && it.sku && (depth || 0) < 3 ? (recipes || []).find(r => isBtp(r) && r.code === it.sku) : null;
+    const c = m ? (+m.price || 0) : sub ? bqBtpCost(sub, cfg, recipes, (depth || 0) + 1) : (+it.cost || 0);
+    return a + (+it.qty || 0) * c;
+  }, 0);
+  return tot / q;
+};
+
+function BomQuick() {
+  useNeed('rcp', 'sales');
+  const { recipes, cfg, sales, saveRecipe, user, toast } = useApp();
+  const [view, setView] = useState('todo');
+  const [q, setQ] = useState('');
+  const [sel, setSel] = useState(null);
+  const [hideOpt, setHideOpt] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const admin = roleOf(user.role).manage || user.role === 'ADMIN' || (roleOf(user.role).level || 0) >= 60;
+
+  const dishes = useMemo(() => {
+    const dr = (recipes || []).filter(r => !isBtp(r));
+    const byKv = {}; dr.forEach(r => { if (r.kvCode) byKv[String(r.kvCode).trim().toUpperCase()] = r; });
+    const used = new Set();
+    const out = mlSalesItems(sales, recipes, cfg).map(x => {
+      const rec = byKv[x.code.toUpperCase()] || (!x.has ? null : dr.find(r => !r.kvCode && mlKey(r.name) === mlKey(x.name))) || null;
+      if (rec) used.add(rec.id);
+      return { key: 'kv:' + x.code, type: 'dish', name: rec ? rec.name : x.name, kvCode: x.code, kvName: x.name, group: x.group, qty: x.qty, price: (rec && rec.price) || x.price, rec };
+    });
+    dr.filter(r => !used.has(r.id)).forEach(r => out.push({ key: 'r:' + r.id, type: 'dish', name: r.name, kvCode: r.kvCode || '', kvName: r.kvName || '', group: r.cat, qty: 0, price: r.price || 0, rec: r }));
+    return out;
+  }, [sales, recipes, cfg]);
+  const btps = useMemo(() => (recipes || []).filter(isBtp).map(r => ({ key: 'b:' + r.id, type: 'btp', name: r.name, code: r.code || '', rec: r, qty: 0 })), [recipes]);
+  const okOf = (t) => !!(t.rec && (t.rec.items || []).some(i => i.sku && +i.qty > 0));
+  const ql = mlKey(q);
+  const pool = (view === 'btp' ? btps : dishes.filter(d => !hideOpt || !bqIsOpt(d.name)))
+    .filter(t => (view !== 'todo' || !okOf(t)) && (!ql || mlKey(t.name + ' ' + (t.kvCode || t.code || '')).includes(ql)))
+    .sort((a, b) => okOf(a) - okOf(b) || b.qty - a.qty || String(a.name).localeCompare(String(b.name)));
+  const all = [...dishes, ...btps];
+  const cur = all.find(t => t.key === sel) || null;
+  const nTodo = dishes.filter(d => !okOf(d) && !bqIsOpt(d.name)).length;
+  const nBtpTodo = btps.filter(b => !okOf(b)).length;
+  const soldTodo = dishes.filter(d => !okOf(d) && !bqIsOpt(d.name)).reduce((a, d) => a + d.qty, 0);
+  const soldAll = dishes.filter(d => !bqIsOpt(d.name)).reduce((a, d) => a + d.qty, 0);
+
+  /* Giá vốn trong công thức là bản chụp: kéo lại theo giá danh mục cho MỌI công thức */
+  const syncAll = async () => {
+    if (!(await zsAsk('Cập nhật giá vốn trong mọi công thức theo giá hiện tại của danh mục mã hàng?'))) return;
+    setSyncing(true);
+    let n = 0;
+    const jobs = [];
+    (recipes || []).forEach(r => {
+      let ch = false;
+      const items = (r.items || []).map(it => {
+        if (!it.sku) return it;
+        const m = matOf(cfg, it.sku);
+        const b = !m ? (recipes || []).find(x => isBtp(x) && x.code === it.sku) : null;
+        const c = m ? (+m.price || 0) : b ? bqR(bqBtpCost(b, cfg, recipes)) : null;
+        if (c == null || Math.abs((+it.cost || 0) - c) < 0.005) return it;
+        ch = true; return { ...it, cost: c };
+      });
+      if (ch) { n++; jobs.push(saveRecipe({ ...r, items })); }
+    });
+    await Promise.all(jobs);
+    setSyncing(false);
+    toast(n ? 'Đã cập nhật giá vốn ' + n + ' công thức' : 'Mọi công thức đã đúng giá danh mục');
+  };
+  const nextTodo = () => { const t = pool.find(x => x.key !== sel && !okOf(x)); setSel(t ? t.key : null); };
+  const newBtp = () => setSel('new:btp');
+
+  return (
+    <div className="bq-wrap">
+      <div className="card bq-list">
+        <div className="card-h" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <div><h3>Nhập nhanh định mức</h3>
+            <p>{nTodo} món đang bán chưa có định mức{soldAll ? ' · chiếm ' + Math.round(soldTodo / soldAll * 100) + '% số ly bán' : ''}{nBtpTodo ? ' · ' + nBtpTodo + ' BTP chưa có' : ''}</p></div>
+        </div>
+        <div className="card-b" style={{ display: 'grid', gap: 8 }}>
+          <Seg value={view} onChange={setView} options={[{ v: 'todo', l: 'Chưa có', n: nTodo || undefined }, { v: 'all', l: 'Tất cả món' }, { v: 'btp', l: 'Bán thành phẩm', n: nBtpTodo || undefined }]} />
+          <input className="inp" placeholder="Tìm món / mã…" value={q} onChange={e => setQ(e.target.value)} />
+          {view !== 'btp' && <label className="hint" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input type="checkbox" checked={hideOpt} onChange={e => setHideOpt(e.target.checked)} /> Ẩn dòng tuỳ chọn (đá, đường, 50%…)</label>}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {admin && <button className="btn btn-o btn-sm" onClick={newBtp}><Ic.plus size={13} /> BTP mới</button>}
+            {admin && <button className="btn btn-o btn-sm" disabled={syncing} onClick={syncAll}>{syncing ? 'Đang cập nhật…' : 'Áp giá danh mục vào mọi công thức'}</button>}
+          </div>
+          <div className="bq-items">
+            {pool.map(t => {
+              const ok = okOf(t);
+              const cost = ok ? (t.type === 'btp' ? bqBtpCost(t.rec, cfg, recipes) : (t.rec.items || []).reduce((a, i) => a + (+i.qty || 0) * (+i.cost || 0), 0)) : 0;
+              return (
+                <button key={t.key} type="button" className={'bq-it' + (t.key === sel ? ' on' : '')} onClick={() => setSel(t.key)}>
+                  <span className={'bq-dot ' + (ok ? 'ok' : 'no')} />
+                  <span className="bq-it-n"><b>{t.name}</b>
+                    <small>{[t.type === 'btp' ? 'BTP ' + (t.code || '') : t.kvCode, t.qty ? numFmt(t.qty) + ' ly' : '', ok ? (t.type === 'btp' ? money(Math.round(cost)) + '/' + ((t.rec.batch || {}).unit || '') : 'vốn ' + money(Math.round(cost)) + (t.price ? ' · ' + Math.round(cost / t.price * 100) + '%' : '')) : 'chưa có định mức'].filter(Boolean).join(' · ')}</small></span>
+                </button>
+              );
+            })}
+            {!pool.length && <Empty title={view === 'todo' ? 'Món đang bán đã có định mức hết 🎉' : 'Không có dòng nào'} desc={view === 'todo' ? 'Xem tab Bán thành phẩm hoặc Tất cả món để sửa.' : ''} />}
+          </div>
+        </div>
+      </div>
+      <div className="bq-main">
+        {!admin ? <div className="card"><div className="card-b"><Empty title="Chỉ quản lý sửa được định mức" desc="Vai trò của bạn chỉ xem." /></div></div>
+          : sel === 'new:btp' ? <BomQuickEdit key="new:btp" target={{ key: 'new:btp', type: 'btp', name: '', code: '', rec: null }} onSaved={(rid) => setSel(rid ? 'b:' + rid : null)} />
+          : cur ? <BomQuickEdit key={cur.key} target={cur} onSaved={nextTodo} />
+          : <div className="card"><div className="card-b"><Empty title="Chọn một món bên trái" desc="Gõ mã nguyên liệu / BTP + định mức. Mã chưa có thì khai luôn tại chỗ — lưu một lần là xong, tự nhảy sang món kế tiếp." /></div></div>}
+      </div>
+    </div>
+  );
+}
+
+function BomQuickEdit({ target, onSaved }) {
+  const { recipes, cfg, saveRecipe, saveCfg, user, toast } = useApp();
+  const isB = target.type === 'btp';
+  const rec = target.rec;
+  const cat = cfg.items || [];
+  const btpList = (recipes || []).filter(r => isBtp(r) && r.code);
+  const blank = () => ({ id: uid('Q'), sku: '', qty: '', name: '', unit: '' });
+  const [rows, setRows] = useState(() => {
+    const r = ((rec || {}).items || []).filter(i => i.sku || i.name).map(i => ({ id: i.id || uid('Q'), sku: i.sku || '', qty: i.qty ? String(i.qty).replace('.', ',') : '', name: i.name || '', unit: i.unit || '', noStock: !!i.noStock }));
+    return [...r, blank(), blank(), ...(r.length ? [] : [blank()])];
+  });
+  const [head, setHead] = useState(() => isB
+    ? { name: (rec && rec.name) || '', code: (rec && rec.code) || '', cat: (rec && rec.cat) || BTP_CATS[0], bq: rec && rec.batch && rec.batch.qty ? String(rec.batch.qty) : '', bu: (rec && rec.batch && rec.batch.unit) || 'ml' }
+    : { name: target.name || '', cat: (rec && rec.cat) || target.group || RCP_CATS[0], price: target.price ? numFmt(target.price) : '' });
+  const [nm, setNm] = useState({});        /* mã mới: { SKU: { kind:'nvl'|'btp', name, buyUnit, conv, unit, buyPrice, cat, bq, bu } } */
+  const [px, setPx] = useState({});        /* sửa giá mã có sẵn: { SKU: 'chuỗi giá / ĐVT dùng' } */
+  const [paste, setPaste] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const qtyRefs = useRef({});
+
+  const U = (s) => String(s || '').trim().toUpperCase();
+  const matBy = (s) => cat.find(x => U(x.code) === U(s)) || null;
+  const btpBy = (s) => btpList.find(x => U(x.code) === U(s)) || null;
+  /* Gõ tên thay vì mã: khớp đúng 1 tên thì đổi ra mã */
+  const resolve = (s) => {
+    const t = String(s || '').trim();
+    if (!t || matBy(t) || btpBy(t)) return t ? (matBy(t) || btpBy(t)).code : '';
+    const k = bomKey(t);
+    const hit = [...cat.map(x => ({ code: x.code, n: x.name })), ...btpList.map(x => ({ code: x.code, n: x.name }))].filter(x => bomKey(x.n) === k);
+    return hit.length === 1 ? hit[0].code : U(t);
+  };
+  const newOf = (s) => (s && !matBy(s) && !btpBy(s)) ? (nm[U(s)] || { kind: 'nvl', name: '', buyUnit: '', conv: '', unit: '', buyPrice: '' }) : null;
+  const setNew = (s, p) => setNm(o => ({ ...o, [U(s)]: { ...(newOf(s) || {}), ...p } }));
+  const unitCost = (s) => {
+    const m = matBy(s);
+    if (m) return px[U(s)] != null ? bqNum(px[U(s)]) : (+m.price || 0);
+    const b = btpBy(s);
+    if (b) return bqBtpCost(b, cfg, recipes);
+    const n = newOf(s);
+    if (!n || n.kind === 'btp') return 0;
+    const c = bqNum(n.conv);
+    return n.buyUnit && c > 0 ? bqNum(n.buyPrice) / c : bqNum(n.buyPrice);
+  };
+  const info = (r) => {
+    const m = matBy(r.sku), b = !m && btpBy(r.sku), n = !m && !b && newOf(r.sku);
+    return { m, b, n, name: m ? m.name : b ? b.name : n ? n.name : '', unit: m ? (m.unit || '') : b ? ((b.batch || {}).unit || '') : n ? (n.kind === 'btp' ? n.bu : n.unit) || '' : '' };
+  };
+  const upd = (id, p) => setRows(rs => {
+    const out = rs.map(r => r.id === id ? { ...r, ...p } : r);
+    return out[out.length - 1].sku ? [...out, blank()] : out;
+  });
+  const rm = (id) => setRows(rs => rs.length > 1 ? rs.filter(r => r.id !== id) : [blank()]);
+  const live = rows.filter(r => r.sku);
+  const total = live.reduce((a, r) => a + bqNum(r.qty) * unitCost(r.sku), 0);
+  const sell = isB ? 0 : bqNum(head.price);
+  const bqn = isB ? bqNum(head.bq) : 0;
+
+  /* Dán từ Excel: mỗi dòng "Mã ⇥ Định mức" hoặc "Mã ⇥ Tên ⇥ Định mức ⇥ ĐVT ⇥ Giá/ĐVT" */
+  const doPaste = () => {
+    const add = [], nmAdd = {};
+    String(paste || '').split(/\r?\n/).forEach(line => {
+      const c = line.split(/\t|;/).map(x => x.trim());
+      if (!c[0]) return;
+      const sku = resolve(c[0]);
+      const rest = c.slice(1);
+      const qi = rest.findIndex(x => x && /^[\d.,]+$/.test(x));
+      if (qi < 0) return;
+      const name = rest.slice(0, qi).filter(Boolean).join(' ');
+      const unit = rest[qi + 1] && !/^[\d.,k₫đ\s]+$/i.test(rest[qi + 1]) ? rest[qi + 1] : '';
+      const price = rest.slice(qi + 1).find(x => x && /^[\d.,]+\s*k?\s*[₫đ]?$/i.test(x)) || '';
+      add.push({ id: uid('Q'), sku, qty: rest[qi], name: '', unit: '' });
+      if (!matBy(sku) && !btpBy(sku)) nmAdd[U(sku)] = { kind: 'nvl', name: name || sku, buyUnit: '', conv: '', unit, buyPrice: price };
+      else if (price && matBy(sku)) setPx(o => ({ ...o, [U(sku)]: price }));
+    });
+    if (!add.length) return toast('Không đọc được dòng nào — mỗi dòng cần Mã và Định mức');
+    setNm(o => ({ ...nmAdd, ...o }));
+    setRows(rs => [...rs.filter(r => r.sku), ...add, blank()]);
+    setPaste(null);
+    toast('Đã dán ' + add.length + ' dòng');
+  };
+
+  const save = async () => {
+    if (!head.name.trim()) return toast(isB ? 'Nhập tên bán thành phẩm' : 'Nhập tên món');
+    if (isB && !head.code.trim()) return toast('Nhập mã BTP (vd BTP001)');
+    if (isB && !(bqn > 0 && head.bu.trim())) return toast('Nhập mẻ ra bao nhiêu (số + đơn vị)');
+    if (isB && (btpList.some(b => b.id !== (rec || {}).id && U(b.code) === U(head.code)) || matBy(head.code))) return toast('Mã ' + head.code + ' đã có rồi');
+    for (const r of live) {
+      const I = info(r);
+      if (!(bqNum(r.qty) > 0)) return toast('Dòng ' + r.sku + ': nhập định mức > 0');
+      if (I.n) {
+        if (!String(I.n.name || '').trim()) return toast('Mã mới ' + r.sku + ': nhập tên');
+        if (I.n.kind === 'btp' ? !(bqNum(I.n.bq) > 0 && String(I.n.bu || '').trim()) : !String(I.n.unit || '').trim()) return toast('Mã mới ' + r.sku + ': nhập ' + (I.n.kind === 'btp' ? 'mẻ ra bao nhiêu' : 'ĐVT dùng'));
+        if (I.n.kind === 'nvl' && I.n.buyUnit && !(bqNum(I.n.conv) > 0)) return toast('Mã mới ' + r.sku + ': 1 ' + I.n.buyUnit + ' = bao nhiêu ' + I.n.unit + '?');
+      }
+      if (isB && U(r.sku) === U(head.code)) return toast('BTP không dùng chính nó');
+    }
+    setBusy(true);
+    const now = new Date().toISOString();
+    try {
+      /* 1) Danh mục: mã NVL mới + giá sửa (một lần ghi) */
+      let merged = null;
+      const priced = {};
+      const ensure = () => (merged = merged || cat.slice());
+      Object.keys(px).forEach(k => {
+        const i = cat.findIndex(x => U(x.code) === k); if (i < 0) return;
+        const p = bqR(bqNum(px[k])); if (Math.abs(p - (+cat[i].price || 0)) < 0.005) return;
+        const m = ensure()[i];
+        merged[i] = { ...m, price: p, ...(+m.convRatio > 0 ? { buyPrice: Math.round(p * +m.convRatio) } : {}) };
+        priced[m.code] = p;
+      });
+      const newB = [];
+      live.forEach(r => {
+        const n = newOf(r.sku); if (!n || (merged || cat).some(x => U(x.code) === U(r.sku)) || newB.some(x => x.code === U(r.sku))) return;
+        if (n.kind === 'btp') { newB.push({ code: U(r.sku), ...n }); return; }
+        const conv = bqNum(n.conv), bp = bqNum(n.buyPrice);
+        ensure().push({ code: U(r.sku), name: n.name.trim(), group: '', unit: n.unit.trim(), buyUnit: n.buyUnit.trim(),
+          convRatio: n.buyUnit.trim() ? conv : 0, buyPrice: Math.round(bp), price: bqR(n.buyUnit.trim() && conv > 0 ? bp / conv : bp), desc: 'Tạo từ Nhập nhanh định mức' });
+      });
+      if (merged && merged !== cat) saveCfg({ items: merged });
+      const matNow = (s) => (merged || cat).find(x => U(x.code) === U(s));
+      /* 2) BTP mới khai trong dòng: tạo vỏ (chưa có định mức — hiện ở danh sách "Bán thành phẩm") */
+      const jobs = [];
+      newB.forEach(n => jobs.push(saveRecipe({ id: uid('BTP'), kind: 'btp', code: n.code, name: n.name.trim(), cat: n.cat || BTP_CATS[0],
+        batch: { qty: bqNum(n.bq), unit: String(n.bu).trim() }, items: [], steps: [], qc: [], desc: '', yieldNote: '',
+        todo: 'Chưa có định mức — điền ở Định mức › Nhập nhanh', at: now, by: user.id })));
+      /* 3) Định mức của món / BTP đang sửa */
+      const fresh = live.map(r => {
+        const m = matNow(r.sku), b = !m && btpBy(r.sku), nb = !m && !b && newB.find(x => x.code === U(r.sku));
+        const name = m ? m.name : b ? b.name : nb ? nb.name.trim() : r.sku;
+        const unit = m ? m.unit || '' : b ? (b.batch || {}).unit || '' : nb ? String(nb.bu).trim() : '';
+        const cost = bqR(m ? (+m.price || 0) : b ? bqBtpCost(b, { ...cfg, items: merged || cat }, recipes) : 0);
+        const it = { sku: m ? m.code : b ? b.code : U(r.sku), name, qty: bqNum(r.qty), unit, cost, ...(r.noStock ? { noStock: true } : {}) };
+        return { ...it, kind: bomKind(it, m, b || nb || null), color: bomColor(name), ...(b || nb ? { btp: true } : {}) };
+      });
+      let savedId = rec ? rec.id : null;
+      if (isB) {
+        const base = rec || { id: uid('BTP'), kind: 'btp', desc: '', yieldNote: '', qc: [], steps: [] };
+        const { items, gone } = bomMergeItems(base.items, fresh, 'BI');
+        savedId = base.id;
+        jobs.push(saveRecipe({ ...base, kind: 'btp', code: U(head.code), name: head.name.trim(), cat: head.cat, batch: { qty: bqn, unit: head.bu.trim() },
+          items, steps: (base.steps || []).map(s => ({ ...s, use: (s.use || []).filter(u => !gone.includes(u)) })), todo: items.length ? '' : base.todo || '', at: now, by: user.id }));
+      } else {
+        const base = rec || { id: uid('R'), glass: 'tall', size: 'M', desc: '', ai: {}, steps: [] };
+        const { items, gone } = bomMergeItems(base.items, fresh, 'I');
+        savedId = base.id;
+        jobs.push(saveRecipe({ ...base, name: head.name.trim(), cat: head.cat, price: sell || base.price || 0,
+          kvCode: base.kvCode || target.kvCode || '', kvName: base.kvName || target.kvName || '',
+          items, steps: (base.steps || []).map(s => ({ ...s, use: (s.use || []).filter(u => !gone.includes(u)) })),
+          todo: items.length ? '' : 'Thiếu định mức (BOM) — bán món này chưa trừ được nguyên liệu', at: now, by: user.id }));
+      }
+      /* BTP vừa lưu: giá vốn / ĐVT mẻ mới cũng là "giá đổi" của các món đang dùng nó */
+      if (isB && bqn > 0) priced[U(head.code)] = bqR(total / bqn);
+      /* 4) Giá đổi -> cập nhật giá chụp trong mọi công thức khác đang dùng mã đó */
+      if (Object.keys(priced).length) (recipes || []).forEach(r => {
+        if (r.id === savedId) return;
+        let ch = false;
+        const items = (r.items || []).map(it => priced[it.sku] != null && Math.abs((+it.cost || 0) - priced[it.sku]) >= 0.005 ? (ch = true, { ...it, cost: priced[it.sku] }) : it);
+        if (ch) jobs.push(saveRecipe({ ...r, items }));
+      });
+      await Promise.all(jobs);
+      toast('Đã lưu định mức ' + head.name.trim() + (merged ? ' · cập nhật danh mục mã hàng' : '') + (newB.length ? ' · tạo ' + newB.length + ' BTP (điền định mức sau)' : ''));
+      onSaved(savedId);
+    } catch (e) { toast('Lưu lỗi: ' + ((e && e.message) || e)); }
+    setBusy(false);
+  };
+
+  const pct = sell ? Math.round(total / sell * 100) : null;
+  return (
+    <div className="card">
+      <div className="card-h" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+        {isB ? (<>
+          <label className="bq-f" style={{ width: 120 }}><span>Mã BTP</span><input className="inp mono" value={head.code} onChange={e => setHead(h => ({ ...h, code: e.target.value.toUpperCase() }))} placeholder="BTP001" disabled={!!rec} /></label>
+          <label className="bq-f" style={{ flex: '1 1 200px' }}><span>Tên bán thành phẩm</span><input className="inp" value={head.name} onChange={e => setHead(h => ({ ...h, name: e.target.value }))} placeholder="Trân châu đen" /></label>
+          <label className="bq-f" style={{ width: 170 }}><span>Nhóm</span><select className="inp" value={head.cat} onChange={e => setHead(h => ({ ...h, cat: e.target.value }))}>{BTP_CATS.map(c => <option key={c}>{c}</option>)}</select></label>
+          <label className="bq-f" style={{ width: 170 }}><span>1 mẻ ra</span><div style={{ display: 'flex', gap: 4 }}>
+            <input className="inp mono" inputMode="decimal" value={head.bq} onChange={e => setHead(h => ({ ...h, bq: e.target.value }))} placeholder="2000" />
+            <input className="inp" style={{ width: 64 }} value={head.bu} onChange={e => setHead(h => ({ ...h, bu: e.target.value }))} placeholder="g" /></div></label>
+        </>) : (<>
+          <label className="bq-f" style={{ flex: '1 1 220px' }}><span>Món {target.kvCode ? '· KiotViet ' + target.kvCode : ''}</span><input className="inp" value={head.name} onChange={e => setHead(h => ({ ...h, name: e.target.value }))} /></label>
+          <label className="bq-f" style={{ width: 160 }}><span>Nhóm</span><select className="inp" value={head.cat} onChange={e => setHead(h => ({ ...h, cat: e.target.value }))}>
+            {[...new Set([head.cat, ...RCP_CATS])].filter(Boolean).map(c => <option key={c}>{c}</option>)}</select></label>
+          <label className="bq-f" style={{ width: 130 }}><span>Giá bán</span><input className="inp mono" inputMode="numeric" value={head.price} onChange={e => setHead(h => ({ ...h, price: e.target.value }))} placeholder="35.000" /></label>
+        </>)}
+      </div>
+      <div className="card-b">
+        <datalist id="bq-codes">
+          {cat.map(m => <option key={'m' + m.code} value={m.code}>{m.name}{m.unit ? ' · ' + m.unit : ''}{m.price ? ' · ' + money(m.price) : ''}</option>)}
+          {btpList.map(b => <option key={'b' + b.code} value={b.code}>BTP · {b.name}</option>)}
+        </datalist>
+        <div className="scroll-x">
+          <table className="tb tb-compact bq-tb">
+            <thead><tr><th style={{ width: 130 }}>Mã NVL / BTP</th><th>Tên</th><th style={{ width: 96, textAlign: 'right' }}>Định mức</th><th style={{ width: 70 }}>ĐVT</th>
+              <th style={{ width: 120, textAlign: 'right' }}>Giá / ĐVT</th><th style={{ width: 100, textAlign: 'right' }}>Thành tiền</th><th style={{ width: 30 }} /></tr></thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const I = info(r);
+                const uc = r.sku ? unitCost(r.sku) : 0;
+                const n = I.n;
+                return (<React.Fragment key={r.id}>
+                  <tr className={n ? 'bq-new' : ''}>
+                    <td><input data-bq={r.id} className="inp mono bq-in" list="bq-codes" value={r.sku} placeholder={i === 0 ? 'Mã / tên' : ''}
+                      onChange={e => upd(r.id, { sku: e.target.value.toUpperCase() })}
+                      onBlur={e => { const s = resolve(e.target.value); if (s !== r.sku) upd(r.id, { sku: s }); }}
+                      onKeyDown={e => { if (e.key === 'Enter') { const el = qtyRefs.current[r.id]; if (el) el.focus(); } }} /></td>
+                    <td>{n ? <span className="tag t-amber">Mã mới</span> : I.b ? <><span className="tag t-violet">BTP</span> {I.name}</> : I.name || <span className="hint">—</span>}
+                      {n && <b style={{ marginLeft: 6 }}>{n.name}</b>}</td>
+                    <td><input ref={el => { qtyRefs.current[r.id] = el; }} className="inp mono bq-in" style={{ textAlign: 'right' }} inputMode="decimal" value={r.qty}
+                      onChange={e => upd(r.id, { qty: e.target.value })}
+                      onKeyDown={e => { if (e.key === 'Enter') { const nx = rows[i + 1]; const el = nx && document.querySelector('[data-bq="' + nx.id + '"]'); if (el) el.focus(); } }} /></td>
+                    <td>{I.unit}</td>
+                    <td style={{ textAlign: 'right' }}>{I.m ? <input className="inp mono bq-in" style={{ textAlign: 'right' }} inputMode="decimal" title="Sửa giá vốn / ĐVT dùng — lưu là cập nhật danh mục và mọi công thức"
+                      value={px[U(r.sku)] != null ? px[U(r.sku)] : numFmt(bqR(I.m.price || 0))} onChange={e => setPx(o => ({ ...o, [U(r.sku)]: e.target.value }))} />
+                      : <span className="mono">{uc ? numFmt(bqR(uc)) : '—'}</span>}</td>
+                    <td className="mono" style={{ textAlign: 'right' }}>{r.sku && bqNum(r.qty) ? money(Math.round(bqNum(r.qty) * uc)) : ''}</td>
+                    <td>{(r.sku || r.qty) && <button className="btn btn-o btn-sm" title="Xoá dòng" onClick={() => rm(r.id)}>×</button>}</td>
+                  </tr>
+                  {n && (
+                    <tr className="bq-new-f"><td colSpan={7}>
+                      <div className="bq-newbox">
+                        <Seg value={n.kind} onChange={v => setNew(r.sku, { kind: v })} options={[{ v: 'nvl', l: 'Nguyên liệu' }, { v: 'btp', l: 'Bán thành phẩm' }]} />
+                        <label className="bq-f" style={{ flex: '1 1 180px' }}><span>Tên {r.sku}</span><input className="inp" value={n.name} onChange={e => setNew(r.sku, { name: e.target.value })} placeholder="Sữa đặc Ngôi sao" /></label>
+                        {n.kind === 'nvl' ? (<>
+                          <label className="bq-f" style={{ width: 92 }}><span>ĐVT mua</span><input className="inp" value={n.buyUnit} onChange={e => setNew(r.sku, { buyUnit: e.target.value })} placeholder="lon" /></label>
+                          <label className="bq-f" style={{ width: 92 }}><span>Quy đổi</span><input className="inp mono" inputMode="decimal" value={n.conv} onChange={e => setNew(r.sku, { conv: e.target.value })} placeholder="380" disabled={!n.buyUnit} /></label>
+                          <label className="bq-f" style={{ width: 92 }}><span>ĐVT dùng</span><input className="inp" value={n.unit} onChange={e => setNew(r.sku, { unit: e.target.value })} placeholder="g" /></label>
+                          <label className="bq-f" style={{ width: 130 }}><span>Giá / {n.buyUnit || n.unit || 'ĐVT'}</span><input className="inp mono" inputMode="decimal" value={n.buyPrice} onChange={e => setNew(r.sku, { buyPrice: e.target.value })} placeholder="25.000" /></label>
+                          <span className="hint" style={{ alignSelf: 'center' }}>{n.buyUnit && bqNum(n.conv) > 0 ? '1 ' + n.buyUnit + ' = ' + numFmt(bqNum(n.conv)) + ' ' + (n.unit || '?') + (bqNum(n.buyPrice) ? ' → ' + numFmt(bqR(bqNum(n.buyPrice) / bqNum(n.conv))) + 'đ/' + (n.unit || '?') : '') : 'Không mua theo thùng/lon thì để trống ĐVT mua, giá tính theo ĐVT dùng'}</span>
+                        </>) : (<>
+                          <label className="bq-f" style={{ width: 160 }}><span>Nhóm</span><select className="inp" value={n.cat || BTP_CATS[0]} onChange={e => setNew(r.sku, { cat: e.target.value })}>{BTP_CATS.map(c => <option key={c}>{c}</option>)}</select></label>
+                          <label className="bq-f" style={{ width: 170 }}><span>1 mẻ ra</span><div style={{ display: 'flex', gap: 4 }}>
+                            <input className="inp mono" inputMode="decimal" value={n.bq || ''} onChange={e => setNew(r.sku, { bq: e.target.value })} placeholder="2000" />
+                            <input className="inp" style={{ width: 60 }} value={n.bu || ''} onChange={e => setNew(r.sku, { bu: e.target.value })} placeholder="g" /></div></label>
+                          <span className="hint" style={{ alignSelf: 'center' }}>Tạo BTP trống — lưu xong qua tab Bán thành phẩm điền định mức của nó, giá vốn món tự tính theo.</span>
+                        </>)}
+                      </div>
+                    </td></tr>
+                  )}
+                </React.Fragment>);
+              })}
+            </tbody>
+          </table>
+        </div>
+        {paste != null && (
+          <div className="bq-paste">
+            <textarea className="inp mono" rows={6} autoFocus value={paste} onChange={e => setPaste(e.target.value)}
+              placeholder={'Copy các cột từ Excel rồi dán vào đây, mỗi dòng một nguyên liệu:\nMã ⇥ Định mức\nhoặc  Mã ⇥ Tên ⇥ Định mức ⇥ ĐVT ⇥ Giá/ĐVT'} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button className="btn btn-p btn-sm" onClick={doPaste}>Thêm vào bảng</button>
+              <button className="btn btn-o btn-sm" onClick={() => setPaste(null)}>Huỷ</button>
+            </div>
+          </div>
+        )}
+        <div className="bq-foot">
+          <button className="btn btn-o btn-sm" onClick={() => setPaste(paste == null ? '' : null)}><Ic.sheet size={13} /> Dán từ Excel</button>
+          <div className="bq-sum">
+            {isB ? <>Giá vốn mẻ <b className="mono">{money(Math.round(total))}</b>{bqn > 0 && <> · <b className="mono">{numFmt(bqR(total / bqn))}đ/{head.bu}</b></>}</>
+              : <>Giá vốn 1 ly <b className="mono">{money(Math.round(total))}</b>{pct != null && total > 0 && <> · <span className={'gap-pill ' + (pct <= 35 ? 'gap-ok' : pct <= 50 ? 'gap-warn' : 'gap-bad')}>{pct}% giá bán</span></>}</>}
+          </div>
+          <button className="btn btn-p" disabled={busy} onClick={save}><Ic.check size={15} /> {busy ? 'Đang lưu…' : 'Lưu' + (isB ? '' : ' & món tiếp')}</button>
+        </div>
+        <div className="hint" style={{ marginTop: 8 }}>Gõ mã (hoặc tên) rồi Enter để nhảy sang ô định mức. Định mức tính theo <b>ĐVT dùng</b> của mã (g, ml, cái…) cho 1 ly{isB ? ' — với BTP là cho cả mẻ' : ''}. Sửa giá ở cột Giá/ĐVT là cập nhật luôn danh mục mã hàng và mọi công thức đang dùng mã đó.</div>
+      </div>
+    </div>
+  );
+}
+
 function NormView() {
   useNeed('rcp');
   const { recipes, cfg, user, saveRecipe, toast } = useApp();
   const admin = roleOf(user.role).manage || user.role === 'ADMIN';
-  const [tab, setTab] = useState('bench');
+  const [tab, setTab] = useState('quick');
   const [pick, setPick] = useState(null);          /* món đang mở trên bàn pha chế */
   const [sold, setSold] = useState({});            /* số bán nhập tay: { recipeId: số ly } */
   const [imp, setImp] = useState(false);           /* đang mở popup nhập định mức bằng Excel */
@@ -46768,11 +47187,14 @@ function NormView() {
     <div className="grid" style={{ gap: 14 }}>
       <div className="card"><div className="card-h" style={{ flexWrap: 'wrap', gap: 8 }}>
         <Seg value={tab} onChange={setTab} options={[
+          { v: 'quick', l: '⚡ Nhập nhanh định mức' },
           { v: 'bench', l: 'Bàn pha chế' },
           { v: 'use', l: 'Trừ xuất theo số bán' },
           { v: 'all', l: 'Bảng định mức', n: list.length || undefined },
         ]} />
       </div></div>
+
+      {tab === 'quick' && <BomQuick />}
 
       {/* ---------------- BÀN PHA CHẾ ---------------- */}
       {tab === 'bench' && (!cur ? (
