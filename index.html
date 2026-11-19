@@ -12632,6 +12632,74 @@ const svcVerify = async (req, me) => {
   svcMemFire();
   return p.code;
 };
+/* KiotViet KHÔNG NHẬN mã vừa cấp (mã hỏng / đã dùng ở máy POS): đánh dấu mã đó hỏng (không trả về kho) và rút
+   MÃ KHÁC cho đúng lượt đó — trước đây không có đường lui, lượt "Đã xác minh" giữ 60 phút, người xin bị khoá. */
+const svcSwap = async (req, me) => {
+  const now = new Date().toISOString();
+  if (cloud && db) {
+    const free = await db.collection(SVC_COL.pool).where('type', '==', req.type).where('used', '==', false).limit(6).get();
+    if (free.empty) throw new Error('Kho mã "' + req.type + '" đã hết — báo quản lý nạp thêm mã');
+    for (const d of free.docs) {
+      try {
+        return await db.runTransaction(async (tx) => {
+          const pr = db.collection(SVC_COL.pool).doc(d.id), rr = db.collection(SVC_COL.req).doc(req.id);
+          const [p, r] = [await tx.get(pr), await tx.get(rr)];
+          if (!r.exists || r.data().status !== 'ok') throw new Error('STALE');
+          if (!p.exists || p.data().used) throw new Error('TAKEN');
+          const old = r.data().poolId;
+          if (old) tx.set(db.collection(SVC_COL.pool).doc(old), { bad: true, badAt: now, badBy: me.id }, { merge: true });
+          tx.update(pr, { used: true, reqId: req.id, empId: req.empId, usedBy: me.id, usedAt: now });
+          tx.update(rr, { poolId: d.id, swaps: (+r.data().swaps || 0) + 1, badPools: [...(r.data().badPools || []), ...(old ? [old] : [])] });
+          return p.data().code;
+        });
+      } catch (e) {
+        if (e.message === 'STALE') throw new Error('Lượt này không còn ở trạng thái đã xác minh');
+        if (e.message !== 'TAKEN') throw e;
+      }
+    }
+    throw new Error('Mã vừa bị người khác lấy — bấm lại');
+  }
+  const r = SVC_MEM.req[req.id];
+  const p = Object.values(SVC_MEM.pool).find(x => x.type === req.type && !x.used);
+  if (!p) throw new Error('Kho mã đã hết — báo quản lý nạp thêm mã');
+  if (r.poolId && SVC_MEM.pool[r.poolId]) Object.assign(SVC_MEM.pool[r.poolId], { bad: true, badAt: now, badBy: me.id });
+  Object.assign(p, { used: true, reqId: req.id, empId: req.empId, usedBy: me.id, usedAt: now });
+  Object.assign(r, { poolId: p.id, swaps: (+r.swaps || 0) + 1 });
+  svcMemFire();
+  return p.code;
+};
+/* Trả lượt: khách không dùng nữa / lượt treo. Lượt chuyển 'cancel' (không tính vào hạn mức), mã chưa dùng trả về kho. */
+const svcRelease = async (req, me, why) => {
+  const now = new Date().toISOString();
+  await svcPut('req', req.id, { status: 'cancel', endAt: now, cancelBy: me.id, cancelWhy: why || '' });
+  if (req.poolId) await svcPut('pool', req.poolId, { used: false, reqId: '', empId: '', usedBy: '', usedAt: '', freedAt: now, freedBy: me.id }).catch(() => {});
+};
+/* Danh sách được cầm mã = người bật "Được xác minh voucher" + admin (email chữ thường) */
+const svcAclWant = (employees) => {
+  const ok = (e) => e && e.status !== 'off' && e.email;
+  const em = (e) => String(e.email).trim().toLowerCase();
+  return {
+    emails: [...new Set((employees || []).filter(e => ok(e) && (e.vcVerify || e.role === 'ADMIN')).map(em))].sort(),
+    admins: [...new Set((employees || []).filter(e => ok(e) && e.role === 'ADMIN').map(em))].sort(),
+  };
+};
+const svcAclOff = (acl, want) => acl !== undefined && JSON.stringify({ e: (acl && acl.emails) || [], a: (acl && acl.admins) || [] }) !== JSON.stringify({ e: want.emails, a: want.admins });
+/* ADMIN mở app (trang nào cũng được) là tự đồng bộ danh sách cầm mã — khỏi phải nhớ bấm "Cập nhật danh sách"
+   mỗi lần bật quyền xác minh cho thu ngân mới (quên là thu ngân bấm Xác minh báo lỗi quyền, lượt treo). */
+function SvcAclAuto() {
+  const { user, employees } = useApp();
+  const acl = useSvcAcl();
+  const want = useMemo(() => svcAclWant(employees), [employees]);
+  const off = (employees || []).length > 0 && svcAclOff(acl, want) && want.admins.includes(String(user.email || '').trim().toLowerCase());
+  useEffect(() => { if (off) svcPut('acl', 'main', { ...want, at: new Date().toISOString(), by: user.id, auto: true }).catch(() => {}); }, [off, JSON.stringify(want)]);
+  return null;
+}
+const svcErrVi = (e) => {
+  const m = String((e && e.message) || e || '');
+  return /permission|insufficient/i.test(m)
+    ? 'Máy bạn chưa có quyền giữ mã voucher (danh sách chưa cập nhật). Báo ADMIN mở app một lần là tự cập nhật rồi bấm lại — hoặc bấm Từ chối để người xin lấy lượt khác.'
+    : m;
+};
 const useSvcTick = (on) => { const [, t] = useState(0); useEffect(() => { if (!on) return; const h = setInterval(() => t(x => x + 1), 1000); return () => clearInterval(h); }, [on]); };
 
 /* ---- Thẻ voucher trên đầu Ví voucher ---- */
@@ -12671,11 +12739,13 @@ function SvcCards() {
                 <div className="svc-st wait">
                   Đang chờ <b>{cashier ? cashier.name : 'thu ngân'}</b> xác minh · còn <b className="mono">{svcMmss(new Date(cur.expireAt) - Date.now())}</b>
                   <button className="btn btn-o btn-sm" onClick={() => cancel(cur)}>Huỷ</button>
+                  {Date.now() - new Date(cur.at) > 120000 && <div className="hint" style={{ width: '100%' }}>Thu ngân chưa xác minh được? Bấm <b>Huỷ</b> (không bị trừ lượt) rồi lấy lại, chọn người khác.</div>}
                 </div>
               )}
               {okFresh && (
                 <div className="svc-st ok">
                   <b>Đã xác minh</b> — {cashier ? cashier.name : 'thu ngân'} đang giữ mã trên máy, bạn chỉ cần ra quầy tính tiền. Còn <b className="mono">{svcMmss(new Date(cur.expireAt) - Date.now())}</b>
+                  <div className="hint" style={{ width: '100%' }}>Mã bị KiotViet từ chối thì nhờ thu ngân bấm <b>🎟️ Xem lại mã › KiotViet không nhận mã</b> để đổi mã khác; không dùng nữa thì bấm <b>trả lượt</b>.</div>
                 </div>
               )}
               {cur && !live && !okFresh && ['no', 'exp'].includes(svcStOf(cur)) && cur.at && (Date.now() - new Date(cur.at) < 3 * 3600e3) && (
@@ -12775,7 +12845,7 @@ function SvcAskModal({ type, onClose }) {
 
 /* ---- Popup xác minh trên máy thu ngân: nghe suốt phiên đăng nhập, ở trang nào cũng nhảy ra ---- */
 function SvcCashierWatch() {
-  const { user, cfg, att, employees, toast } = useApp();
+  const { user, cfg, att, employees, sched, toast } = useApp();
   const jobs = useSvcReqs({ cashierId: user.id, status: 'wait' }, !!user.id);
   const live = (jobs || []).filter(r => svcLive(r)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
   const [hide, setHide] = useState({});
@@ -12788,7 +12858,10 @@ function SvcCashierWatch() {
   useEffect(() => { live.forEach(r => { if (!seen.current[r.id]) { seen.current[r.id] = 1; toast('🎟️ ' + r.empName + ' xin dùng voucher — cần bạn xác minh'); } }); }, [live.map(r => r.id).join()]);
   const C = svcCfg(cfg);
   const job = live.find(r => !hide[r.id]);
-  const open = svcOpenShift(att, cfg, user.id);
+  /* Đang trong ca = đã bấm vào ca, HOẶC lịch xếp ca có tên mình giờ này (quên bấm vào ca vẫn xác minh được), HOẶC ADMIN */
+  const openAtt = svcOpenShift(att, cfg, user.id);
+  const onSched = !openAtt && job ? svcOnDuty(cfg, sched, att, employees).find(x => x.e.id === user.id) : null;
+  const open = openAtt || (onSched ? { branchId: onSched.branchId || '' } : null) || (user.role === 'ADMIN' ? { branchId: '' } : null);
   const reqOpen = job && C[job.type].offShift ? svcOpenShift(att, cfg, job.empId) : null;
   const decide = async (ok) => {
     if (!job) return;
@@ -12799,13 +12872,28 @@ function SvcCashierWatch() {
         if (!open) throw new Error('Bạn chưa vào ca nên không xác minh được');
         await svcPut('req', job.id, { branchId: open.branchId || '' });
         const code = await svcVerify(job, user);
-        setShown({ name: job.empName, label: C[job.type].label, code, expireAt: job.expireAt });
+        setShown({ reqId: job.id, req: { ...job, status: 'ok' }, name: job.empName, label: C[job.type].label, code, expireAt: job.expireAt });
       }
-    } catch (e) { toast(e.message || String(e)); } finally { setBusy(false); }
+    } catch (e) { toast(svcErrVi(e)); } finally { setBusy(false); }
+  };
+  /* KiotViet không nhận mã -> đổi mã khác; khách không dùng -> trả lượt (mã về kho) */
+  const swap = async () => {
+    if (!shown || !shown.req) return;
+    if (!(await zsAsk('KiotViet không nhận mã ' + shown.code + '? App sẽ bỏ mã này và cấp mã khác cho đúng lượt của ' + shown.name + '.'))) return;
+    setBusy(true);
+    try { const code = await svcSwap(shown.req, user); setShown(s => ({ ...s, code })); toast('Đã đổi sang mã mới'); }
+    catch (e) { toast(svcErrVi(e)); } finally { setBusy(false); }
+  };
+  const release = async () => {
+    if (!shown || !shown.req) return;
+    if (!(await zsAsk('Khách KHÔNG dùng voucher này? Lượt sẽ được trả lại cho ' + shown.name + ' (không bị trừ), mã trả về kho.'))) return;
+    setBusy(true);
+    try { await svcRelease({ ...shown.req, poolId: shown.poolId || shown.req.poolId }, user, 'Thu ngân trả lượt'); toast('Đã trả lượt cho ' + shown.name); setShown(null); }
+    catch (e) { toast(svcErrVi(e)); } finally { setBusy(false); }
   };
   const replay = async (r) => {
-    try { const p = await svcPoolGet(r.poolId); if (!p) throw new Error('Không đọc được mã'); setShown({ name: r.empName, label: C[r.type].label, code: p.code, expireAt: r.expireAt }); }
-    catch (e) { toast('Không xem lại được mã: ' + (e.message || e)); }
+    try { const p = await svcPoolGet(r.poolId); if (!p) throw new Error('Không đọc được mã'); setShown({ reqId: r.id, req: r, poolId: r.poolId, name: r.empName, label: C[r.type].label, code: p.code, expireAt: r.expireAt }); }
+    catch (e) { toast('Không xem lại được mã: ' + svcErrVi(e)); }
   };
   const emp = job && employees.find(e => e.id === job.empId);
   return (<>
@@ -12821,7 +12909,7 @@ function SvcCashierWatch() {
           <div className="svc-left mono">còn {svcMmss(new Date(job.expireAt) - Date.now())}</div>
         </div>
         {!open
-          ? <div className="svc-warn">Bạn <b>chưa vào ca</b> nên không bấm Xác minh được. Vào ca trước, hoặc bấm Từ chối.</div>
+          ? <div className="svc-warn">Bạn <b>chưa vào ca</b> (và lịch không xếp bạn giờ này) nên không bấm Xác minh được. Vào ca trước, hoặc bấm Từ chối để người xin chọn thu ngân khác.</div>
           : <p className="hint" style={{ marginTop: 10 }}>Bấm <b>Xác minh</b> thì app cấp một mã voucher — nhập mã vào máy tính tiền KiotViet ({C[job.type].desc.toLowerCase()}).</p>}
         {reqOpen && <div className="svc-warn">Người xin <b>đang trong ca</b> (vào lúc {fmtTime(new Date(reqOpen.inAt))}) — voucher này chỉ dùng ngoài ca, hãy Từ chối.</div>}
       </Modal>
@@ -12829,6 +12917,8 @@ function SvcCashierWatch() {
     {shown && (
       <Modal title="Mã voucher" sub={shown.label + ' · ' + shown.name} onClose={() => setShown(null)}
         footer={<>
+          <button className="btn btn-o" disabled={busy} style={{ marginRight: 'auto' }} onClick={release}>Khách không dùng · trả lượt</button>
+          <button className="btn btn-o" disabled={busy} onClick={swap}>KiotViet không nhận mã</button>
           <button className="btn btn-o" onClick={() => { try { navigator.clipboard.writeText(shown.code); toast('Đã chép mã'); } catch (e) {} }}>Chép mã</button>
           <button className="btn btn-p" onClick={() => setShown(null)}>Xong</button>
         </>}>
@@ -12839,6 +12929,7 @@ function SvcCashierWatch() {
     {!shown && recent.length > 0 && (
       <button className="svc-replay" onClick={() => replay(recent[0])}>🎟️ Xem lại mã · {recent[0].empName}</button>
     )}
+    {user.role === 'ADMIN' && <SvcAclAuto />}
   </>);
 }
 
@@ -12854,15 +12945,8 @@ function SvcAdmin() {
   const rows = useSvcReqs({ ym }, tab === 'hist');
   const C = svcCfg(cfg);
   /* Danh sách được cầm mã = người bật "Được xác minh voucher" + admin. Chỉ admin ghi. */
-  const want = useMemo(() => {
-    const ok = (e) => e && e.status !== 'off' && e.email;
-    const em = (e) => String(e.email).trim().toLowerCase();
-    return {
-      emails: [...new Set(employees.filter(e => ok(e) && (e.vcVerify || e.role === 'ADMIN')).map(em))].sort(),
-      admins: [...new Set(employees.filter(e => ok(e) && e.role === 'ADMIN').map(em))].sort(),
-    };
-  }, [employees]);
-  const aclOff = acl !== undefined && JSON.stringify({ e: (acl && acl.emails) || [], a: (acl && acl.admins) || [] }) !== JSON.stringify({ e: want.emails, a: want.admins });
+  const want = useMemo(() => svcAclWant(employees), [employees]);
+  const aclOff = svcAclOff(acl, want);
   const syncAcl = () => svcPut('acl', 'main', { ...want, at: new Date().toISOString(), by: user.id }).then(() => toast('Đã cập nhật danh sách được cầm mã (' + want.emails.length + ' người)')).catch(() => {});
   const list = (rows || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
   const cnt = (t, s) => list.filter(r => r.type === t && svcStOf(r) === s).length;
@@ -12887,7 +12971,10 @@ function SvcAdmin() {
                 <td>{(C[r.type] || {}).short || r.type}</td>
                 <td><b>{r.empName}</b> <span className="hint">{r.empCode}</span></td>
                 <td>{r.cashierName}{r.branchId ? <span className="hint"> · {branchOf(r.branchId).code}</span> : null}</td>
-                <td><span className={'tag ' + SVC_ST[s][1]}>{SVC_ST[s][0]}</span>{r.okAt ? <span className="hint"> {fmtTime(new Date(r.okAt))}</span> : null}</td>
+                <td><span className={'tag ' + SVC_ST[s][1]}>{SVC_ST[s][0]}</span>{r.okAt ? <span className="hint"> {fmtTime(new Date(r.okAt))}</span> : null}
+                  {r.swaps ? <span className="hint"> · đổi mã {r.swaps} lần</span> : null}{r.cancelWhy ? <span className="hint"> · {r.cancelWhy}</span> : null}
+                  {isAdmin && (s === 'ok' || s === 'wait') && !r.invCode && <button className="btn btn-o btn-sm" style={{ marginLeft: 6 }}
+                    onClick={async () => { if (await zsAsk('Trả lượt cho ' + r.empName + '? Lượt này không tính vào hạn mức, mã chưa dùng trả về kho.')) svcRelease(r, user, 'Quản trị trả lượt').then(() => toast('Đã trả lượt')).catch(e => toast(svcErrVi(e))); }}>Trả lượt</button>}</td>
                 <td>{s !== 'ok' ? '—' : r.invCode ? <span className="tag t-green">{r.invCode}{r.invAt ? ' · ' + fmtTime(new Date(r.invAt)) : ''}</span>
                   : (Date.now() - new Date(r.okAt) > 3 * 3600e3 ? <span className="tag t-red">Chưa thấy hoá đơn dùng mã</span> : <span className="hint">chờ robot đối soát</span>)}</td>
               </tr>); })}
